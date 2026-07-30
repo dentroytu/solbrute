@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolBrute — Your ludus</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0a07'/%3E%3Cpath d='M8 23 L16 6 L24 23 Z' fill='%23c98a3a'/%3E%3Cpath d='M16 6 L24 23 L16 23 Z' fill='%23b3312c'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg-deep:#0c0a07; --surface:#1c1710; --surface-hi:#251e14; --line:#3a2e1c;
+    --blood:#b3312c; --blood-bright:#e0453f; --bronze:#c98a3a; --bronze-light:#e5ab5c;
+    --torch:#ff9d42; --text:#efe7d8; --muted:#a8998a; --sol-teal:#14f195;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:radial-gradient(ellipse 1000px 500px at 50% -10%, #2c2013, transparent 55%), var(--bg-deep);
+    color:var(--text); font-family:'Space Grotesk',sans-serif; line-height:1.6; min-height:100vh;
+  }
+  a{ color:inherit; text-decoration:none; }
+  h1,h2,h3{ font-family:'Cinzel',serif; }
+  ::selection{ background:var(--blood); color:#fff; }
+  :focus-visible{ outline:2px solid var(--torch); outline-offset:2px; border-radius:6px; }
+
+  nav{ position:sticky; top:0; z-index:50; background:rgba(12,10,7,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  .nav-inner{ display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:1080px; margin:0 auto; padding:13px 22px; }
+  .logo{ font-family:'Cinzel',serif; font-weight:800; font-size:18px; letter-spacing:1.5px; color:var(--bronze-light); }
+  .logo span{ color:var(--blood-bright); }
+  .nav-right{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; justify-content:flex-end; }
+  .balance{ display:none; align-items:center; gap:6px; font-size:12px; font-weight:700; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:7px 11px; }
+  .balance.show{ display:flex; }
+  .balance b{ color:var(--sol-teal); font-variant-numeric:tabular-nums; }
+  .balance small{ color:var(--muted); font-weight:600; }
+  .wallet-chip{ display:none; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:7px 11px; font-size:12px; font-weight:600; }
+  .wallet-chip.show{ display:flex; }
+  .wallet-chip .dot{ width:7px; height:7px; border-radius:50%; background:var(--sol-teal); box-shadow:0 0 8px var(--sol-teal); }
+  .wallet-out{ background:none; border:none; border-left:1px solid var(--line); color:var(--muted); cursor:pointer; font-family:inherit; font-size:11px; font-weight:700; padding-left:7px; margin-left:2px; }
+  .wallet-out:hover{ color:var(--blood-bright); }
+  .persist{ font-size:10px; font-weight:700; letter-spacing:.06em; padding:5px 9px; border-radius:8px; }
+  .persist.ok{ color:var(--sol-teal); background:rgba(20,241,149,.09); border:1px solid rgba(20,241,149,.28); }
+  .persist.warn{ color:var(--torch); background:rgba(255,157,66,.09); border:1px solid rgba(255,157,66,.28); }
+  .lang-switch{ display:flex; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:3px; gap:2px; }
+  .lang-btn{ background:none; border:none; color:var(--muted); cursor:pointer; font-family:inherit; font-size:11px; font-weight:700; padding:6px 8px; border-radius:6px; }
+  .lang-btn.active{ background:var(--bronze); color:#241a06; }
+
+  main{ max-width:1080px; margin:0 auto; padding:38px 22px 90px; }
+  .screen{ display:none; } .screen.active{ display:block; }
+
+  .btn{ font-family:inherit; font-weight:700; font-size:14px; padding:12px 20px; border-radius:10px; cursor:pointer; border:1px solid transparent; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+  .btn:active{ transform:scale(.975); }
+  .btn-primary{ background:var(--blood); color:#fff3f0; border-color:var(--blood-bright); }
+  .btn-primary:hover{ filter:brightness(1.12); }
+  .btn-bronze{ background:var(--bronze); color:#241a06; border-color:var(--bronze-light); }
+  .btn-bronze:hover{ filter:brightness(1.1); }
+  .btn-ghost{ background:transparent; color:var(--bronze-light); border-color:var(--line); }
+  .btn-ghost:hover{ border-color:var(--bronze); }
+  .btn:disabled{ background:var(--surface-hi); color:var(--muted); border-color:var(--line); cursor:not-allowed; filter:none; }
+  .btn-sm{ font-size:12.5px; padding:9px 14px; }
+
+  .page-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:22px; padding-bottom:16px; border-bottom:1px solid var(--line); }
+  .page-head h1{ font-size:clamp(21px,3.3vw,29px); }
+  .page-head p{ color:var(--muted); font-size:13px; margin-top:3px; }
+  .back{ background:none; border:none; color:var(--muted); font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; padding:0; margin-bottom:10px; }
+  .back:hover{ color:var(--bronze-light); }
+
+  /* gate */
+  .gate{ max-width:430px; margin:20px auto 0; text-align:center; }
+  .portcullis{ width:126px; height:106px; margin:0 auto 22px; display:block; }
+  .gate h1{ font-size:clamp(23px,4vw,30px); margin-bottom:11px; }
+  .gate > p{ color:var(--muted); font-size:14px; margin-bottom:24px; }
+  .wallet-list{ display:flex; flex-direction:column; gap:9px; margin-bottom:20px; }
+  .wallet-opt{ display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:13px 15px; cursor:pointer; font-family:inherit; color:var(--text); font-size:14px; font-weight:600; text-align:left; }
+  .wallet-opt:hover{ border-color:var(--bronze); background:var(--surface-hi); }
+  .wallet-mark{ width:32px; height:32px; border-radius:9px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-family:'Cinzel',serif; font-weight:800; font-size:14px; }
+  .wallet-opt small{ display:block; font-size:11px; font-weight:500; color:var(--muted); }
+  .gate-steps{ text-align:left; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:15px 17px; }
+  .gate-steps h4{ font-family:inherit; font-size:10px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--bronze); margin-bottom:9px; }
+  .gate-steps ol{ list-style:none; counter-reset:s; }
+  .gate-steps li{ counter-increment:s; position:relative; padding-left:25px; font-size:12.5px; color:var(--muted); margin-bottom:6px; }
+  .gate-steps li:last-child{ margin-bottom:0; }
+  .gate-steps li::before{ content:counter(s); position:absolute; left:0; top:1px; width:17px; height:17px; border-radius:50%; background:var(--surface-hi); border:1px solid var(--line); font-size:9.5px; font-weight:700; color:var(--bronze-light); display:flex; align-items:center; justify-content:center; }
+
+  /* cards */
+  .roster{ display:grid; grid-template-columns:repeat(auto-fill,minmax(228px,1fr)); gap:17px; }
+  .brute-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:15px; display:flex; flex-direction:column; }
+  .portrait{ position:relative; overflow:hidden; width:100%; aspect-ratio:1/1; margin-bottom:11px; background:radial-gradient(circle at 50% 30%, rgba(255,157,66,.15), transparent 62%), linear-gradient(180deg,#2a2013,#161006); border:2px solid var(--bronze); border-radius:13px; box-shadow:inset 0 0 30px rgba(0,0,0,.65); }
+  .portrait svg{ width:100%; height:100%; display:block; }
+  .card-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:4px; }
+  .f-name{ font-family:'Cinzel',serif; font-weight:800; font-size:15px; letter-spacing:.05em; color:var(--bronze-light); text-shadow:0 2px 0 #170f04; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .f-lv{ font-size:10.5px; font-weight:700; color:var(--muted); flex-shrink:0; }
+  .record{ font-size:11px; color:var(--muted); margin-bottom:8px; font-variant-numeric:tabular-nums; }
+  .record b{ color:var(--sol-teal); font-weight:700; }
+  .record i{ color:var(--blood-bright); font-style:normal; font-weight:700; }
+  .hp-row{ display:flex; align-items:center; gap:7px; margin-bottom:8px; }
+  .hp-num{ font-family:'Cinzel',serif; font-size:11px; font-weight:700; color:var(--blood-bright); min-width:20px; }
+  .hp-bar{ flex:1; height:9px; border-radius:3px; overflow:hidden; background:#150f06; border:1.5px solid var(--bronze); }
+  .hp-fill{ height:100%; background:linear-gradient(180deg,var(--blood-bright),#7d1f1c); }
+  .xp-row{ display:flex; align-items:center; gap:7px; margin-bottom:10px; }
+  .xp-lbl{ font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--muted); min-width:20px; }
+  .xp-bar{ flex:1; height:6px; border-radius:3px; overflow:hidden; background:#150f06; border:1px solid #2f3a2c; }
+  .xp-fill{ height:100%; background:linear-gradient(90deg,#0f7a5a,var(--sol-teal)); transition:width .5s ease; }
+  .xp-num{ font-size:9.5px; color:var(--muted); font-variant-numeric:tabular-nums; min-width:52px; text-align:right; }
+  .stat-row{ display:flex; align-items:center; gap:7px; margin-bottom:3px; }
+  .stat-label{ font-size:9.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); width:62px; flex-shrink:0; }
+  .pips{ display:flex; gap:2px; }
+  .pip{ width:9px; height:9px; border-radius:2px; background:#241b0d; border:1px solid #3a2e1c; }
+  .pip.on{ background:linear-gradient(180deg,var(--bronze-light),var(--bronze)); border-color:#8a5c1c; }
+  .card-foot{ margin-top:auto; padding-top:12px; }
+  .card-foot .btn{ width:100%; }
+  .fights{ display:flex; align-items:center; gap:5px; margin:9px 0 2px; }
+  .fights .lbl{ font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-right:2px; }
+  .torch-pip{ width:9px; height:17px; border-radius:2px 2px 4px 4px; background:#241b0d; border:1px solid var(--line); }
+  .torch-pip.lit{ background:linear-gradient(180deg,var(--torch),#c25a16); border-color:#8a4a12; box-shadow:0 0 8px rgba(255,157,66,.45); }
+
+  .slot{ border:1.5px dashed var(--line); border-radius:16px; padding:18px 15px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:9px; min-height:320px; font-family:inherit; color:var(--muted); background:transparent; }
+  .slot.free{ cursor:pointer; }
+  .slot.free:hover{ border-color:var(--bronze); background:rgba(201,138,58,.05); }
+  .slot .anvil{ width:50px; height:50px; border-radius:14px; background:var(--surface-hi); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
+  .slot h3{ font-size:15px; color:var(--bronze-light); }
+  .slot p{ font-size:12px; max-width:180px; }
+  .slot .price{ font-family:'Cinzel',serif; font-size:17px; font-weight:800; color:var(--sol-teal); }
+  .slot.locked{ opacity:.75; }
+
+  /* opponents */
+  .opp-list{ display:flex; flex-direction:column; gap:11px; max-width:660px; }
+  .opp{ display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; }
+  .opp-thumb{ width:66px; height:66px; flex-shrink:0; border-radius:11px; overflow:hidden; border:2px solid var(--bronze); background:linear-gradient(180deg,#2a2013,#161006); }
+  .opp-thumb svg{ width:100%; height:100%; display:block; }
+  .opp-mid{ flex:1; min-width:0; }
+  .opp-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .opp-name{ font-family:'Cinzel',serif; font-weight:800; font-size:15px; color:var(--bronze-light); letter-spacing:.04em; }
+  .tag{ font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:2px 7px; border-radius:10px; }
+  .tag.player{ background:rgba(20,241,149,.11); color:var(--sol-teal); border:1px solid rgba(20,241,149,.3); }
+  .tag.bot{ background:var(--surface-hi); color:var(--muted); border:1px solid var(--line); }
+  .opp-meta{ font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .opp-stats{ display:flex; gap:12px; margin-top:5px; font-size:10.5px; color:var(--muted); flex-wrap:wrap; }
+  /* ── clasificación ── */
+  .rank-pos{ font-family:'Cinzel',serif; font-weight:800; font-size:19px; color:var(--muted);
+             min-width:38px; text-align:center; flex-shrink:0; font-variant-numeric:tabular-nums; }
+  .rank-pos.top{ color:var(--bronze-light); }
+  .opp.is-me{ border-color:var(--sol-teal); background:linear-gradient(180deg,#16241d,var(--surface)); }
+  .tag.me{ background:rgba(20,241,149,.14); color:var(--sol-teal); border-color:rgba(20,241,149,.4); }
+  .rank-owner{ font-size:10.5px; color:var(--muted); opacity:.75; font-variant-numeric:tabular-nums; }
+  .opp-stats span b{ color:var(--bronze-light); font-variant-numeric:tabular-nums; }
+  .match-note{ font-size:12px; color:var(--muted); margin-bottom:18px; max-width:560px; }
+
+  /* arena */
+  .huds{ display:flex; align-items:flex-start; gap:12px; margin-bottom:13px; }
+  .hud{ flex:1; min-width:0; } .hud.right{ text-align:right; }
+  .hud-name{ font-family:'Cinzel',serif; font-weight:800; font-size:15px; color:var(--bronze-light); letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hud-sub{ font-size:10px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+  .bar{ height:14px; margin-top:5px; border-radius:3px; overflow:hidden; background:#150f06; border:1.5px solid var(--bronze); }
+  .bar .fill{ height:100%; width:100%; background:linear-gradient(180deg,var(--blood-bright),#7d1f1c); transition:width .32s cubic-bezier(.2,.8,.3,1); }
+  .hud-hp{ font-size:11px; color:var(--muted); margin-top:3px; font-variant-numeric:tabular-nums; }
+  .turn-badge{ flex-shrink:0; align-self:center; text-align:center; font-family:'Cinzel',serif; font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.08em; min-width:52px; }
+  .turn-badge b{ display:block; font-size:18px; color:var(--blood-bright); }
+  .arena{ position:relative; height:250px; border-radius:16px; overflow:hidden; border:1px solid var(--line); margin-bottom:15px; background:radial-gradient(ellipse 60% 42% at 50% 96%, rgba(255,157,66,.2), transparent 70%), linear-gradient(180deg,#1a1409,#241b0d 62%,#2e2412); }
+  .arena::after{ content:""; position:absolute; left:50%; bottom:26px; transform:translateX(-50%); width:74%; height:60px; border-radius:50%; border:2px solid rgba(239,231,216,.08); }
+  .fighter{ position:absolute; bottom:22px; width:116px; transition:transform .16s cubic-bezier(.3,1.4,.5,1); }
+  .fighter svg{ width:100%; height:auto; display:block; }
+  .fighter.left{ left:11%; } .fighter.right{ right:11%; }
+  .fighter.lunge-r{ transform:translateX(56px); } .fighter.lunge-l{ transform:translateX(-56px); }
+  .fighter.knock-r{ transform:translateX(15px); } .fighter.knock-l{ transform:translateX(-15px); }
+  .fighter.hop-r{ transform:translateX(25px) translateY(-13px); } .fighter.hop-l{ transform:translateX(-25px) translateY(-13px); }
+  .fighter.down{ transform:rotate(-74deg) translateY(25px); opacity:.55; transition:transform .7s ease, opacity .7s ease; }
+  .fighter.right.down{ transform:rotate(74deg) translateY(25px); }
+  .fighter.flash svg{ filter:brightness(2.4) saturate(.4); }
+  .dmg{ position:absolute; font-family:'Cinzel',serif; font-weight:800; font-size:21px; color:var(--blood-bright); text-shadow:0 2px 6px #000; pointer-events:none; animation:floatUp 1s ease forwards; }
+  .dmg.crit{ font-size:29px; color:var(--torch); }
+  .dmg.miss{ font-size:14px; color:var(--muted); font-family:inherit; letter-spacing:.06em; }
+  @keyframes floatUp{ 0%{opacity:0;transform:translateY(6px) scale(.7)} 22%{opacity:1;transform:translateY(-6px) scale(1.12)} 100%{opacity:0;transform:translateY(-50px) scale(1)} }
+  .banner{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; gap:5px; background:rgba(12,10,7,.84); backdrop-filter:blur(3px); z-index:5; padding:16px; text-align:center; }
+  .banner.show{ display:flex; animation:fadeIn .4s ease; }
+  @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+  .banner .what{ font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--blood-bright); }
+  .banner .who{ font-family:'Cinzel',serif; font-size:clamp(21px,5vw,32px); font-weight:900; color:var(--bronze-light); }
+  .banner .rew{ font-size:12px; color:var(--muted); margin-top:6px; }
+  .banner .rew b{ color:var(--sol-teal); }
+  .banner .btn{ margin-top:14px; }
+  .arena-controls{ display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .spd{ display:flex; gap:3px; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:3px; margin-left:auto; }
+  .spd button{ background:none; border:none; color:var(--muted); font-family:inherit; font-size:11.5px; font-weight:700; padding:6px 9px; border-radius:6px; cursor:pointer; }
+  .spd button.on{ background:var(--bronze); color:#241a06; }
+  .seedline{ font-size:11px; color:var(--muted); margin-bottom:14px; font-variant-numeric:tabular-nums; }
+  .seedline b{ color:var(--sol-teal); }
+  .log{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px 15px; max-height:180px; overflow-y:auto; font-size:12.5px; font-variant-numeric:tabular-nums; }
+  .log-line{ padding:3px 0; color:var(--muted); border-bottom:1px solid rgba(58,46,28,.4); }
+  .log-line:last-child{ border-bottom:none; }
+  .log-line .tn{ color:var(--bronze); font-weight:700; margin-right:6px; }
+  .log-line b{ color:var(--text); font-weight:600; }
+  .log-line.crit{ color:var(--torch); } .log-line.dodge{ color:var(--sol-teal); }
+  .log-line.ko{ color:var(--blood-bright); font-weight:700; }
+
+  /* forge + creator */
+  .forge-grid{ display:grid; grid-template-columns:280px 1fr; gap:24px; align-items:start; }
+  @media(max-width:800px){ .forge-grid{ grid-template-columns:1fr; } }
+  .fp{ position:sticky; top:80px; }
+  .pv-row{ display:flex; gap:8px; margin:11px 0; flex-wrap:wrap; }
+  .toggle{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted); background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:8px 11px; cursor:pointer; font-family:inherit; font-weight:600; }
+  .toggle.on{ border-color:var(--bronze); color:var(--text); }
+  .toggle .sw{ width:8px; height:8px; border-radius:50%; background:var(--line); }
+  .toggle.on .sw{ background:var(--sol-teal); box-shadow:0 0 7px var(--sol-teal); }
+  .field{ margin-bottom:16px; }
+  .field > label{ display:block; font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--bronze); margin-bottom:7px; }
+  .field input[type=text]{ width:100%; background:#120d06; border:1px solid var(--line); border-radius:10px; padding:12px 13px; color:var(--text); font-family:'Cinzel',serif; font-size:16px; font-weight:700; }
+  .field input[type=text]:focus{ border-color:var(--bronze); outline:none; }
+  .field .hint{ font-size:11.5px; color:var(--muted); margin-top:6px; }
+  .reroll-note{ color:var(--muted); opacity:.85; }
+  .field .hint.hint-error{ color:var(--blood-bright); font-weight:600; }
+  .panels{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  @media(max-width:560px){ .panels{ grid-template-columns:1fr; } }
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:13px 14px; }
+  .panel.wide{ grid-column:1 / -1; }
+  .panel h3{ font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--bronze); margin-bottom:10px; }
+  .panel h3 em{ color:var(--muted); font-weight:500; font-style:normal; text-transform:none; letter-spacing:0; }
+  .sub{ font-size:9.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:9px 0 6px; }
+  .opts{ display:flex; gap:5px; flex-wrap:wrap; }
+  .opt{ background:var(--surface-hi); border:1px solid var(--line); border-radius:8px; color:var(--muted); font-family:inherit; font-size:11.5px; font-weight:600; padding:7px 10px; cursor:pointer; }
+  .opt:hover{ color:var(--text); border-color:var(--bronze); }
+  .opt.on{ background:var(--bronze); color:#241a06; border-color:var(--bronze-light); }
+  .opt.big{ flex:1; text-align:center; font-size:12.5px; padding:9px 10px; }
+  .swatches{ display:flex; gap:5px; flex-wrap:wrap; }
+  .sw-btn{ width:26px; height:26px; border-radius:7px; cursor:pointer; border:2px solid var(--line); padding:0; }
+  .sw-btn:hover{ border-color:var(--bronze); }
+  .sw-btn.on{ border-color:var(--bronze-light); box-shadow:0 0 0 2px rgba(229,171,92,.3); }
+  .roll-box{ background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:13px 15px; margin-top:11px; }
+  .roll-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+  .roll-head h3{ font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--bronze); }
+  .roll-note{ font-size:11.5px; color:var(--muted); margin-top:10px; }
+  .forge-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+
+  .devbar{ position:fixed; bottom:0; left:0; right:0; z-index:80; background:rgba(12,10,7,.96); border-top:1px solid var(--line); padding:8px 14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .devbar span{ font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--blood-bright); }
+  .devbar button{ background:var(--surface); border:1px solid var(--line); color:var(--muted); font-family:inherit; font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:7px; cursor:pointer; }
+  .devbar button:hover{ color:var(--text); border-color:var(--bronze); }
+
+  @media(prefers-reduced-motion:reduce){ .fighter,.bar .fill{ transition:none; } .dmg{ animation:none; opacity:1; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="logo">SOL<span>BRUTE</span></a>
+    <div class="nav-right">
+      <div class="balance" id="balBox"><b id="balNum">120</b> <small>$BRUTE</small></div>
+      <div class="wallet-chip" id="walletChip">
+        <span class="dot"></span><span id="walletAddr">—</span>
+        <button class="wallet-out" id="btnDisconnect" data-i18n="disconnect">Sign out</button>
+      </div>
+      <span class="persist" id="persist"></span>
+      <div class="lang-switch">
+        <button class="lang-btn" data-lang="es">ES</button>
+        <button class="lang-btn active" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="fr">FR</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <!-- 1 · GATE -->
+  <section class="screen active" id="scGate">
+    <div class="gate">
+      <svg class="portcullis" viewBox="0 0 100 86" aria-hidden="true">
+        <path d="M6 82 L6 26 Q50 4 94 26 L94 82" fill="none" stroke="#3a2e1c" stroke-width="4" stroke-linejoin="round"/>
+        <g stroke="#c98a3a" stroke-width="3.4" stroke-linecap="round">
+          <path d="M20 82 L20 21"/><path d="M35 82 L35 15"/><path d="M50 82 L50 13"/><path d="M65 82 L65 15"/><path d="M80 82 L80 21"/>
+        </g>
+        <g stroke="#a3762f" stroke-width="3"><path d="M10 40 L90 40"/><path d="M8 58 L92 58"/><path d="M7 76 L93 76"/></g>
+        <g fill="#e5ab5c"><circle cx="35" cy="40" r="2.4"/><circle cx="65" cy="40" r="2.4"/><circle cx="20" cy="58" r="2.4"/><circle cx="50" cy="58" r="2.4"/><circle cx="80" cy="58" r="2.4"/></g>
+      </svg>
+      <h1 data-i18n="gate_h1">The gate is shut</h1>
+      <p data-i18n="gate_p">Your wallet is your account here. Connect it and sign once to open the gate — no email, no password.</p>
+      <div class="wallet-list">
+        <button class="wallet-opt js-connect">
+          <span class="wallet-mark" style="background:#4b3f86;color:#e8e2ff">P</span>
+          <span>Phantom<small data-i18n="w_det">Detected in this browser</small></span>
+        </button>
+        <button class="wallet-opt js-connect">
+          <span class="wallet-mark" style="background:#2a2416;color:#e5ab5c">S</span>
+          <span>Solflare<small data-i18n="w_inst">Not detected — opens the install page</small></span>
+        </button>
+      </div>
+      <div class="gate-steps">
+        <h4 data-i18n="gs_t">What happens when you connect</h4>
+        <ol>
+          <li data-i18n="gs_1">You pick a wallet and approve the connection. We read your public address, nothing else.</li>
+          <li data-i18n="gs_2">You sign a short message to prove the address is yours. Signing is free and moves no funds.</li>
+          <li data-i18n="gs_3">Your brutes load. They stay tied to that address.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · ROSTER -->
+  <section class="screen" id="scRoster">
+    <div class="page-head">
+      <div><h1 data-i18n="ludus_h1">Your ludus</h1><p id="slotInfo"></p></div>
+      <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
+    </div>
+    <div class="roster" id="roster"></div>
+  </section>
+
+  <section class="screen" id="scRank">
+    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
+    <div class="page-head">
+      <div><h1 data-i18n="rank_h1">Leaderboard</h1><p data-i18n="rank_sub">The strongest brutes in the game.</p></div>
+      <button class="btn btn-ghost btn-sm" id="btnRankRefresh" data-i18n="rank_refresh">↻ Refresh</button>
+    </div>
+    <p class="match-note" data-i18n="rank_note">Real players only. House brutes are made up at matchmaking time and never saved, so they don't score.</p>
+    <div class="opp-list" id="rankList"></div>
+  </section>
+
+  <!-- 3 · MATCH -->
+  <section class="screen" id="scMatch">
+    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
+    <div class="page-head">
+      <div><h1 data-i18n="match_h1">Pick an opponent</h1><p id="matchSub"></p></div>
+      <button class="btn btn-ghost btn-sm" id="btnRefresh" data-i18n="refresh">↻ New list</button>
+    </div>
+    <p class="match-note" data-i18n="match_note">Only brutes near your level show up. When there aren't enough players awake, the arena fills the list with house brutes — they're labelled.</p>
+    <p class="match-note reroll-note" id="rerollNote"></p>
+    <div class="opp-list" id="oppList"></div>
+  </section>
+
+  <!-- 4 · FIGHT -->
+  <section class="screen" id="scFight">
+    <div class="huds">
+      <div class="hud left">
+        <div class="hud-name" id="nameA">—</div><div class="hud-sub" id="subA"></div>
+        <div class="bar"><div class="fill" id="fillA"></div></div>
+        <div class="hud-hp"><span id="hpA">0</span> / <span id="hpMaxA">0</span></div>
+      </div>
+      <div class="turn-badge"><span id="turnLbl">TURNO</span><b id="turnOut">0</b></div>
+      <div class="hud right">
+        <div class="hud-name" id="nameB">—</div><div class="hud-sub" id="subB"></div>
+        <div class="bar"><div class="fill" id="fillB"></div></div>
+        <div class="hud-hp"><span id="hpB">0</span> / <span id="hpMaxB">0</span></div>
+      </div>
+    </div>
+    <div class="arena" id="arena">
+      <div class="fighter left" id="figA"></div>
+      <div class="fighter right" id="figB"></div>
+      <div class="banner" id="banner">
+        <div class="what" id="bannerWhat"></div>
+        <div class="who" id="bannerWho"></div>
+        <div class="rew" id="bannerRew"></div>
+        <button class="btn btn-bronze js-back" data-i18n="to_ludus">Back to the ludus</button>
+      </div>
+    </div>
+    <div class="arena-controls">
+      <button class="btn btn-ghost btn-sm" id="btnSkip" data-i18n="skip">Skip to result</button>
+      <div class="spd" id="spd"><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button></div>
+    </div>
+    <div class="seedline"><span data-i18n="seed">seed</span> <b id="seedOut">—</b> · <span data-i18n="seed_note">the same number replays the same fight</span></div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <!-- 5 · FORGE + CREADOR -->
+  <section class="screen" id="scForge">
+    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
+    <div class="page-head">
+      <div><h1 data-i18n="forge_h1">The forge</h1><p data-i18n="forge_sub">You decide the look. The forge deals the attributes.</p></div>
+    </div>
+    <div class="forge-grid">
+      <div class="fp">
+        <div class="portrait" id="fPortrait"></div>
+        <div class="card-head">
+          <span class="f-name" id="fName" data-i18n="unnamed">Unnamed</span>
+          <span class="f-lv">Nv. 1</span>
+        </div>
+        <div class="hp-row"><span class="hp-num" id="fHp">—</span><div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div></div>
+        <div class="xp-row">
+          <span class="xp-lbl">XP</span>
+          <div class="xp-bar"><div class="xp-fill" style="width:0%"></div></div>
+          <span class="xp-num">0 / 100</span>
+        </div>
+        <div id="fStats"></div>
+        <div class="pv-row">
+          <button class="btn btn-ghost btn-sm" id="btnLookRandom">🎲 <span data-i18n="rnd_look">Look</span></button>
+        </div>
+        <div class="forge-actions">
+          <button class="btn btn-bronze" id="btnForge" disabled data-i18n="forge_cta">Forge brute</button>
+          <button class="btn btn-ghost js-back" data-i18n="cancel">Cancel</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="field">
+          <label for="nm" data-i18n="name_label">Name</label>
+          <input type="text" id="nm" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Grognak">
+          <div class="hint" id="nmHint" data-i18n="name_hint">Up to 16 characters. This is public and permanent.</div>
+        </div>
+
+        <div class="panels">
+          <div class="panel wide">
+            <h3 data-i18n="p_body">Body</h3>
+            <div class="opts" id="oSex"></div>
+            <div class="sub" data-i18n="s_skin">Skin tone</div>
+            <div class="swatches" id="oSkin"></div>
+          </div>
+          <div class="panel">
+            <h3 data-i18n="p_hair">Hair</h3>
+            <div class="opts" id="oHair"></div>
+            <div class="sub" data-i18n="s_color">Colour</div>
+            <div class="swatches" id="oHairC"></div>
+          </div>
+          <div class="panel">
+            <h3 data-i18n="p_cloth">Clothes</h3>
+            <div class="opts" id="oCloth"></div>
+            <div class="sub" data-i18n="s_color">Colour</div>
+            <div class="swatches" id="oClothC"></div>
+          </div>
+          <div class="panel">
+            <h3 data-i18n="p_face">Face</h3>
+            <div class="opts" id="oFace"></div>
+            <div class="sub" data-i18n="s_eyes">Eyes</div>
+            <div class="swatches" id="oEyeC"></div>
+          </div>
+          <div class="panel">
+            <h3 data-i18n="p_tat">Tattoo</h3>
+            <div class="opts" id="oTat"></div>
+            <div class="sub" data-i18n="s_ink">Ink</div>
+            <div class="swatches" id="oTatC"></div>
+          </div>
+        </div>
+
+        <div class="roll-box">
+          <div class="roll-head">
+            <h3 data-i18n="roll_h">Rolled attributes</h3>
+            <button class="btn btn-ghost btn-sm" id="btnReroll" data-i18n="reroll">Roll again</button>
+          </div>
+          <div id="rollStats"></div>
+          <div class="roll-note" data-i18n="roll_note">You choose the look; the forge deals the attributes. Rerolling is free before you forge.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="devbar">
+  <span data-i18n="mock">Mock</span>
+  <button id="devReset" data-i18n="dev_reset">Reset</button>
+  <button id="devEmpty" data-i18n="dev_empty">Empty ludus</button>
+  <button id="devRefill" data-i18n="dev_refill">Refill fights</button>
+  <button id="devCoins" data-i18n="dev_coins">+500 $BRUTE</button>
+</div>
+
+<script src="brute-render.js"></script>
+<script src="supabase-cliente.js"></script>
+<script>
+(function(){
+  "use strict";
+  const el = id => document.getElementById(id);
+
+  /* Renderizador compartido con la landing — ver brute-render.js.
+     Se desestructura al ámbito local para que las capas de dibujo se sigan
+     escribiendo igual (OL, SKIN, bust…) sin prefijo en cada llamada. */
+  const { OL, SKIN, HAIRC, CLOTHC, INK, EYEC, HAIRS, CLOTHS, FACES, TATS, HD, OUT, IN, PB,
+          shade, torsoPath, HEADP,
+          drawBody, drawTat, drawCloth, drawFace, drawHair,
+          bust, spriteProfile } = window.BruteRender;
+
+  /* ═══════════ i18n ═══════════ */
+  const T = {
+    es:{ disconnect:"Salir", gate_h1:"La puerta está cerrada",
+      gate_p:"Aquí tu wallet es tu cuenta. Conéctala y firma una vez para abrir la puerta — sin correo ni contraseña.",
+      w_det:"Detectada en este navegador", w_inst:"No detectada — abre la página de instalación",
+      gs_t:"Qué pasa al conectar",
+      gs_1:"Eliges una wallet y apruebas la conexión. Leemos tu dirección pública, nada más.",
+      gs_2:"Firmas un mensaje corto para demostrar que la dirección es tuya. Firmar es gratis y no mueve fondos.",
+      gs_3:"Se cargan tus brutos. Quedan ligados a esa dirección.",
+      ludus_h1:"Tu ludus", slots:"plazas ocupadas",
+      str:"Fuerza", agi:"Agilidad", spd:"Velocidad", wins:"V", losses:"D",
+      fight:"⚔️ A la arena", no_fights:"Sin peleas hoy", fights_lbl:"Peleas",
+      forge_first:"Forja tu primer bruto", forge_first_p:"El primero es gratis. Tú eliges cómo es.",
+      forge_more:"Plaza libre", forge_more_p:"Otro bruto, con su propio historial y sus peleas diarias.",
+      slot_locked:"Plaza bloqueada", slot_need:"Te faltan",
+      match_h1:"Elige rival", match_for:"Rivales para", lvl:"nivel", refresh:"↻ Otra lista",
+      match_note:"Solo aparecen brutos de nivel parecido. Cuando no hay suficientes jugadores despiertos, la arena completa la lista con brutos de la casa — van marcados.",
+      tag_player:"jugador", tag_bot:"BOT", go:"Pelear",
+      back:"‹ Volver al ludus", to_ludus:"Volver al ludus", turn:"TURNO",
+      skip:"Ver resultado", seed:"semilla", seed_note:"el mismo número reproduce el mismo combate",
+      win:"VICTORIA", lose:"DERROTA", points:"POR PUNTOS", coins:"monedas",
+      dodge_txt:"esquiva", lg_dodge:"esquiva el ataque de", lg_hit:"golpea a",
+      lg_crit:"acierta un crítico —", lg_dmg:"de daño", lg_ko:"cae. Fin del combate.", lvup:"¡Nivel",
+      forge_h1:"La forja", forge_sub:"Tú decides el aspecto. La forja reparte los atributos.",
+      unnamed:"Sin nombre", name_label:"Nombre", name_hint:"Hasta 16 caracteres. Es público y permanente.",
+      p_body:"Cuerpo", p_hair:"Pelo", p_cloth:"Ropa", p_face:"Cara", p_tat:"Tatuaje",
+      s_eyes:"Ojos", s_skin:"Tono de piel", s_color:"Color", s_ink:"Tinta",
+      roll_h:"Atributos sorteados", reroll:"Volver a tirar",
+      roll_note:"El aspecto lo eliges tú; los atributos los reparte la forja. Volver a tirar es gratis antes de forjar.",
+      forge_cta:"Forjar bruto", cancel:"Cancelar", rnd_look:"Aspecto",
+      loading:"Buscando rivales…", saved_on:"guardado activo", saved_off:"solo esta sesión",
+      saved_cloud:"en la nube", name_taken:"Ese nombre ya lo lleva otro bruto. Elige otro.",
+      rank_open:"🏆 Clasificación", rank_h1:"Clasificación", rank_refresh:"↻ Actualizar",
+      rank_sub:"Los mejores brutos del juego.",
+      rank_note:"Aquí solo hay jugadores reales. Los brutos de la casa se inventan al emparejar y no se guardan, así que no puntúan.",
+      rank_me:"tuyo", rank_loading:"Cargando clasificación…",
+      reroll_left:"Puedes cambiar la lista una vez al día. Esta es la lista de hoy para este bruto.",
+      reroll_none:"Ya has cambiado la lista hoy. Vuelve mañana para otra tanda de rivales.",
+      rank_empty:"Todavía no hay ningún bruto forjado. El primero serás tú.",
+      mock:"Maqueta", dev_reset:"Reiniciar", dev_empty:"Ludus vacío", dev_refill:"Recargar peleas", dev_coins:"+500 $BRUTE",
+      o:{ sex:["hombre","mujer"],
+          hairM:["calvo","rapado","cresta","melena","moño","rizos"],
+          hairF:["coleta","trenza","suelta","recogido","rapado","rizos"],
+          cloth:["desnudo","túnica","malla","coraza","capa"],
+          face:["fiero","sereno","burlón","marcado"],
+          tat:["ninguno","franjas","cicatriz","brazal","sol"] } },
+
+    en:{ disconnect:"Sign out", gate_h1:"The gate is shut",
+      gate_p:"Your wallet is your account here. Connect it and sign once to open the gate — no email, no password.",
+      w_det:"Detected in this browser", w_inst:"Not detected — opens the install page",
+      gs_t:"What happens when you connect",
+      gs_1:"You pick a wallet and approve the connection. We read your public address, nothing else.",
+      gs_2:"You sign a short message to prove the address is yours. Signing is free and moves no funds.",
+      gs_3:"Your brutes load. They stay tied to that address.",
+      ludus_h1:"Your ludus", slots:"slots filled",
+      str:"Strength", agi:"Agility", spd:"Speed", wins:"W", losses:"L",
+      fight:"⚔️ To the arena", no_fights:"Out of fights today", fights_lbl:"Fights",
+      forge_first:"Forge your first brute", forge_first_p:"The first one is free. You decide how it looks.",
+      forge_more:"Open slot", forge_more_p:"Another brute, with its own record and daily fights.",
+      slot_locked:"Slot locked", slot_need:"You need",
+      match_h1:"Pick an opponent", match_for:"Opponents for", lvl:"level", refresh:"↻ New list",
+      match_note:"Only brutes near your level show up. When there aren't enough players awake, the arena fills the list with house brutes — they're labelled.",
+      tag_player:"player", tag_bot:"BOT", go:"Fight",
+      back:"‹ Back to the ludus", to_ludus:"Back to the ludus", turn:"TURN",
+      skip:"Skip to result", seed:"seed", seed_note:"the same number replays the same fight",
+      win:"VICTORY", lose:"DEFEAT", points:"ON POINTS", coins:"coins",
+      dodge_txt:"dodge", lg_dodge:"dodges the attack from", lg_hit:"hits",
+      lg_crit:"lands a critical —", lg_dmg:"damage", lg_ko:"goes down. Fight over.", lvup:"Level",
+      forge_h1:"The forge", forge_sub:"You decide the look. The forge deals the attributes.",
+      unnamed:"Unnamed", name_label:"Name", name_hint:"Up to 16 characters. This is public and permanent.",
+      p_body:"Body", p_hair:"Hair", p_cloth:"Clothes", p_face:"Face", p_tat:"Tattoo",
+      s_eyes:"Eyes", s_skin:"Skin tone", s_color:"Colour", s_ink:"Ink",
+      roll_h:"Rolled attributes", reroll:"Roll again",
+      roll_note:"You choose the look; the forge deals the attributes. Rerolling is free before you forge.",
+      forge_cta:"Forge brute", cancel:"Cancel", rnd_look:"Look",
+      loading:"Finding opponents…", saved_on:"saving on", saved_off:"this session only",
+      saved_cloud:"online", name_taken:"That name belongs to another brute. Pick a different one.",
+      rank_open:"🏆 Leaderboard", rank_h1:"Leaderboard", rank_refresh:"↻ Refresh",
+      rank_sub:"The strongest brutes in the game.",
+      rank_note:"Real players only. House brutes are made up at matchmaking time and never saved, so they don't score.",
+      rank_me:"yours", rank_loading:"Loading the leaderboard…",
+      reroll_left:"You can swap this list once a day. This is today's list for this brute.",
+      reroll_none:"You already swapped the list today. Come back tomorrow for a fresh set.",
+      rank_empty:"No brute has been forged yet. You could be the first.",
+      mock:"Mock", dev_reset:"Reset", dev_empty:"Empty ludus", dev_refill:"Refill fights", dev_coins:"+500 $BRUTE",
+      o:{ sex:["male","female"],
+          hairM:["bald","buzzed","mohawk","mane","topknot","curls"],
+          hairF:["ponytail","braid","loose","bun","buzzed","curls"],
+          cloth:["bare","tunic","chainmail","cuirass","cloak"],
+          face:["fierce","calm","smirk","hardened"],
+          tat:["none","warpaint","scar","armband","sun"] } },
+
+    fr:{ disconnect:"Se déconnecter", gate_h1:"La porte est fermée",
+      gate_p:"Ici ton wallet est ton compte. Connecte-le et signe une fois pour ouvrir la porte — sans e-mail ni mot de passe.",
+      w_det:"Détecté dans ce navigateur", w_inst:"Non détecté — ouvre la page d'installation",
+      gs_t:"Ce qui se passe à la connexion",
+      gs_1:"Tu choisis un wallet et approuves la connexion. Nous lisons ton adresse publique, rien d'autre.",
+      gs_2:"Tu signes un court message pour prouver que l'adresse est la tienne. Signer est gratuit et ne déplace aucun fonds.",
+      gs_3:"Tes brutes se chargent. Elles restent liées à cette adresse.",
+      ludus_h1:"Ton ludus", slots:"places occupées",
+      str:"Force", agi:"Agilité", spd:"Vitesse", wins:"V", losses:"D",
+      fight:"⚔️ Dans l'arène", no_fights:"Plus de combats", fights_lbl:"Combats",
+      forge_first:"Forge ta première brute", forge_first_p:"La première est gratuite. Tu décides de son allure.",
+      forge_more:"Place libre", forge_more_p:"Une autre brute, avec son historique et ses combats quotidiens.",
+      slot_locked:"Place verrouillée", slot_need:"Il te manque",
+      match_h1:"Choisis un adversaire", match_for:"Adversaires pour", lvl:"niveau", refresh:"↻ Autre liste",
+      match_note:"Seules les brutes de niveau proche apparaissent. Quand il n'y a pas assez de joueurs éveillés, l'arène complète la liste avec ses propres brutes — elles sont signalées.",
+      tag_player:"joueur", tag_bot:"BOT", go:"Combattre",
+      back:"‹ Retour au ludus", to_ludus:"Retour au ludus", turn:"TOUR",
+      skip:"Voir le résultat", seed:"graine", seed_note:"le même nombre rejoue le même combat",
+      win:"VICTOIRE", lose:"DÉFAITE", points:"AUX POINTS", coins:"pièces",
+      dodge_txt:"esquive", lg_dodge:"esquive l'attaque de", lg_hit:"frappe",
+      lg_crit:"place un critique —", lg_dmg:"de dégâts", lg_ko:"tombe. Combat terminé.", lvup:"Niveau",
+      forge_h1:"La forge", forge_sub:"Tu décides de l'allure. La forge distribue les attributs.",
+      unnamed:"Sans nom", name_label:"Nom", name_hint:"16 caractères maximum. C'est public et permanent.",
+      p_body:"Corps", p_hair:"Cheveux", p_cloth:"Vêtements", p_face:"Visage", p_tat:"Tatouage",
+      s_eyes:"Yeux", s_skin:"Teint", s_color:"Couleur", s_ink:"Encre",
+      roll_h:"Attributs tirés", reroll:"Relancer",
+      roll_note:"Tu choisis l'allure ; la forge distribue les attributs. Relancer est gratuit avant de forger.",
+      forge_cta:"Forger la brute", cancel:"Annuler", rnd_look:"Allure",
+      loading:"Recherche d'adversaires…", saved_on:"sauvegarde active", saved_off:"cette session seulement",
+      saved_cloud:"en ligne", name_taken:"Ce nom appartient déjà à une autre brute. Choisis-en un autre.",
+      rank_open:"🏆 Classement", rank_h1:"Classement", rank_refresh:"↻ Actualiser",
+      rank_sub:"Les meilleures brutes du jeu.",
+      rank_note:"Uniquement des joueurs réels. Les brutes de la maison sont inventées au moment de l'appariement et ne sont jamais sauvegardées : elles ne comptent pas.",
+      rank_me:"à toi", rank_loading:"Chargement du classement…",
+      reroll_left:"Tu peux changer la liste une fois par jour. Voici la liste du jour pour cette brute.",
+      reroll_none:"Tu as déjà changé la liste aujourd'hui. Reviens demain pour d'autres adversaires.",
+      rank_empty:"Aucune brute forgée pour l'instant. Tu peux être le premier.",
+      mock:"Maquette", dev_reset:"Réinitialiser", dev_empty:"Ludus vide", dev_refill:"Recharger", dev_coins:"+500 $BRUTE",
+      o:{ sex:["homme","femme"],
+          hairM:["chauve","rasé","crête","crinière","chignon","boucles"],
+          hairF:["queue","tresse","lâchés","chignon","rasé","boucles"],
+          cloth:["torse nu","tunique","mailles","cuirasse","cape"],
+          face:["féroce","serein","narquois","marqué"],
+          tat:["aucun","peintures","cicatrice","brassard","soleil"] } }
+  };
+  let lang = "en";
+  const t = k => (T[lang] && T[lang][k] !== undefined) ? T[lang][k] : T.en[k];
+  const O = g => (T[lang].o[g] || T.en.o[g]);
+
+  /* ═══════════ reglas ═══════════ */
+  const MAX_BRUTES = 3, FIGHTS_DAY = 3, SLOT_PRICE = [0, 50, 150];
+  const OPP_COUNT = 5, LEVEL_SPREAD = 1;
+
+  /* Cambios de lista de rivales por bruto y día. Es lo que impide elegir
+     rival: sin límite, el jugador pediría listas hasta encontrar al más débil
+     y el emparejamiento por nivel no significaría nada.
+     Va junto a las peleas porque se recarga igual, al cambiar el día UTC. */
+  const REROLLS_DAY = 1;
+
+  /* ═══════════ equilibrio ═══════════
+     Un bruto recién forjado es flojo a propósito: 1-4 en cada atributo sobre un
+     tope de 10. Así hay recorrido que recorrer, y el salto de nivel 1 a nivel 2
+     se nota. Si empezaran cerca del tope, subir de nivel no cambiaría nada y la
+     progresión —que es el motor del género— dejaría de existir.
+
+     El techo de 10 no se toca: las fórmulas de daño y esquiva están calibradas
+     para ese rango. Ver CLAUDE.md › Combate. */
+  const STAT_INI = 1, STAT_VAR = 4;    // atributos de partida: 1..4
+  const HP_INI = 40, HP_VAR = 11;      // vida de partida:      40..50
+  const HP_NIVEL = 3;                  // vida que suma cada nivel
+  const STAT_MAX = 10;                 // tope de fuerza / agilidad / velocidad
+  const sprite = spriteProfile;
+
+  /* ═══════════ estado ═══════════ */
+  const NAMES = ["Vurkas","Torvald","Maximus","Drusa","Kaelo","Brennus","Sabina","Orlok","Crixus","Vardo","Nerva","Thrax","Galba","Rufa","Sceva","Murro","Balba","Priscus","Verus","Calpa"];
+  let balance = 120, brutes = [], nextId = 1, pool = [], active = null;
+  let addr = null, loaded = false;
+  const ri = n => Math.floor(Math.random()*n);
+
+  /* ══════════════════════════════════════════════════════════════
+     ALMACENAMIENTO
+     Para pasar a backend real, solo hay que reescribir get/set/list
+     para que llamen a tu API. El resto del juego no cambia.
+     Aviso: lo que vive en el navegador lo puede editar el jugador.
+     El estado con valor (saldo, peleas, resultados) debe validarse
+     en servidor antes de que exista el token.
+     ══════════════════════════════════════════════════════════════ */
+  const STORE = (function(){
+    const mem = new Map();
+    const api = (typeof window !== "undefined" && window.storage && typeof window.storage.get === "function") ? window.storage : null;
+    return {
+      live: !!api,
+      async get(k, shared){
+        if(!api){ return mem.has(k+(shared?"#s":"")) ? mem.get(k+(shared?"#s":"")) : null; }
+        try{ const r = await api.get(k, !!shared); return r ? r.value : null; }catch(e){ return null; }
+      },
+      async set(k, v, shared){
+        if(!api){ mem.set(k+(shared?"#s":""), v); return true; }
+        try{ await api.set(k, v, !!shared); return true; }catch(e){ return false; }
+      },
+      async list(prefix, shared){
+        if(!api){ return [...mem.keys()].filter(x => x.endsWith("#s") === !!shared).map(x => x.replace(/#s$/,"")).filter(x => x.startsWith(prefix)); }
+        try{ const r = await api.list(prefix, !!shared); return r ? r.keys : []; }catch(e){ return []; }
+      }
+    };
+  })();
+
+  const KEY_ME = "solbrute:ludus:v1";
+  const utcDay = () => new Date().toISOString().slice(0,10);
+
+  function fakeAddr(){
+    const c = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789";
+    let out = ""; for(let i=0;i<44;i++) out += c[ri(c.length)];
+    return out;
+  }
+  const shortAddr = a => a ? a.slice(0,4) + "…" + a.slice(-4) : "—";
+
+  /* ═══════════ identidad del jugador ═══════════
+     La dirección se guarda en localStorage, que sí sobrevive a recargar la
+     página al abrir el fichero con doble clic. Sin esto, cada recarga sería un
+     jugador nuevo y no volverías a ver tus propios brutos.
+     Hoy la dirección es inventada; en el paso 2 la pondrá la wallet de verdad.
+     La casilla donde se guarda es la misma, así que no habrá que migrar nada. */
+  const KEY_ADDR = "solbrute:addr:v1";
+
+  function miDireccion(){
+    try{
+      let a = localStorage.getItem(KEY_ADDR);
+      if(!a){ a = fakeAddr(); localStorage.setItem(KEY_ADDR, a); }
+      return a;
+    }catch(e){ return fakeAddr(); }   // navegador con el almacenamiento capado
+  }
+
+  /* true = los brutos viven en Supabase; false = solo en esta pestaña.
+     Si la base de datos no responde, el juego sigue funcionando en local en vez
+     de quedarse en blanco. La barra de estado dice en cuál de los dos estás. */
+  let nube = false;
+
+  async function loadMe(){
+    addr = miDireccion();
+    nube = !!(window.SolBruteDB && await window.SolBruteDB.vive());
+
+    if(nube){
+      try{
+        const d = await SolBruteDB.cargar(addr);
+        balance = d.balance;
+        brutes  = d.brutos;
+        nextId  = brutes.length + 1;
+
+        /* Recarga diaria: cada bruto recuerda de qué día son sus peleas. */
+        const hoy = utcDay();
+        const caducados = brutes.filter(b => b.dia !== hoy);
+        if(caducados.length){
+          /* Al cambiar el día se recargan peleas y cambio de lista, y se tira
+             la lista ofrecida: los rivales de ayer ya no valen. */
+          caducados.forEach(b => { b.fights = FIGHTS_DAY; b.rerolls = REROLLS_DAY; b.pool = null; b.dia = hoy; });
+          await saveMe();
+        }
+        /* Brutos forjados antes de que existiera el límite. */
+        brutes.forEach(b => { if(typeof b.rerolls !== "number") b.rerolls = REROLLS_DAY; });
+        loaded = true;
+        return;
+      }catch(e){
+        console.warn("[SolBrute] la base de datos falló, sigo en local:", e.message);
+        nube = false;
+      }
+    }
+
+    /* ── modo local, igual que antes ── */
+    let raw = await STORE.get(KEY_ME);
+    let d = null;
+    try{ d = raw ? JSON.parse(raw) : null; }catch(e){ d = null; }
+    if(!d){
+      brutes = []; balance = 120; nextId = 1;
+      await saveMe(utcDay());
+    }else{
+      brutes = Array.isArray(d.brutes) ? d.brutes : [];
+      balance = typeof d.balance === "number" ? d.balance : 120;
+      nextId = d.nextId || (brutes.length + 1);
+      if(d.day !== utcDay()){
+        brutes.forEach(b => b.fights = FIGHTS_DAY);
+        await saveMe(utcDay());
+      }
+    }
+    loaded = true;
+  }
+
+  async function saveMe(day){
+    const hoy = day || utcDay();
+
+    if(nube){
+      try{
+        await SolBruteDB.guardarJugador(addr, balance);
+        for(const b of brutes){
+          if(b.rid){ await SolBruteDB.actualizar(b, b.dia || hoy); continue; }
+          try{
+            b.rid = await SolBruteDB.crear(addr, b, b.dia || hoy);
+          }catch(e){
+            /* Nombre pillado por otro jugador. La forja ya avisa antes de llegar
+               aquí, así que esto solo lo alcanzan los brutos de la barra de
+               maqueta. Ese se queda sin sincronizar, pero no tiramos la sesión
+               entera al modo local por uno. */
+            if(e.clase !== "duplicado") throw e;
+            console.warn('[SolBrute] "' + b.name + '" ya existe en el juego; ese no se sube.');
+          }
+        }
+        return;
+      }catch(e){
+        /* Un nombre repetido aquí no debería pasar: la forja lo comprueba antes
+           de añadir el bruto. Si llega, es otra cosa — red caída, casi seguro. */
+        console.warn("[SolBrute] no pude guardar en la nube:", e.message);
+        nube = false;
+        pintarEstado();
+      }
+    }
+
+    const payload = JSON.stringify({ addr, balance, nextId, brutes, day: hoy });
+    await STORE.set(KEY_ME, payload);
+  }
+
+  async function fetchRivals(mineLv){
+    if(nube){
+      /* 60 y no 5: hay que traer material de sobra para que barajar sirva. */
+      try{ return await SolBruteDB.rivales(addr, mineLv, LEVEL_SPREAD, 60); }
+      catch(e){ console.warn("[SolBrute] no pude buscar rivales:", e.message); return []; }
+    }
+    return [];
+  }
+
+  function pintarEstado(){
+    const e = el("persist");
+    if(!e) return;
+    e.textContent = nube ? t("saved_cloud") : (STORE.live ? t("saved_on") : t("saved_off"));
+    e.className = "persist " + (nube || STORE.live ? "ok" : "warn");
+  }
+
+  function randomLook(){
+    const sex = ri(2);
+    return { sex, skin:ri(SKIN.length), hair:ri(HAIRS[sex].length), hairC:ri(HAIRC.length),
+             cloth:ri(CLOTHS.length), clothC:ri(CLOTHC.length), face:ri(FACES.length),
+             eyeC:ri(EYEC.length), tat:ri(TATS.length), tatC:ri(INK.length) };
+  }
+  function rollStats(){
+    return { str:STAT_INI+ri(STAT_VAR), agi:STAT_INI+ri(STAT_VAR),
+             spd:STAT_INI+ri(STAT_VAR), hpMax:HP_INI+ri(HP_VAR) };
+  }
+
+  /* Sube un atributo al azar, respetando el tope. Lo usan el salto de nivel y
+     la generación de brutos de la casa, para que sigan la misma curva. */
+  function subirAtributo(b){
+    const libres = ["str","agi","spd"].filter(k => b[k] < STAT_MAX);
+    if(!libres.length) return "";
+    const k = libres[ri(libres.length)];
+    b[k]++;
+    return k;
+  }
+
+  /* Estadísticas de un bruto de la casa de nivel `lv`.
+     Un jugador de nivel L ha subido L-1 veces, así que el bot recibe L-1 puntos
+     y la misma vida por nivel. Si los bots siguieran otra curva, el
+     emparejamiento por nivel sería una mentira: mismo número, distinta fuerza. */
+  function botStats(lv){
+    const st = rollStats();
+    for(let i = 0; i < lv - 1; i++) subirAtributo(st);
+    st.hpMax += (lv - 1) * HP_NIVEL;
+    return st;
+  }
+
+  /* Fisher-Yates. El `sort(() => Math.random() - .5)` que había antes no baraja
+     bien: da un orden sesgado y el comparador es inconsistente. Con pocos
+     jugadores se notaba en que la lista de rivales salía casi siempre igual. */
+  function barajar(a){
+    for(let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function seedData(){
+    nextId = 1;
+    /* Valores acordes a la curva de arriba: un nivel 7 lleva 6 puntos repartidos
+       sobre una base de 1-4, no un 8 de fuerza de salida. */
+    brutes = [
+      { id:nextId++, name:"Grognak", lv:7, xp:120, hpMax:61, str:5, agi:3, spd:4, w:14, l:6, fights:FIGHTS_DAY, rerolls:REROLLS_DAY, pool:null,
+        look:{ sex:0, skin:2, hair:2, hairC:3, cloth:3, clothC:3, face:0, eyeC:2, tat:1, tatC:0 } },
+      { id:nextId++, name:"Drusa", lv:6, xp:80, hpMax:57, str:3, agi:5, spd:4, w:9, l:8, fights:2, rerolls:REROLLS_DAY, pool:null,
+        look:{ sex:1, skin:1, hair:1, hairC:5, cloth:2, clothC:2, face:3, eyeC:0, tat:0, tatC:0 } }
+    ];
+    balance = 120;
+  }
+
+  /* ═══════════ combate determinista ═══════════ */
+  function mulberry32(a){
+    return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+      t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+  }
+  function simulate(a, b, seed){
+    const rnd = mulberry32(seed);
+    const F = { A:{...a, hp:a.hpMax, side:"A"}, B:{...b, hp:b.hpMax, side:"B"} };
+    const first = F.A.spd > F.B.spd ? "A" : F.B.spd > F.A.spd ? "B" : (rnd()<.5?"A":"B");
+    const order = first === "A" ? ["A","B"] : ["B","A"];
+    const log = []; let turn = 0;
+    while(F.A.hp>0 && F.B.hp>0 && turn<40){
+      turn++;
+      for(const k of order){
+        if(F.A.hp<=0 || F.B.hp<=0) break;
+        const att = F[k], def = F[k==="A"?"B":"A"];
+        if(rnd() < 0.06 + def.agi*0.019){ log.push({turn,type:"dodge",att:att.name,def:def.name,side:def.side}); continue; }
+        let dmg = Math.round((3 + att.str*1.45) * (0.8 + rnd()*0.4)), type = "hit";
+        if(rnd() < 0.05 + att.agi*0.014){ dmg = Math.round(dmg*1.9); type = "crit"; }
+        def.hp = Math.max(0, def.hp - dmg);
+        log.push({turn,type,att:att.name,def:def.name,side:def.side,dmg,hp:def.hp,hpMax:def.hpMax});
+        if(def.hp <= 0){ log.push({turn,type:"ko",def:def.name,side:def.side}); break; }
+      }
+    }
+    const timeout = F.A.hp>0 && F.B.hp>0;
+    const winner = F.A.hp<=0 ? "B" : F.B.hp<=0 ? "A" : (F.A.hp>=F.B.hp ? "A" : "B");
+    return { log, winner, timeout, turns:turn, seed };
+  }
+
+  /* ═══════════ render ═══════════ */
+  function pips(n){ let h=""; for(let i=0;i<10;i++) h+=`<span class="pip${i<n?" on":""}"></span>`; return h; }
+  function statRows(b){
+    return `<div class="stat-row"><span class="stat-label">${t("str")}</span><span class="pips">${pips(b.str)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t("agi")}</span><span class="pips">${pips(b.agi)}</span></div>
+            <div class="stat-row"><span class="stat-label">${t("spd")}</span><span class="pips">${pips(b.spd)}</span></div>`;
+  }
+  const xpNeed = lv => lv * 100;
+  function xpRow(b){
+    const need = xpNeed(b.lv), pct = Math.min(100, Math.round(b.xp / need * 100));
+    return `<div class="xp-row">
+      <span class="xp-lbl">XP</span>
+      <div class="xp-bar"><div class="xp-fill" style="width:${pct}%"></div></div>
+      <span class="xp-num">${b.xp} / ${need}</span></div>`;
+  }
+  function torchRow(n){
+    let h = `<span class="lbl">${t("fights_lbl")}</span>`;
+    for(let i=0;i<FIGHTS_DAY;i++) h += `<span class="torch-pip${i<n?" lit":""}"></span>`;
+    return h;
+  }
+  const anvil = `<span class="anvil"><svg width="28" height="28" viewBox="0 0 40 40" aria-hidden="true">
+    <path d="M6 15 L34 15 L29 22 L11 22 Z" fill="#c98a3a" stroke="#241505" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M16 22 L24 22 L22 30 L18 30 Z" fill="#a3762f" stroke="#241505" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M11 30 L29 30 L31 35 L9 35 Z" fill="#c98a3a" stroke="#241505" stroke-width="2" stroke-linejoin="round"/></svg></span>`;
+
+  function renderRoster(){
+    el("slotInfo").textContent = `${brutes.length} / ${MAX_BRUTES} ${t("slots")}`;
+    let h = brutes.map(b => `
+      <article class="brute-card">
+        <div class="portrait">${bust(b.look)}</div>
+        <div class="card-head"><span class="f-name">${b.name}</span><span class="f-lv">Nv. ${b.lv}</span></div>
+        <div class="record"><b>${b.w}${t("wins")}</b> · <i>${b.l}${t("losses")}</i></div>
+        <div class="hp-row"><span class="hp-num">${b.hpMax}</span><div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div></div>
+        ${xpRow(b)}
+        ${statRows(b)}
+        <div class="fights">${torchRow(b.fights)}</div>
+        <div class="card-foot">
+          <button class="btn btn-primary btn-sm js-go" data-id="${b.id}"${b.fights>0?"":" disabled"}>
+            ${b.fights>0 ? t("fight") : t("no_fights")}</button>
+        </div>
+      </article>`).join("");
+    for(let i = brutes.length; i < MAX_BRUTES; i++){
+      const price = SLOT_PRICE[i], first = brutes.length === 0;
+      if(price === 0)
+        h += `<button class="slot free js-forge" data-price="0">${anvil}
+                <h3>${first ? t("forge_first") : t("forge_more")}</h3>
+                <p>${first ? t("forge_first_p") : t("forge_more_p")}</p></button>`;
+      else if(balance >= price)
+        h += `<button class="slot free js-forge" data-price="${price}">${anvil}
+                <h3>${t("forge_more")}</h3><div class="price">${price} $BRUTE</div>
+                <p>${t("forge_more_p")}</p></button>`;
+      else
+        h += `<div class="slot locked">${anvil}<h3>${t("slot_locked")}</h3>
+                <div class="price">${price} $BRUTE</div>
+                <p>${t("slot_need")} ${price - balance} $BRUTE</p></div>`;
+    }
+    el("roster").innerHTML = h;
+    el("roster").querySelectorAll(".js-go").forEach(b => b.onclick = () => openMatch(+b.dataset.id));
+    el("roster").querySelectorAll(".js-forge").forEach(b => b.onclick = () => openForge(+b.dataset.price));
+  }
+
+  /* ═══════════ emparejamiento ═══════════ */
+  async function buildPool(mine){
+    const out = [];
+    /* 1 · jugadores reales del registro compartido, nivel parecido */
+    /* Se piden más candidatos de los que caben y se barajan: con varios
+       jugadores en ese rango de nivel, cada recarga enseña una lista distinta.
+       Si solo se pidieran OPP_COUNT, Postgres devolvería siempre los mismos. */
+    const real = barajar((await fetchRivals(mine.lv))
+      .filter(b => Math.abs(b.lv - mine.lv) <= LEVEL_SPREAD));
+    real.slice(0, OPP_COUNT).forEach(b => out.push({ ...b, id:"p"+out.length, bot:false }));
+    /* 2 · mis otros brutos, si encajan de nivel */
+    if(out.length < OPP_COUNT)
+      brutes.filter(b => b.id !== mine.id && Math.abs(b.lv - mine.lv) <= LEVEL_SPREAD)
+            .slice(0,1).forEach(b => out.push({ ...b, bot:false }));
+    /* 3 · relleno de la casa */
+    const usados = new Set(out.map(o => o.name));
+    while(out.length < OPP_COUNT){
+      const lv = Math.max(1, mine.lv + (ri(LEVEL_SPREAD*2+1) - LEVEL_SPREAD));
+      const st = botStats(lv);
+      /* Sin esto salen dos "Galba" en la misma lista y canta que son inventados. */
+      const libres = NAMES.filter(n => !usados.has(n));
+      const nombre = libres.length ? libres[ri(libres.length)] : NAMES[ri(NAMES.length)];
+      usados.add(nombre);
+      out.push({ id:"o"+out.length, name:nombre, lv,
+        hpMax: st.hpMax, str: st.str, agi: st.agi, spd: st.spd,
+        w: ri(lv*3), l: ri(lv*2), look: randomLook(), bot:true });
+    }
+    return barajar(out);
+  }
+  async function openMatch(id){
+    active = brutes.find(b => b.id === id);
+    if(!active || active.fights <= 0) return;
+    show("scMatch");
+
+    /* Si este bruto ya tiene lista del día, se le devuelve LA MISMA.
+       Regenerarla al entrar dejaría el límite de cambios en decoración:
+       bastaría con salir al ludus y volver para tener rivales nuevos gratis. */
+    if(Array.isArray(active.pool) && active.pool.length){
+      pool = active.pool;
+      renderMatch();
+      return;
+    }
+
+    el("oppList").innerHTML = `<p class="match-note">${t("loading")}</p>`;
+    pool = await buildPool(active);
+    active.pool = pool;
+    renderMatch();
+    saveMe();
+  }
+  /* ═══════════ clasificación ═══════════ */
+  let rank = [];
+
+  async function openRank(){
+    show("scRank");
+    el("rankList").innerHTML = `<p class="match-note">${t("rank_loading")}</p>`;
+    rank = await fetchRank();
+    renderRank();
+  }
+
+  async function fetchRank(){
+    if(!nube) return [];
+    try{ return await SolBruteDB.clasificacion(25); }
+    catch(e){ console.warn("[SolBrute] no pude cargar la clasificación:", e.message); return []; }
+  }
+
+  function renderRank(){
+    if(!rank.length){ el("rankList").innerHTML = `<p class="match-note">${t("rank_empty")}</p>`; return; }
+    el("rankList").innerHTML = rank.map((b, i) => {
+      const mio = b.owner === addr;
+      return `
+      <div class="opp${mio ? " is-me" : ""}">
+        <div class="rank-pos${i < 3 ? " top" : ""}">${i + 1}</div>
+        <div class="opp-thumb">${bust(b.look)}</div>
+        <div class="opp-mid">
+          <div class="opp-top">
+            <span class="opp-name">${b.name}</span>
+            ${mio ? `<span class="tag me">${t("rank_me")}</span>` : ""}
+            <span class="opp-meta">Nv. ${b.lv} · ${b.w}${t("wins")} ${b.l}${t("losses")}</span>
+          </div>
+          <div class="opp-stats">
+            <span>${t("str")} <b>${b.str}</b></span><span>${t("agi")} <b>${b.agi}</b></span>
+            <span>${t("spd")} <b>${b.spd}</b></span><span>HP <b>${b.hpMax}</b></span>
+            <span class="rank-owner">${shortAddr(b.owner)}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderMatch(){
+    el("matchSub").textContent = `${t("match_for")} ${active.name} · ${t("lvl")} ${active.lv}`;
+
+    /* El botón lleva la cuenta encima: "↻ New list (1)". Cuando se agota se
+       deshabilita y aparece el porqué, en vez de dejar un botón que no hace
+       nada sin explicación. */
+    const br = el("btnRefresh");
+    br.textContent = `${t("refresh")} (${active.rerolls})`;
+    br.disabled = active.rerolls <= 0;
+    el("rerollNote").textContent = active.rerolls > 0 ? t("reroll_left") : t("reroll_none");
+
+    el("oppList").innerHTML = pool.map((o,i) => `
+      <div class="opp">
+        <div class="opp-thumb">${bust(o.look)}</div>
+        <div class="opp-mid">
+          <div class="opp-top">
+            <span class="opp-name">${o.name}</span>
+            <span class="tag ${o.bot?"bot":"player"}">${o.bot?t("tag_bot"):t("tag_player")}</span>
+            <span class="opp-meta">Nv. ${o.lv} · ${o.w}${t("wins")} ${o.l}${t("losses")}</span>
+          </div>
+          <div class="opp-stats">
+            <span>${t("str")} <b>${o.str}</b></span><span>${t("agi")} <b>${o.agi}</b></span>
+            <span>${t("spd")} <b>${o.spd}</b></span><span>HP <b>${o.hpMax}</b></span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm js-pick" data-i="${i}">${t("go")}</button>
+      </div>`).join("");
+    el("oppList").querySelectorAll(".js-pick").forEach(b => b.onclick = () => startFight(pool[+b.dataset.i]));
+  }
+
+  /* ═══════════ arena ═══════════ */
+  let fight = null, foe = null, speed = 1, abort = false, playing = false;
+  const wait = ms => new Promise(r => setTimeout(r, ms/speed));
+
+  function startFight(opponent){
+    foe = opponent;
+    active.fights = Math.max(0, active.fights - 1);
+    saveMe();
+    const seed = Math.floor(Math.random()*900000)+100000;
+    fight = simulate(active, foe, seed);
+    el("seedOut").textContent = seed;
+    el("nameA").textContent = active.name; el("nameB").textContent = foe.name;
+    el("subA").textContent = `Nv. ${active.lv} · ${active.w}${t("wins")} ${active.l}${t("losses")}`;
+    el("subB").textContent = `Nv. ${foe.lv} · ${foe.w}${t("wins")} ${foe.l}${t("losses")}`;
+    el("hpMaxA").textContent = active.hpMax; el("hpMaxB").textContent = foe.hpMax;
+    el("hpA").textContent = active.hpMax;    el("hpB").textContent = foe.hpMax;
+    el("fillA").style.width = "100%";        el("fillB").style.width = "100%";
+    el("turnOut").textContent = "0"; el("log").innerHTML = "";
+    el("banner").classList.remove("show");
+    el("figA").innerHTML = sprite(active, true);
+    el("figB").innerHTML = sprite(foe, false);
+    el("figA").className = "fighter left"; el("figB").className = "fighter right";
+    show("scFight"); play();
+  }
+  function addLog(e){
+    const box = el("log"), d = document.createElement("div");
+    let cls = "log-line", txt = "";
+    if(e.type === "dodge"){ cls += " dodge"; txt = `<b>${e.def}</b> ${t("lg_dodge")} <b>${e.att}</b>`; }
+    else if(e.type === "crit"){ cls += " crit"; txt = `<b>${e.att}</b> ${t("lg_crit")} ${e.dmg} ${t("lg_dmg")}`; }
+    else if(e.type === "hit"){ txt = `<b>${e.att}</b> ${t("lg_hit")} <b>${e.def}</b> — ${e.dmg} ${t("lg_dmg")}`; }
+    else{ cls += " ko"; txt = `<b>${e.def}</b> ${t("lg_ko")}`; }
+    d.className = cls; d.innerHTML = `<span class="tn">T${e.turn}</span>${txt}`;
+    box.appendChild(d); box.scrollTop = box.scrollHeight;
+  }
+  function floatDmg(side, text, kind){
+    const s = document.createElement("div");
+    s.className = "dmg" + (kind ? " "+kind : "");
+    s.textContent = text;
+    s.style.left = (side === "A" ? 18 : 66) + "%"; s.style.bottom = "150px";
+    el("arena").appendChild(s); setTimeout(() => s.remove(), 1100);
+  }
+  function setHp(side, hp, hpMax){
+    el("fill"+side).style.width = Math.round(hp/hpMax*100)+"%";
+    el("hp"+side).textContent = hp;
+  }
+  async function play(){
+    playing = true; abort = false;
+    await wait(400);
+    for(const e of fight.log){
+      if(abort) return;
+      el("turnOut").textContent = e.turn;
+      const attSide = e.side === "A" ? "B" : "A";
+      const attFig = el("fig"+attSide), defFig = el("fig"+e.side), attLeft = attSide === "A";
+      if(e.type === "ko"){ defFig.classList.add("down"); addLog(e); await wait(700); continue; }
+      attFig.classList.add(attLeft ? "lunge-r" : "lunge-l");
+      await wait(170);
+      if(e.type === "dodge"){
+        defFig.classList.add(attLeft ? "hop-r" : "hop-l");
+        floatDmg(e.side, t("dodge_txt"), "miss"); addLog(e);
+        await wait(230); defFig.classList.remove("hop-r","hop-l");
+      }else{
+        defFig.classList.add("flash", attLeft ? "knock-r" : "knock-l");
+        floatDmg(e.side, "−"+e.dmg, e.type === "crit" ? "crit" : "");
+        setHp(e.side, e.hp, e.hpMax); addLog(e);
+        await wait(e.type === "crit" ? 330 : 230);
+        defFig.classList.remove("flash","knock-r","knock-l");
+      }
+      attFig.classList.remove("lunge-r","lunge-l");
+      await wait(190);
+    }
+    finish();
+  }
+  function finish(){
+    if(!playing) return;
+    playing = false;
+    const won = fight.winner === "A";
+    const coins = won ? 12 + fight.turns : Math.round((12 + fight.turns)/3);
+    const xp = won ? 40 + fight.turns*3 : 12 + fight.turns;
+    if(won) active.w++; else active.l++;
+    active.xp += xp;
+    let lvl = "";
+    const need = xpNeed(active.lv);
+    if(active.xp >= need){
+      active.xp -= need; active.lv++;
+      subirAtributo(active);
+      active.hpMax += HP_NIVEL;
+      lvl = ` · ${t("lvup")} ${active.lv}!`;
+    }
+    balance += coins;
+    el("bannerWhat").textContent = fight.timeout ? t("points") : (won ? t("win") : t("lose"));
+    el("bannerWho").textContent = won ? active.name : foe.name;
+    el("bannerRew").innerHTML = `+<b>${coins}</b> ${t("coins")} · +<b>${xp}</b> XP${lvl}`;
+    el("banner").classList.add("show");
+    el("balNum").textContent = balance;
+    saveMe();
+  }
+  el("btnSkip").onclick = () => {
+    if(!playing) return;
+    abort = true;
+    fight.log.forEach(e => {
+      addLog(e);
+      if(e.type === "hit" || e.type === "crit") setHp(e.side, e.hp, e.hpMax);
+      if(e.type === "ko") el("fig"+e.side).classList.add("down");
+    });
+    el("turnOut").textContent = fight.turns;
+    playing = true; finish();
+  };
+  el("spd").onclick = ev => {
+    const b = ev.target.closest("button"); if(!b) return;
+    speed = +b.dataset.s;
+    el("spd").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  };
+
+  /* ═══════════ forja con creador ═══════════ */
+  let look = null, stats = null, pendingPrice = 0;
+
+  function openForge(price){
+    pendingPrice = price;
+    look = { sex:0, skin:1, hair:3, hairC:2, cloth:1, clothC:0, face:0, eyeC:0, tat:0, tatC:0 };
+    stats = rollStats();
+    el("nm").value = "";
+    /* limpia el aviso de "nombre cogido" de un intento anterior */
+    el("nmHint").textContent = t("name_hint");
+    el("nmHint").classList.remove("hint-error");
+    buildCreator(); renderForge(); show("scForge");
+  }
+  function renderForge(){
+    el("fPortrait").innerHTML = bust(look);
+    el("fHp").textContent = stats.hpMax;
+    el("fStats").innerHTML = statRows(stats);
+    el("rollStats").innerHTML = statRows(stats);
+    const nm = el("nm").value.trim();
+    el("fName").textContent = nm || t("unnamed");
+    el("btnForge").disabled = nm.length < 2;
+    syncCreator();
+  }
+  function optRow(box, list, key){
+    el(box).innerHTML = list.map((o,i) => `<button class="opt${key==="sex"?" big":""}" data-k="${key}" data-i="${i}">${o}</button>`).join("");
+    el(box).querySelectorAll(".opt").forEach(b => b.onclick = () => {
+      look[b.dataset.k] = +b.dataset.i;
+      if(b.dataset.k === "sex"){ look.hair = 0; optRow("oHair", O(look.sex===0?"hairM":"hairF"), "hair"); }
+      renderForge();
+    });
+  }
+  function swRow(box, pal, key){
+    el(box).innerHTML = pal.map((c,i) => `<button class="sw-btn" data-k="${key}" data-i="${i}" style="background:${c}" aria-label="${i+1}"></button>`).join("");
+    el(box).querySelectorAll(".sw-btn").forEach(b => b.onclick = () => { look[b.dataset.k] = +b.dataset.i; renderForge(); });
+  }
+  function buildCreator(){
+    optRow("oSex", O("sex"), "sex");
+    swRow("oSkin", SKIN.map(s => s[0]), "skin");
+    optRow("oHair", O(look.sex===0?"hairM":"hairF"), "hair");
+    swRow("oHairC", HAIRC, "hairC");
+    optRow("oCloth", O("cloth"), "cloth");
+    swRow("oClothC", CLOTHC, "clothC");
+    optRow("oFace", O("face"), "face");
+    swRow("oEyeC", EYEC, "eyeC");
+    optRow("oTat", O("tat"), "tat");
+    swRow("oTatC", INK, "tatC");
+  }
+  function syncCreator(){
+    document.querySelectorAll("#scForge .opt, #scForge .sw-btn").forEach(b =>
+      b.classList.toggle("on", look[b.dataset.k] === +b.dataset.i));
+  }
+  el("nm").addEventListener("input", renderForge);
+  el("btnReroll").onclick = () => { stats = rollStats(); renderForge(); };
+  el("btnLookRandom").onclick = () => {
+    look = randomLook();
+    optRow("oHair", O(look.sex===0?"hairM":"hairF"), "hair");
+    renderForge();
+  };
+  el("btnForge").onclick = async () => {
+    const nm = el("nm").value.trim();
+    if(nm.length < 2 || brutes.length >= MAX_BRUTES || pendingPrice > balance) return;
+
+    const nuevo = { id:nextId++, name:nm, lv:1, xp:0, hpMax:stats.hpMax, str:stats.str, agi:stats.agi,
+                    spd:stats.spd, w:0, l:0, fights:FIGHTS_DAY, rerolls:REROLLS_DAY, pool:null, dia:utcDay(), look:{ ...look } };
+
+    /* Los nombres son únicos en todo el juego, no solo en tu ludus: si otro
+       jugador ya se llama así, la base de datos lo rechaza. Hay que enterarse
+       ANTES de cobrar la plaza y de mandar al jugador al ludus. */
+    if(nube){
+      const boton = el("btnForge");
+      boton.disabled = true;
+      try{
+        nuevo.rid = await SolBruteDB.crear(addr, nuevo, nuevo.dia);
+      }catch(e){
+        boton.disabled = false;
+        if(e.clase === "duplicado"){
+          const h = el("nmHint");
+          h.textContent = t("name_taken");
+          h.classList.add("hint-error");
+          el("nm").focus();
+          nextId--;
+          return;
+        }
+        console.warn("[SolBrute] forja sin nube:", e.message);
+        nube = false;
+        pintarEstado();
+      }
+      boton.disabled = false;
+    }
+
+    balance -= pendingPrice;
+    brutes.push(nuevo);
+    el("balNum").textContent = balance;
+    saveMe();
+    show("scRoster");
+  };
+
+  /* ═══════════ navegación ═══════════ */
+  function show(id){
+    if(id !== "scFight"){ abort = true; playing = false; }
+    document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id));
+    const inApp = id !== "scGate";
+    el("walletChip").classList.toggle("show", inApp);
+    el("balBox").classList.toggle("show", inApp);
+    if(id === "scRoster") renderRoster();
+    window.scrollTo({ top:0, behavior:"instant" });
+  }
+  document.querySelectorAll(".js-connect").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    await loadMe();
+    el("walletAddr").textContent = shortAddr(addr);
+    el("balNum").textContent = balance;
+    pintarEstado();
+    b.disabled = false;
+    show("scRoster");
+  });
+  el("btnDisconnect").onclick = () => show("scGate");
+  el("btnRank").onclick = openRank;
+  el("btnRankRefresh").onclick = async () => {
+    const b = el("btnRankRefresh");
+    b.disabled = true;
+    el("rankList").innerHTML = `<p class="match-note">${t("rank_loading")}</p>`;
+    rank = await fetchRank();
+    renderRank();
+    b.disabled = false;
+  };
+  document.querySelectorAll(".js-back").forEach(b => b.onclick = () => show("scRoster"));
+  /* buildPool es asíncrona: sin el await, `pool` acababa siendo una promesa y
+     la lista se quedaba en blanco. El botón estaba puesto pero no funcionaba. */
+  el("btnRefresh").onclick = async () => {
+    if(!active || active.rerolls <= 0) return;
+    const b = el("btnRefresh");
+    b.disabled = true;
+    el("oppList").innerHTML = `<p class="match-note">${t("loading")}</p>`;
+    active.rerolls--;
+    pool = await buildPool(active);
+    active.pool = pool;
+    renderMatch();
+    await saveMe();
+  };
+  /* La barra de maqueta escribe en la base de datos como todo lo demás, así que
+     vaciar el ludus tiene que borrar las filas — si no, vuelven al recargar. */
+  const vaciarNube = async () => { if(nube){ try{ await SolBruteDB.borrarTodos(addr); }catch(e){} } };
+  el("devReset").onclick  = async () => { await vaciarNube(); seedData(); await saveMe(); el("balNum").textContent = balance; show("scRoster"); };
+  el("devEmpty").onclick  = async () => { await vaciarNube(); brutes = []; await saveMe(); show("scRoster"); };
+  el("devRefill").onclick = async () => { brutes.forEach(b => { b.fights = FIGHTS_DAY; b.rerolls = REROLLS_DAY; b.pool = null; }); await saveMe(); renderRoster(); };
+  el("devCoins").onclick  = async () => { balance += 500; await saveMe(); el("balNum").textContent = balance; renderRoster(); };
+
+  /* ═══════════ idioma ═══════════ */
+  function applyLang(l){
+    lang = l; document.documentElement.lang = l;
+    document.querySelectorAll("[data-i18n]").forEach(n => {
+      const v = T[l][n.getAttribute("data-i18n")];
+      if(v !== undefined) n.textContent = v;
+    });
+    el("turnLbl").textContent = t("turn");
+    document.querySelectorAll(".lang-btn").forEach(b => b.classList.toggle("active", b.dataset.lang === l));
+    const cur = document.querySelector(".screen.active");
+    if(!cur) return;
+    if(cur.id === "scRoster") renderRoster();
+    if(cur.id === "scMatch" && active) renderMatch();
+    if(cur.id === "scRank") renderRank();
+    if(cur.id === "scForge" && look){ buildCreator(); renderForge(); }
+  }
+  document.querySelectorAll(".lang-btn").forEach(b => b.onclick = () => applyLang(b.dataset.lang));
+
+  applyLang("en"); show("scGate");
+})();
+</script>
+</body>
+</html>

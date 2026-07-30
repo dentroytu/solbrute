@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolBrute — Forge your brute. Fight on-chain. Rule the arena.</title>
+<meta name="description" content="SolBrute brings turn-based auto-battles to Solana: brutes that level up, verifiable fights between real players, and near-zero fees. Prototype in development.">
+<meta name="theme-color" content="#0c0a07">
+
+<!-- TODO: replace REPLACE_WITH_YOUR_DOMAIN and add og-image.png (1200x630) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SolBrute">
+<meta property="og:title" content="SolBrute — Forge your brute. Fight on-chain.">
+<meta property="og:description" content="Turn-based auto-battles on Solana. Brutes that level up, verifiable fights, near-zero fees. Prototype in development.">
+<meta property="og:url" content="https://REPLACE_WITH_YOUR_DOMAIN/">
+<meta property="og:image" content="https://REPLACE_WITH_YOUR_DOMAIN/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SolBrute — Forge your brute. Fight on-chain.">
+<meta name="twitter:description" content="Turn-based auto-battles on Solana. Brutes that level up, verifiable fights, near-zero fees.">
+<meta name="twitter:image" content="https://REPLACE_WITH_YOUR_DOMAIN/og-image.png">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0a07'/%3E%3Cpath d='M8 23 L16 6 L24 23 Z' fill='%23c98a3a'/%3E%3Cpath d='M16 6 L24 23 L16 23 Z' fill='%23b3312c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep: #0c0a07;
+    --bg: #14110d;
+    --surface: #1c1710;
+    --surface-hi: #251e14;
+    --line: #3a2e1c;
+    --blood: #b3312c;
+    --blood-bright: #e0453f;
+    --bronze: #c98a3a;
+    --bronze-light: #e5ab5c;
+    --torch: #ff9d42;
+    --text: #efe7d8;
+    --muted: #a8998a;
+    --sol-teal: #14f195;
+    --sol-purple: #9945ff;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:
+      radial-gradient(ellipse 1000px 500px at 50% -10%, #2c2013 0%, transparent 55%),
+      var(--bg-deep);
+    color:var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+  a{ color:inherit; text-decoration:none; }
+  .container{ max-width:1080px; margin:0 auto; padding:0 24px; }
+  h1,h2,h3{ font-family:'Cinzel', serif; }
+  ::selection{ background:var(--blood); color:#fff; }
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:sticky; top:0; z-index:50;
+    background:rgba(12,10,7,0.85); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 24px; max-width:1080px; margin:0 auto; gap:16px;
+  }
+  .logo{
+    font-family:'Cinzel', serif; font-weight:800; font-size:19px;
+    letter-spacing:1.5px; color:var(--bronze-light); flex-shrink:0;
+  }
+  .logo span{ color:var(--blood-bright); }
+  .nav-links{ display:flex; gap:28px; font-size:13px; color:var(--muted); }
+  .nav-links a:hover{ color:var(--torch); }
+  .nav-right{ display:flex; align-items:center; gap:14px; }
+  .nav-cta{
+    background:var(--blood); color:#fff3f0; padding:9px 18px;
+    border-radius:8px; font-size:13px; font-weight:700;
+    border:1px solid var(--blood-bright);
+  }
+  .nav-cta:hover{ background:var(--blood-bright); }
+  .nav-mobile-hide{ display:flex; }
+
+  /* hamburger */
+  .nav-toggle{
+    display:none; background:var(--surface); border:1px solid var(--line);
+    border-radius:8px; padding:8px 10px; cursor:pointer; flex-shrink:0;
+  }
+  .nav-toggle:hover{ border-color:var(--bronze); }
+  .nav-toggle span{
+    display:block; width:17px; height:2px; border-radius:2px;
+    background:var(--bronze-light); margin:3px 0;
+    transition:transform .2s ease, opacity .2s ease;
+  }
+  .nav-toggle[aria-expanded="true"] span:nth-child(1){ transform:translateY(5px) rotate(45deg); }
+  .nav-toggle[aria-expanded="true"] span:nth-child(2){ opacity:0; }
+  .nav-toggle[aria-expanded="true"] span:nth-child(3){ transform:translateY(-5px) rotate(-45deg); }
+
+  .nav-drawer{
+    display:none; flex-direction:column; gap:2px;
+    border-top:1px solid var(--line); background:rgba(12,10,7,0.97);
+    padding:10px 24px 16px;
+  }
+  .nav-drawer a{
+    padding:11px 4px; font-size:14px; color:var(--text);
+    border-bottom:1px solid rgba(58,46,28,0.5);
+  }
+  .nav-drawer a:last-child{ border-bottom:none; }
+  .nav-drawer .nav-cta{
+    margin-top:12px; text-align:center; padding:13px 18px; font-size:14px;
+  }
+  .nav-drawer.open{ display:flex; }
+
+  @media(max-width:820px){
+    .nav-mobile-hide{ display:none; }
+    .nav-toggle{ display:block; }
+  }
+  @media(min-width:821px){
+    .nav-drawer, .nav-drawer.open{ display:none; }
+  }
+
+  /* Language switcher */
+  .lang-switch{
+    display:flex; background:var(--surface); border:1px solid var(--line);
+    border-radius:8px; padding:3px; gap:2px; flex-shrink:0;
+  }
+  .lang-btn{
+    background:transparent; border:none; color:var(--muted);
+    font-family:'Space Grotesk', sans-serif; font-size:11.5px; font-weight:700;
+    padding:6px 10px; border-radius:6px; cursor:pointer; letter-spacing:.03em;
+    transition: background .15s ease, color .15s ease;
+  }
+  .lang-btn:hover{ color:var(--text); }
+  .lang-btn.active{ background:var(--bronze); color:#241a06; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding:88px 24px 70px;
+    text-align:center;
+    position:relative;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--sol-teal);
+    background:rgba(20,241,149,0.08);
+    border:1px solid rgba(20,241,149,0.25);
+    padding:6px 14px; border-radius:20px; margin-bottom:26px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--sol-teal); box-shadow:0 0 8px var(--sol-teal); }
+  .hero h1{
+    font-size:clamp(32px, 5.2vw, 58px);
+    font-weight:800; line-height:1.12;
+    color:var(--text);
+    text-shadow: 0 2px 0 #2a1a08;
+    max-width:820px; margin:0 auto 22px;
+  }
+  .hero h1 .hl{ color:var(--bronze-light); }
+  .hero h1 .hl2{ color:var(--blood-bright); }
+  .hero p{
+    max-width:560px; margin:0 auto 34px;
+    color:var(--muted); font-size:16px;
+  }
+  .hero-ctas{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:56px; }
+  .btn{
+    font-weight:700; font-size:14.5px; padding:14px 26px; border-radius:10px;
+    cursor:pointer; border:none; display:inline-flex; align-items:center; gap:8px;
+    transition:transform .12s ease, filter .15s ease;
+  }
+  .btn:active{ transform:scale(0.97); }
+  .btn-primary{ background:var(--blood); color:#fff3f0; border:1px solid var(--blood-bright); }
+  .btn-primary:hover{ filter:brightness(1.1); }
+  .btn-ghost{ background:transparent; color:var(--bronze-light); border:1px solid var(--line); }
+  .btn-ghost:hover{ border-color:var(--bronze); }
+
+  /* Hero arena visual */
+  .hero-visual{
+    position:relative;
+    max-width:620px; margin:0 auto;
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    padding:14px 12px 0;
+  }
+  .fighter-figure{
+    position:relative; z-index:2; width:228px;
+    opacity:0; animation: riseIn .7s ease forwards;
+  }
+  .fighter-figure.f-left{ animation-delay:.1s; }
+  .fighter-figure.f-right{ animation-delay:.35s; }
+  @keyframes riseIn{ from{ opacity:0; transform:translateY(18px);} to{ opacity:1; transform:translateY(0);} }
+
+  .portrait{
+    position:relative; overflow:hidden;
+    width:100%; aspect-ratio:1/1;
+    background:
+      radial-gradient(circle at 50% 32%, rgba(255,157,66,.14), transparent 62%),
+      linear-gradient(180deg, #2a2013, #161006);
+    border:2px solid var(--bronze); border-radius:14px;
+    box-shadow:inset 0 0 30px rgba(0,0,0,.65);
+  }
+  .portrait svg{ width:100%; height:100%; display:block; }
+  .portrait .idle{ transform-origin:50% 100%; animation: bob 3.4s ease-in-out infinite; }
+  .f-right .portrait .idle{ animation-delay:-1.7s; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-2px);} }
+
+  .card-head{
+    display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+    margin:11px 0 6px;
+  }
+  .f-name{
+    font-family:'Cinzel', serif; font-weight:800; font-size:15px;
+    letter-spacing:.06em; color:var(--bronze-light); text-shadow:0 2px 0 #170f04;
+  }
+  .f-lv{ font-size:10.5px; font-weight:700; color:var(--muted); letter-spacing:.05em; }
+
+  .hp-row{ display:flex; align-items:center; gap:7px; margin-bottom:9px; }
+  .hp-num{ font-family:'Cinzel',serif; font-size:11px; font-weight:700; color:var(--blood-bright); min-width:20px; }
+  .hp-bar{
+    flex:1; height:9px; border-radius:3px; overflow:hidden;
+    background:#150f06; border:1.5px solid var(--bronze);
+  }
+  .hp-fill{ height:100%; background:linear-gradient(180deg, var(--blood-bright), #7d1f1c); }
+
+  .stat-row{ display:flex; align-items:center; gap:7px; margin-bottom:4px; }
+  .stat-label{
+    font-size:9.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--muted); width:62px; flex-shrink:0;
+  }
+  .pips{ display:flex; gap:2px; }
+  .pip{ width:9px; height:9px; border-radius:2px; background:#241b0d; border:1px solid #3a2e1c; }
+  .pip.on{ background:linear-gradient(180deg, var(--bronze-light), var(--bronze)); border-color:#8a5c1c; }
+
+  .vs-torch{
+    font-family:'Cinzel', serif; color:var(--blood-bright); font-size:22px; font-weight:800;
+    text-shadow:0 0 20px rgba(224,69,63,0.55); flex-shrink:0;
+  }
+  @media(max-width:600px){
+    .hero-visual{ flex-direction:column; gap:12px; }
+    .fighter-figure{ width:min(100%, 264px); }
+    .vs-torch{ font-size:18px; }
+  }
+  @media(prefers-reduced-motion: reduce){
+    .fighter-figure{ animation:none; opacity:1; }
+    .portrait .idle{ animation:none; }
+  }
+
+  /* ---------- SECTION LABEL ---------- */
+  .section{ padding:80px 24px; border-top:1px solid var(--line); }
+  .section-head{ text-align:center; max-width:600px; margin:0 auto 48px; }
+  .section-eyebrow{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--bronze); margin-bottom:10px; }
+  .section-head h2{ font-size:clamp(24px,3.4vw,34px); color:var(--text); }
+  .section-head p{ color:var(--muted); margin-top:12px; font-size:14.5px; }
+
+  /* ---------- CICLO (wheel) ---------- */
+  .cycle-wrap{
+    display:flex; align-items:center; justify-content:center;
+    gap:0; flex-wrap:wrap; max-width:900px; margin:0 auto;
+  }
+  .cycle-step{
+    flex:1; min-width:160px; text-align:center; padding:0 14px; position:relative;
+  }
+  .cycle-num{
+    width:52px; height:52px; border-radius:50%;
+    background:var(--surface-hi); border:2px solid var(--bronze);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Cinzel',serif; font-weight:700; font-size:18px; color:var(--bronze-light);
+    margin:0 auto 14px;
+  }
+  .cycle-step h3{ font-size:15px; margin-bottom:6px; color:var(--text); }
+  .cycle-step p{ font-size:12.5px; color:var(--muted); }
+  .cycle-arrow{ color:var(--line); font-size:22px; padding-top:8px; }
+  @media(max-width:720px){ .cycle-arrow{ display:none; } .cycle-step{ margin-bottom:20px; } }
+
+  /* ---------- WHY SOLANA ---------- */
+  .stat-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:18px;
+    max-width:900px; margin:0 auto;
+  }
+  @media(max-width:720px){ .stat-grid{ grid-template-columns:1fr; } }
+  .stat-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:26px 22px;
+  }
+  .stat-card .stat-num{
+    font-family:'Cinzel',serif; font-size:30px; font-weight:800; color:var(--sol-teal);
+    margin-bottom:8px;
+  }
+  .stat-card h4{ font-size:14.5px; color:var(--text); margin-bottom:6px; font-weight:700; }
+  .stat-card p{ font-size:12.5px; color:var(--muted); }
+
+  /* ---------- FEATURES ---------- */
+  .feature-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:18px;
+    max-width:900px; margin:0 auto;
+  }
+  @media(max-width:640px){ .feature-grid{ grid-template-columns:1fr; } }
+  .feature-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:24px; display:flex; gap:16px;
+  }
+  .feature-icon{
+    width:44px; height:44px; border-radius:11px; flex-shrink:0;
+    background:var(--surface-hi); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+  }
+  .feature-card h4{ font-size:14.5px; color:var(--text); margin-bottom:5px; }
+  .feature-card p{ font-size:12.5px; color:var(--muted); }
+
+  /* ---------- ROADMAP ---------- */
+  .roadmap{ max-width:720px; margin:0 auto; }
+  .rm-item{
+    display:flex; gap:20px; padding:22px 0; border-bottom:1px solid var(--line);
+  }
+  .rm-item:last-child{ border-bottom:none; }
+  .rm-phase{
+    font-family:'Cinzel',serif; font-size:12px; color:var(--bronze);
+    width:90px; flex-shrink:0; padding-top:2px; letter-spacing:.05em;
+  }
+  .rm-body h4{ font-size:14.5px; color:var(--text); margin-bottom:4px; }
+  .rm-body p{ font-size:12.5px; color:var(--muted); }
+  .rm-status{
+    display:inline-block; font-size:10px; padding:3px 9px; border-radius:12px;
+    margin-left:10px; vertical-align:middle; font-weight:700; letter-spacing:.03em;
+  }
+  .rm-status.live{ background:rgba(20,241,149,0.12); color:var(--sol-teal); border:1px solid rgba(20,241,149,0.3); }
+  .rm-status.next{ background:rgba(255,157,66,0.1); color:var(--torch); border:1px solid rgba(255,157,66,0.3); }
+  .rm-status.soon{ background:var(--surface-hi); color:var(--muted); border:1px solid var(--line); }
+
+  /* ---------- CTA FINAL ---------- */
+  .final-cta{
+    text-align:center; padding:90px 24px; border-top:1px solid var(--line);
+    background: radial-gradient(ellipse 700px 300px at 50% 0%, rgba(179,49,44,0.1), transparent 70%);
+  }
+  .final-cta h2{ font-size:clamp(24px,3.6vw,36px); margin-bottom:16px; }
+  .final-cta p{ color:var(--muted); max-width:480px; margin:0 auto 30px; font-size:14.5px; }
+  .btn.is-pending{
+    background:var(--surface-hi); color:var(--muted);
+    border:1px solid var(--line); cursor:not-allowed;
+  }
+  .btn.is-pending:hover{ filter:none; }
+  .cta-note{
+    display:none; margin-top:14px; font-size:11.5px; color:var(--muted);
+    letter-spacing:.03em;
+  }
+  .cta-note.show{ display:block; }
+
+  /* ---------- FOOTER ---------- */
+  footer{ border-top:1px solid var(--line); padding:30px 24px; }
+  .footer-inner{
+    max-width:1080px; margin:0 auto; display:flex; justify-content:space-between;
+    align-items:center; flex-wrap:wrap; gap:14px;
+  }
+  .footer-note{ font-size:11.5px; color:var(--muted); max-width:520px; line-height:1.6; }
+  .footer-logo{ font-family:'Cinzel',serif; font-weight:700; color:var(--bronze); font-size:14px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">SOL<span>BRUTE</span></div>
+    <div class="nav-links nav-mobile-hide">
+      <a href="#ciclo" data-i18n="nav_how">How it works</a>
+      <a href="#solana" data-i18n="nav_why">Why Solana</a>
+      <a href="#features" data-i18n="nav_features">Features</a>
+      <a href="#roadmap" data-i18n="nav_roadmap">Roadmap</a>
+    </div>
+    <div class="nav-right">
+      <div class="lang-switch">
+        <button class="lang-btn active" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="es">ES</button>
+        <button class="lang-btn" data-lang="fr">FR</button>
+      </div>
+      <a class="nav-cta nav-mobile-hide js-play" data-i18n="nav_cta">Enter the arena</a>
+      <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navDrawer" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+  <div class="nav-drawer" id="navDrawer">
+    <a href="#ciclo" data-i18n="nav_how">How it works</a>
+    <a href="#solana" data-i18n="nav_why">Why Solana</a>
+    <a href="#features" data-i18n="nav_features">Features</a>
+    <a href="#roadmap" data-i18n="nav_roadmap">Roadmap</a>
+    <a class="nav-cta js-play" data-i18n="nav_cta">Enter the arena</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="eyebrow"><span class="dot"></span> <span data-i18n="hero_eyebrow">Prototype in development · Solana</span></div>
+  <h1 data-i18n-html="hero_h1">Forge your <span class="hl">brute</span>.<br>Fight <span class="hl2">on-chain</span>. Rule the arena.</h1>
+  <p data-i18n="hero_p">SolBrute brings turn-based auto-battles to Solana: characters that level up, verifiable fights between real players, and an economy that runs on near-zero fees.</p>
+  <div class="hero-ctas">
+    <a href="#jugar" class="btn btn-primary"><span data-i18n="hero_cta1">⚔️ Try the prototype</span></a>
+    <a href="#ciclo" class="btn btn-ghost" data-i18n="hero_cta2">See how it works ↓</a>
+  </div>
+  <div class="hero-visual">
+
+    <div class="fighter-figure f-left">
+      <div class="portrait" id="pvA"></div>
+      <div class="card-head">
+        <span class="f-name">Grognak</span>
+        <span class="f-lv" data-i18n="fighter1_lv">Lv. 7</span>
+      </div>
+      <div class="hp-row">
+        <span class="hp-num">72</span>
+        <div class="hp-bar"><div class="hp-fill" style="width:82%"></div></div>
+      </div>
+      <div class="stat-row"><span class="stat-label" data-i18n="stat_str">Strength</span><span class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span></span></div>
+      <div class="stat-row"><span class="stat-label" data-i18n="stat_agi">Agility</span><span class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span></span></div>
+      <div class="stat-row"><span class="stat-label" data-i18n="stat_spd">Speed</span><span class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span></span></div>
+    </div>
+
+    <div class="vs-torch">VS</div>
+
+    <div class="fighter-figure f-right">
+      <div class="portrait" id="pvB"></div>
+      <div class="card-head">
+        <span class="f-name">Drusa</span>
+        <span class="f-lv" data-i18n="fighter2_lv">Lv. 6</span>
+      </div>
+      <div class="hp-row">
+        <span class="hp-num">66</span>
+        <div class="hp-bar"><div class="hp-fill" style="width:79%"></div></div>
+      </div>
+      <div class="stat-row"><span class="stat-label" data-i18n="stat_str">Strength</span><span class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span></span></div>
+      <div class="stat-row"><span class="stat-label" data-i18n="stat_agi">Agility</span><span class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span></span></div>
+      <div class="stat-row"><span class="stat-label" data-i18n="stat_spd">Speed</span><span class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span></span></div>
+    </div>
+  </div>
+
+</section>
+
+<section class="section" id="ciclo">
+  <div class="section-head">
+    <div class="section-eyebrow" data-i18n="cycle_eyebrow">The game loop</div>
+    <h2 data-i18n="cycle_h2">Four steps, an endless loop</h2>
+    <p data-i18n="cycle_p">Every brute enters the same cycle — and each round leaves you stronger.</p>
+  </div>
+  <div class="cycle-wrap">
+    <div class="cycle-step">
+      <div class="cycle-num">1</div>
+      <h3 data-i18n="cycle1_t">Forge</h3>
+      <p data-i18n="cycle1_p">Create your brute: starting stats, weapon, and name. Your character gets registered.</p>
+    </div>
+    <div class="cycle-arrow">→</div>
+    <div class="cycle-step">
+      <div class="cycle-num">2</div>
+      <h3 data-i18n="cycle2_t">Match</h3>
+      <p data-i18n="cycle2_p">The system finds a rival of similar level among other real players.</p>
+    </div>
+    <div class="cycle-arrow">→</div>
+    <div class="cycle-step">
+      <div class="cycle-num">3</div>
+      <h3 data-i18n="cycle3_t">Fight</h3>
+      <p data-i18n="cycle3_p">The battle plays out turn by turn: attacks, dodges, and critical hits.</p>
+    </div>
+    <div class="cycle-arrow">→</div>
+    <div class="cycle-step">
+      <div class="cycle-num">4</div>
+      <h3 data-i18n="cycle4_t">Reward</h3>
+      <p data-i18n="cycle4_p">Earn coins and experience. Level up and head back to the arena.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="solana">
+  <div class="section-head">
+    <div class="section-eyebrow" data-i18n="solana_eyebrow">Infrastructure</div>
+    <h2 data-i18n="solana_h2">Why we chose Solana</h2>
+    <p data-i18n="solana_p">A game with frequent battles needs a fast, cheap network — not the exception, but the norm.</p>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-num">~400ms</div>
+      <h4 data-i18n="solana1_t">Near-instant blocks</h4>
+      <p data-i18n="solana1_p">Every fight confirms in the blink of an eye, with no awkward waiting.</p>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">&lt;$0.01</div>
+      <h4 data-i18n="solana2_t">Minimal fees</h4>
+      <p data-i18n="solana2_p">Fighting, leveling up, or trading shouldn't cost more than the game itself.</p>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">Anchor</div>
+      <h4 data-i18n="solana3_t">Auditable contracts</h4>
+      <p data-i18n="solana3_p">Programs written in Rust using Anchor, the industry standard on Solana.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="section-head">
+    <div class="section-eyebrow" data-i18n="features_eyebrow">Features</div>
+    <h2 data-i18n="features_h2">What makes SolBrute different</h2>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🔗</div>
+      <div>
+        <h4 data-i18n="feat1_t">Verifiable combat</h4>
+        <p data-i18n="feat1_p">Every fight's outcome can be verified on-chain, with no central server involved.</p>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🏛️</div>
+      <div>
+        <h4 data-i18n="feat2_t">Player-driven economy</h4>
+        <p data-i18n="feat2_p">Arena rewards feed a real economy between the players themselves.</p>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📈</div>
+      <div>
+        <h4 data-i18n="feat3_t">Persistent progression</h4>
+        <p data-i18n="feat3_p">Your brute and its fight history are saved for good: nothing is lost between sessions.</p>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🤝</div>
+      <div>
+        <h4 data-i18n="feat4_t">Real PvP</h4>
+        <p data-i18n="feat4_p">You fight brutes created by other players, not just bots.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="roadmap">
+  <div class="section-head">
+    <div class="section-eyebrow" data-i18n="roadmap_eyebrow">Roadmap</div>
+    <h2 data-i18n="roadmap_h2">Where we are and where we're headed</h2>
+  </div>
+  <div class="roadmap">
+    <div class="rm-item">
+      <div class="rm-phase" data-i18n="phase0_label">PHASE 0</div>
+      <div class="rm-body">
+        <h4><span data-i18n="phase0_t">Playable prototype</span> <span class="rm-status live" data-i18n="phase0_status">CURRENT</span></h4>
+        <p data-i18n="phase0_p">Character creation, auto-battles, and progression, with a local account and an off-chain simulated economy.</p>
+      </div>
+    </div>
+    <div class="rm-item">
+      <div class="rm-phase" data-i18n="phase1_label">PHASE 1</div>
+      <div class="rm-body">
+        <h4><span data-i18n="phase1_t">Your wallet is your account</span> <span class="rm-status next" data-i18n="phase1_status">NEXT</span></h4>
+        <p data-i18n="phase1_p">Connect Phantom or Solflare and sign in to enter. Your brutes are tied to your address, no passwords.</p>
+      </div>
+    </div>
+    <div class="rm-item">
+      <div class="rm-phase" data-i18n="phase2_label">PHASE 2</div>
+      <div class="rm-body">
+        <h4><span data-i18n="phase2_t">Devnet program</span> <span class="rm-status soon" data-i18n="phase2_status">COMING SOON</span></h4>
+        <p data-i18n="phase2_p">Anchor contract on Solana's testnet: characters and battle results on-chain.</p>
+      </div>
+    </div>
+    <div class="rm-item">
+      <div class="rm-phase" data-i18n="phase3_label">PHASE 3</div>
+      <div class="rm-body">
+        <h4><span data-i18n="phase3_t">Mainnet &amp; token</span> <span class="rm-status soon" data-i18n="phase3_status">COMING SOON</span></h4>
+        <p data-i18n="phase3_p">Mainnet launch with a game token and an open marketplace between players.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="final-cta" id="jugar">
+  <h2 data-i18n="finalcta_h2">The arena is already open</h2>
+  <p data-i18n="finalcta_p">Try the current prototype, create your brute, and fight other players while we keep building the on-chain version.</p>
+  <a class="btn btn-primary js-play" data-i18n="finalcta_btn">⚔️ Enter the prototype</a>
+  <div class="cta-note" id="ctaNote" data-i18n="cta_pending">The prototype isn't open to the public yet — follow the project for the launch.</div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">SOLBRUTE</div>
+    <div class="footer-note" data-i18n="footer_note">
+      SolBrute is currently a prototype-stage project. There is no token yet, no contract deployed on mainnet,
+      and no reward with real-world value. This site is for demonstration and development purposes only.
+    </div>
+  </div>
+</footer>
+
+<script src="brute-render.js"></script>
+<script>
+(function(){
+  const translations = {
+    en: {
+      nav_how:"How it works", nav_why:"Why Solana", nav_features:"Features", nav_roadmap:"Roadmap", nav_cta:"Enter the arena",
+      hero_eyebrow:"Prototype in development · Solana",
+      hero_h1:`Forge your <span class="hl">brute</span>.<br>Fight <span class="hl2">on-chain</span>. Rule the arena.`,
+      hero_p:"SolBrute brings turn-based auto-battles to Solana: characters that level up, verifiable fights between real players, and an economy that runs on near-zero fees.",
+      hero_cta1:"⚔️ Try the prototype", hero_cta2:"See how it works ↓",
+      fighter1_lv:"Lv. 7", fighter2_lv:"Lv. 6",
+      stat_str:"Strength", stat_agi:"Agility", stat_spd:"Speed",
+      cycle_eyebrow:"The game loop", cycle_h2:"Four steps, an endless loop",
+      cycle_p:"Every brute enters the same cycle — and each round leaves you stronger.",
+      cycle1_t:"Forge", cycle1_p:"Create your brute: starting stats, weapon, and name. Your character gets registered.",
+      cycle2_t:"Match", cycle2_p:"The system finds a rival of similar level among other real players.",
+      cycle3_t:"Fight", cycle3_p:"The battle plays out turn by turn: attacks, dodges, and critical hits.",
+      cycle4_t:"Reward", cycle4_p:"Earn coins and experience. Level up and head back to the arena.",
+      solana_eyebrow:"Infrastructure", solana_h2:"Why we chose Solana",
+      solana_p:"A game with frequent battles needs a fast, cheap network — not the exception, but the norm.",
+      solana1_t:"Near-instant blocks", solana1_p:"Every fight confirms in the blink of an eye, with no awkward waiting.",
+      solana2_t:"Minimal fees", solana2_p:"Fighting, leveling up, or trading shouldn't cost more than the game itself.",
+      solana3_t:"Auditable contracts", solana3_p:"Programs written in Rust using Anchor, the industry standard on Solana.",
+      features_eyebrow:"Features", features_h2:"What makes SolBrute different",
+      feat1_t:"Verifiable combat", feat1_p:"Every fight's outcome can be verified on-chain, with no central server involved.",
+      feat2_t:"Player-driven economy", feat2_p:"Arena rewards feed a real economy between the players themselves.",
+      feat3_t:"Persistent progression", feat3_p:"Your brute and its fight history are saved for good: nothing is lost between sessions.",
+      feat4_t:"Real PvP", feat4_p:"You fight brutes created by other players, not just bots.",
+      roadmap_eyebrow:"Roadmap", roadmap_h2:"Where we are and where we're headed",
+      phase0_label:"PHASE 0", phase0_t:"Playable prototype", phase0_status:"CURRENT",
+      phase0_p:"Character creation, auto-battles, and progression, with a local account and an off-chain simulated economy.",
+      phase1_label:"PHASE 1", phase1_t:"Your wallet is your account", phase1_status:"NEXT",
+      phase1_p:"Connect Phantom or Solflare and sign in to enter. Your brutes are tied to your address, no passwords.",
+      phase2_label:"PHASE 2", phase2_t:"Devnet program", phase2_status:"COMING SOON",
+      phase2_p:"Anchor contract on Solana's testnet: characters and battle results on-chain.",
+      phase3_label:"PHASE 3", phase3_t:"Mainnet & token", phase3_status:"COMING SOON",
+      phase3_p:"Mainnet launch with a game token and an open marketplace between players.",
+      finalcta_h2:"The arena is already open",
+      finalcta_p:"Try the current prototype, create your brute, and fight other players while we keep building the on-chain version.",
+      finalcta_btn:"⚔️ Enter the prototype", finalcta_btn_soon:"⚔️ Opening soon",
+      cta_pending:"The prototype isn't open to the public yet — follow the project for the launch.",
+      footer_note:"SolBrute is currently a prototype-stage project. There is no token yet, no contract deployed on mainnet, and no reward with real-world value. This site is for demonstration and development purposes only."
+    },
+    es: {
+      nav_how:"Cómo funciona", nav_why:"Por qué Solana", nav_features:"Características", nav_roadmap:"Roadmap", nav_cta:"Entrar a la arena",
+      hero_eyebrow:"Prototipo en desarrollo · Solana",
+      hero_h1:`Crea tu <span class="hl">bruto</span>.<br>Pelea <span class="hl2">on-chain</span>. Domina la arena.`,
+      hero_p:"SolBrute lleva el combate automático por turnos a Solana: personajes que suben de nivel, peleas verificables entre jugadores reales y una economía que corre con comisiones casi nulas.",
+      hero_cta1:"⚔️ Probar el prototipo", hero_cta2:"Ver cómo funciona ↓",
+      fighter1_lv:"Nv. 7", fighter2_lv:"Nv. 6",
+      stat_str:"Fuerza", stat_agi:"Agilidad", stat_spd:"Velocidad",
+      cycle_eyebrow:"El ciclo del juego", cycle_h2:"Cuatro pasos, un loop sin fin",
+      cycle_p:"Cada bruto entra en el mismo ciclo — y cada vuelta te deja más fuerte.",
+      cycle1_t:"Forjar", cycle1_p:"Creás tu bruto: stats iniciales, arma y nombre. Tu personaje queda registrado.",
+      cycle2_t:"Emparejar", cycle2_p:"El sistema busca un rival de nivel similar entre otros jugadores reales.",
+      cycle3_t:"Combatir", cycle3_p:"El combate se resuelve por turnos: ataques, esquives y golpes críticos.",
+      cycle4_t:"Recompensa", cycle4_p:"Ganás monedas y experiencia. Subís de nivel y volvés a la arena.",
+      solana_eyebrow:"Infraestructura", solana_h2:"Por qué elegimos Solana",
+      solana_p:"Un juego de combates frecuentes necesita una red rápida y barata — no la excepción, sino la norma.",
+      solana1_t:"Bloques casi instantáneos", solana1_p:"Cada pelea se confirma en el tiempo que tarda un parpadeo, sin esperas incómodas.",
+      solana2_t:"Comisiones mínimas", solana2_p:"Pelear, subir de nivel o comerciar no debería costar más que el propio juego.",
+      solana3_t:"Contratos auditables", solana3_p:"Programas en Rust con el framework Anchor, el estándar de la industria en Solana.",
+      features_eyebrow:"Características", features_h2:"Qué hace distinto a SolBrute",
+      feat1_t:"Combate verificable", feat1_p:"El resultado de cada pelea puede verificarse en cadena, sin depender de un servidor central.",
+      feat2_t:"Economía de jugadores", feat2_p:"Las recompensas de la arena alimentan una economía real entre los propios jugadores.",
+      feat3_t:"Progresión persistente", feat3_p:"Tu bruto y su historial de peleas quedan guardados: nada se pierde entre sesiones.",
+      feat4_t:"PvP real", feat4_p:"Peleás contra brutos creados por otros jugadores, no solo contra bots.",
+      roadmap_eyebrow:"Roadmap", roadmap_h2:"Dónde estamos y hacia dónde vamos",
+      phase0_label:"FASE 0", phase0_t:"Prototipo jugable", phase0_status:"ACTUAL",
+      phase0_p:"Creación de personaje, combate automático y progresión, con cuenta local y economía simulada fuera de cadena.",
+      phase1_label:"FASE 1", phase1_t:"Tu wallet es tu cuenta", phase1_status:"SIGUIENTE",
+      phase1_p:"Conecta Phantom o Solflare y firma para entrar. Tus brutos quedan ligados a tu dirección, sin contraseñas.",
+      phase2_label:"FASE 2", phase2_t:"Programa en devnet", phase2_status:"PRÓXIMAMENTE",
+      phase2_p:"Contrato Anchor en la red de pruebas de Solana: personajes y resultados de combate on-chain.",
+      phase3_label:"FASE 3", phase3_t:"Mainnet y token", phase3_status:"PRÓXIMAMENTE",
+      phase3_p:"Lanzamiento en mainnet con token del juego y mercado abierto entre jugadores.",
+      finalcta_h2:"La arena ya está abierta",
+      finalcta_p:"Probá el prototipo actual, creá tu bruto y pelea contra otros jugadores mientras seguimos construyendo la versión on-chain.",
+      finalcta_btn:"⚔️ Entrar al prototipo", finalcta_btn_soon:"⚔️ Próxima apertura",
+      cta_pending:"El prototipo todavía no está abierto al público — sigue el proyecto para enterarte del lanzamiento.",
+      footer_note:"SolBrute es un proyecto en fase de prototipo. No existe todavía ningún token, contrato desplegado en mainnet, ni recompensa con valor real. Este sitio es solo para fines de demostración y desarrollo."
+    },
+    fr: {
+      nav_how:"Comment ça marche", nav_why:"Pourquoi Solana", nav_features:"Fonctionnalités", nav_roadmap:"Feuille de route", nav_cta:"Entrer dans l'arène",
+      hero_eyebrow:"Prototype en développement · Solana",
+      hero_h1:`Forge ta <span class="hl">brute</span>.<br>Combats <span class="hl2">on-chain</span>. Domine l'arène.`,
+      hero_p:"SolBrute apporte le combat automatique au tour par tour sur Solana : des personnages qui progressent, des combats vérifiables entre vrais joueurs, et une économie aux frais quasi nuls.",
+      hero_cta1:"⚔️ Essayer le prototype", hero_cta2:"Voir comment ça marche ↓",
+      fighter1_lv:"Niv. 7", fighter2_lv:"Niv. 6",
+      stat_str:"Force", stat_agi:"Agilité", stat_spd:"Vitesse",
+      cycle_eyebrow:"Le cycle du jeu", cycle_h2:"Quatre étapes, une boucle sans fin",
+      cycle_p:"Chaque brute entre dans le même cycle — et chaque tour te rend plus fort.",
+      cycle1_t:"Forger", cycle1_p:"Crée ta brute : statistiques de départ, arme et nom. Ton personnage est enregistré.",
+      cycle2_t:"Assortir", cycle2_p:"Le système trouve un rival de niveau similaire parmi d'autres joueurs réels.",
+      cycle3_t:"Combattre", cycle3_p:"Le combat se déroule tour par tour : attaques, esquives et coups critiques.",
+      cycle4_t:"Récompense", cycle4_p:"Gagne des pièces et de l'expérience. Monte de niveau et retourne dans l'arène.",
+      solana_eyebrow:"Infrastructure", solana_h2:"Pourquoi nous avons choisi Solana",
+      solana_p:"Un jeu de combats fréquents a besoin d'un réseau rapide et bon marché — pas l'exception, mais la norme.",
+      solana1_t:"Blocs quasi instantanés", solana1_p:"Chaque combat se confirme en un clin d'œil, sans attente désagréable.",
+      solana2_t:"Frais minimes", solana2_p:"Combattre, progresser ou échanger ne devrait pas coûter plus cher que le jeu lui-même.",
+      solana3_t:"Contrats auditables", solana3_p:"Programmes écrits en Rust avec Anchor, la norme de l'industrie sur Solana.",
+      features_eyebrow:"Fonctionnalités", features_h2:"Ce qui rend SolBrute différent",
+      feat1_t:"Combat vérifiable", feat1_p:"Le résultat de chaque combat peut être vérifié on-chain, sans serveur central.",
+      feat2_t:"Économie des joueurs", feat2_p:"Les récompenses de l'arène alimentent une véritable économie entre les joueurs.",
+      feat3_t:"Progression persistante", feat3_p:"Ta brute et son historique de combats sont sauvegardés pour de bon : rien ne se perd entre les sessions.",
+      feat4_t:"Vrai PvP", feat4_p:"Tu combats des brutes créées par d'autres joueurs, pas seulement des bots.",
+      roadmap_eyebrow:"Feuille de route", roadmap_h2:"Où nous en sommes et où nous allons",
+      phase0_label:"PHASE 0", phase0_t:"Prototype jouable", phase0_status:"ACTUEL",
+      phase0_p:"Création de personnage, combats automatiques et progression, avec un compte local et une économie simulée hors chaîne.",
+      phase1_label:"PHASE 1", phase1_t:"Ton wallet est ton compte", phase1_status:"SUIVANT",
+      phase1_p:"Connecte Phantom ou Solflare et signe pour entrer. Tes brutes sont liées à ton adresse, sans mot de passe.",
+      phase2_label:"PHASE 2", phase2_t:"Programme sur devnet", phase2_status:"BIENTÔT",
+      phase2_p:"Contrat Anchor sur le réseau de test de Solana : personnages et résultats de combat on-chain.",
+      phase3_label:"PHASE 3", phase3_t:"Mainnet et token", phase3_status:"BIENTÔT",
+      phase3_p:"Lancement sur le mainnet avec un token de jeu et un marché ouvert entre joueurs.",
+      finalcta_h2:"L'arène est déjà ouverte",
+      finalcta_p:"Essaie le prototype actuel, crée ta brute et combats d'autres joueurs pendant que nous continuons à construire la version on-chain.",
+      finalcta_btn:"⚔️ Entrer dans le prototype", finalcta_btn_soon:"⚔️ Ouverture prochaine",
+      cta_pending:"Le prototype n'est pas encore ouvert au public — suis le projet pour le lancement.",
+      footer_note:"SolBrute est actuellement un projet au stade de prototype. Il n'y a pas encore de token, aucun contrat déployé sur le mainnet, et aucune récompense ayant une valeur réelle. Ce site est uniquement destiné à des fins de démonstration et de développement."
+    }
+  };
+
+  // ─── Set this to the prototype URL when it's live. Empty = show "opening soon".
+  const PROTOTYPE_URL = "app.html";
+
+  const playLinks = document.querySelectorAll('.js-play');
+  const ctaNote = document.getElementById('ctaNote');
+  const playLive = PROTOTYPE_URL.trim() !== "";
+
+  function wirePlayLinks(){
+    playLinks.forEach(a => {
+      if(playLive){
+        a.href = PROTOTYPE_URL;
+        a.classList.remove('is-pending');
+        a.removeAttribute('aria-disabled');
+      }else{
+        a.removeAttribute('href');
+        a.classList.add('is-pending');
+        a.setAttribute('aria-disabled','true');
+      }
+    });
+    if(ctaNote){ ctaNote.classList.toggle('show', !playLive); }
+  }
+
+  /* Renderizador compartido con la app — ver brute-render.js.
+     Se desestructura al ámbito local para que las llamadas de dibujo se
+     escriban igual que en app.html (bust, OL, SKIN…). */
+  const { OL, SKIN, HAIRC, CLOTHC, INK, EYEC, HAIRS, CLOTHS, FACES, TATS, HD, OUT, IN, PB,
+          shade, torsoPath, HEADP,
+          drawBody, drawTat, drawCloth, drawFace, drawHair,
+          bust, spriteProfile } = window.BruteRender;
+
+  /* los dos brutos del hero, mismos looks que los de arranque en la app */
+  const HERO_A = { sex:0, skin:2, hair:2, hairC:3, cloth:3, clothC:3, face:0, eyeC:2, tat:1, tatC:0 };
+  const HERO_B = { sex:1, skin:1, hair:1, hairC:5, cloth:2, clothC:2, face:3, eyeC:0, tat:0, tatC:0 };
+  const pvA = document.getElementById('pvA');
+  const pvB = document.getElementById('pvB');
+  if(pvA) pvA.innerHTML = bust(HERO_A);
+  if(pvB) pvB.innerHTML = bust(HERO_B);
+
+  function applyLang(lang){
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if(translations[lang][key] !== undefined){ el.textContent = translations[lang][key]; }
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+      const key = el.getAttribute('data-i18n-html');
+      if(translations[lang][key] !== undefined){ el.innerHTML = translations[lang][key]; }
+    });
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+    });
+    if(!playLive){
+      const soon = translations[lang].finalcta_btn_soon;
+      document.querySelectorAll('.final-cta .js-play').forEach(a => { if(soon){ a.textContent = soon; } });
+    }
+  }
+
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyLang(btn.getAttribute('data-lang')));
+  });
+
+  // mobile drawer
+  const navToggle = document.getElementById('navToggle');
+  const navDrawer = document.getElementById('navDrawer');
+  if(navToggle && navDrawer){
+    navToggle.addEventListener('click', () => {
+      const open = navDrawer.classList.toggle('open');
+      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    navDrawer.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', () => {
+        navDrawer.classList.remove('open');
+        navToggle.setAttribute('aria-expanded','false');
+      });
+    });
+  }
+
+  wirePlayLinks();
+  applyLang('en');
+})();
+</script>
+
+</body>
+</html>

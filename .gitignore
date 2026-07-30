@@ -1,0 +1,5 @@
+# Ajustes locales de Claude Code: son de tu máquina, no del proyecto
+.claude/settings.local.json
+
+# Basura del sistema
+.DS_Store
