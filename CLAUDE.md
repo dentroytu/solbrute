@@ -12,6 +12,7 @@ experiencia y sube de nivel.
 | `app.html` | La app: puerta, ludus, creador, emparejamiento, arena | Prototipo funcional |
 | `brute-render.js` | Renderizador de brutos por capas, compartido | Estable |
 | `supabase-cliente.js` | Acceso a la base de datos (jugadores, brutos, rivales) | Funcionando |
+| `wallet-solana.js` | Conectar y firmar con Phantom / Solflare | Firma sin verificar |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
 | `supabase-02-rerolls.sql` | Añade `rerolls_left` y `pool` a `brutes` | Aplicado |
 | `servidor-local.js` | Servidor de desarrollo, sin caché. No lo necesita el juego | Herramienta |
@@ -169,6 +170,39 @@ Conectar solo da la dirección pública, y eso es falsificable desde el frontend
 Autenticación de verdad = el usuario **firma** un mensaje (patrón Sign In With
 Solana) y el servidor verifica la firma. El copy de la Fase 1 del roadmap dice
 "conecta **y firma**" precisamente para comprometernos con esto.
+
+### Dónde estamos: la firma existe, nadie la verifica
+
+`wallet-solana.js` conecta de verdad con Phantom y Solflare, y pide la firma.
+Ya no hay direcciones inventadas: `fakeAddr()` y `miDireccion()` se borraron y
+`loadMe()` lanza si se le llama sin dirección.
+
+**Pero la firma no la comprueba nadie todavía**, así que sigue sin ser una
+prueba de identidad. Falta la mitad del servidor: tabla `auth_nonces`, las Edge
+Functions `/auth/nonce` y `/auth/verify`, y endurecer las políticas RLS.
+
+**El nonce lo genera hoy el navegador**, que es justo lo que lo invalida como
+prueba — quien se lo inventa puede inventarse también el resto. Cuando exista
+`/auth/nonce`, solo cambia de dónde sale el número: el formato del mensaje ya es
+el definitivo a propósito, para no rehacer esto.
+
+Qué lleva el mensaje firmado y por qué:
+
+- **Dominio** — sin él, una web fraudulenta podría reutilizar tu firma aquí.
+- **Nonce** — lo hace de un solo uso; sin él, una firma capturada vale para
+  siempre.
+- **Fecha e URI** — contexto para que el usuario vea qué está firmando.
+
+**Sin modo invitado, a propósito.** Quien no tenga wallet no entra, pero la
+puerta explica qué es una wallet, para qué hace falta y enlaza a la instalación,
+en vez de dejar un botón muerto. Los textos de "detectada / no detectada" ahora
+detectan de verdad; antes estaban escritos a mano y mentían.
+
+**Cuidado con el base58.** Está a mano en `wallet-solana.js` porque no hay
+dependencias. El acumulador tiene que empezar VACÍO: con un cero dentro, toda
+entrada que empiece por byte 0 sale con un "1" de más. Como una firma de cada
+256 empieza por cero, eso son logins que fallan un 0,4 % de las veces sin patrón
+aparente. Hay vectores de prueba conocidos; si tocas esa función, compruébalos.
 
 ---
 

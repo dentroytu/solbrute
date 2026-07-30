@@ -208,6 +208,16 @@
   .field input[type=text]:focus{ border-color:var(--bronze); outline:none; }
   .field .hint{ font-size:11.5px; color:var(--muted); margin-top:6px; }
   .reroll-note{ color:var(--muted); opacity:.85; }
+  .gate-msg{ font-size:12.5px; margin:14px auto 0; max-width:400px; min-height:18px; color:var(--muted); }
+  .gate-msg.err{ color:var(--blood-bright); font-weight:600; }
+  .gate-msg.ok{ color:var(--sol-teal); }
+  .gate-nowallet{ display:none; max-width:430px; margin:20px auto 0; padding:18px 20px;
+                  background:var(--surface); border:1px solid var(--line); border-radius:14px; text-align:left; }
+  .gate-nowallet.show{ display:block; }
+  .gate-nowallet h4{ font-family:'Cinzel',serif; color:var(--bronze-light); font-size:15px; margin-bottom:8px; }
+  .gate-nowallet p{ font-size:12.5px; color:var(--muted); margin-bottom:12px; }
+  .gate-nowallet .gate-note{ margin:10px 0 0; font-size:11.5px; opacity:.8; }
+  .wallet-opt.off{ opacity:.5; }
   .field .hint.hint-error{ color:var(--blood-bright); font-weight:600; }
   .panels{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
   @media(max-width:560px){ .panels{ grid-template-columns:1fr; } }
@@ -275,14 +285,21 @@
       <h1 data-i18n="gate_h1">The gate is shut</h1>
       <p data-i18n="gate_p">Your wallet is your account here. Connect it and sign once to open the gate — no email, no password.</p>
       <div class="wallet-list">
-        <button class="wallet-opt js-connect">
+        <button class="wallet-opt js-connect" data-wallet="phantom">
           <span class="wallet-mark" style="background:#4b3f86;color:#e8e2ff">P</span>
-          <span>Phantom<small data-i18n="w_det">Detected in this browser</small></span>
+          <span>Phantom<small class="w-state" data-for="phantom">…</small></span>
         </button>
-        <button class="wallet-opt js-connect">
+        <button class="wallet-opt js-connect" data-wallet="solflare">
           <span class="wallet-mark" style="background:#2a2416;color:#e5ab5c">S</span>
-          <span>Solflare<small data-i18n="w_inst">Not detected — opens the install page</small></span>
+          <span>Solflare<small class="w-state" data-for="solflare">…</small></span>
         </button>
+      </div>
+      <p class="gate-msg" id="gateMsg"></p>
+      <div class="gate-nowallet" id="gateNoWallet">
+        <h4 data-i18n="nw_t">You need a Solana wallet</h4>
+        <p data-i18n="nw_p">A wallet is a free browser extension that holds your account. SolBrute uses it instead of an email and password: nothing to remember, and no funds ever leave it.</p>
+        <a class="btn btn-primary btn-sm" id="btnInstall" href="https://phantom.app/download" target="_blank" rel="noopener noreferrer" data-i18n="nw_cta">Install Phantom</a>
+        <p class="gate-note" data-i18n="nw_after">Install it, create your wallet and come back to this page. You don't need to put any money in.</p>
       </div>
       <div class="gate-steps">
         <h4 data-i18n="gs_t">What happens when you connect</h4>
@@ -451,6 +468,7 @@
 
 <script src="brute-render.js"></script>
 <script src="supabase-cliente.js"></script>
+<script src="wallet-solana.js"></script>
 <script>
 (function(){
   "use strict";
@@ -496,6 +514,16 @@
       forge_cta:"Forjar bruto", cancel:"Cancelar", rnd_look:"Aspecto",
       loading:"Buscando rivales…", saved_on:"guardado activo", saved_off:"solo esta sesión",
       saved_cloud:"en la nube", name_taken:"Ese nombre ya lo lleva otro bruto. Elige otro.",
+      nw_t:"Necesitas una wallet de Solana",
+      nw_p:"Una wallet es una extensión gratuita del navegador que guarda tu cuenta. SolBrute la usa en vez de correo y contraseña: nada que recordar, y de ahí no sale ningún fondo.",
+      nw_cta:"Instalar Phantom",
+      nw_after:"Instálala, crea tu wallet y vuelve a esta página. No hace falta que metas dinero.",
+      w_yes:"Detectada en este navegador", w_no:"No detectada",
+      g_connecting:"Abriendo la wallet…", g_signing:"Mira tu wallet y firma el mensaje para entrar.",
+      g_rejected:"Has cancelado. No se ha enviado nada y no se ha movido ningún fondo.",
+      g_nosign:"Esta wallet no sabe firmar mensajes, así que no puedo comprobar que la dirección es tuya.",
+      g_fail:"No he podido conectar con la wallet.",
+      g_notinstalled:"Esa wallet no está en este navegador.",
       rank_open:"🏆 Clasificación", rank_h1:"Clasificación", rank_refresh:"↻ Actualizar",
       rank_sub:"Los mejores brutos del juego.",
       rank_note:"Aquí solo hay jugadores reales. Los brutos de la casa se inventan al emparejar y no se guardan, así que no puntúan.",
@@ -541,6 +569,16 @@
       forge_cta:"Forge brute", cancel:"Cancel", rnd_look:"Look",
       loading:"Finding opponents…", saved_on:"saving on", saved_off:"this session only",
       saved_cloud:"online", name_taken:"That name belongs to another brute. Pick a different one.",
+      nw_t:"You need a Solana wallet",
+      nw_p:"A wallet is a free browser extension that holds your account. SolBrute uses it instead of an email and password: nothing to remember, and no funds ever leave it.",
+      nw_cta:"Install Phantom",
+      nw_after:"Install it, create your wallet and come back to this page. You don't need to put any money in.",
+      w_yes:"Detected in this browser", w_no:"Not detected",
+      g_connecting:"Opening your wallet…", g_signing:"Check your wallet and sign the message to enter.",
+      g_rejected:"You cancelled. Nothing was sent and no funds moved.",
+      g_nosign:"This wallet can't sign messages, so I can't check the address is really yours.",
+      g_fail:"Couldn't reach the wallet.",
+      g_notinstalled:"That wallet isn't in this browser.",
       rank_open:"🏆 Leaderboard", rank_h1:"Leaderboard", rank_refresh:"↻ Refresh",
       rank_sub:"The strongest brutes in the game.",
       rank_note:"Real players only. House brutes are made up at matchmaking time and never saved, so they don't score.",
@@ -586,6 +624,16 @@
       forge_cta:"Forger la brute", cancel:"Annuler", rnd_look:"Allure",
       loading:"Recherche d'adversaires…", saved_on:"sauvegarde active", saved_off:"cette session seulement",
       saved_cloud:"en ligne", name_taken:"Ce nom appartient déjà à une autre brute. Choisis-en un autre.",
+      nw_t:"Il te faut un wallet Solana",
+      nw_p:"Un wallet est une extension de navigateur gratuite qui contient ton compte. SolBrute l'utilise au lieu d'un e-mail et d'un mot de passe : rien à retenir, et aucun fonds n'en sort.",
+      nw_cta:"Installer Phantom",
+      nw_after:"Installe-le, crée ton wallet et reviens sur cette page. Pas besoin d'y mettre d'argent.",
+      w_yes:"Détecté dans ce navigateur", w_no:"Non détecté",
+      g_connecting:"Ouverture du wallet…", g_signing:"Regarde ton wallet et signe le message pour entrer.",
+      g_rejected:"Tu as annulé. Rien n'a été envoyé et aucun fonds n'a bougé.",
+      g_nosign:"Ce wallet ne sait pas signer de messages, je ne peux donc pas vérifier que l'adresse est bien la tienne.",
+      g_fail:"Impossible de joindre le wallet.",
+      g_notinstalled:"Ce wallet n'est pas dans ce navigateur.",
       rank_open:"🏆 Classement", rank_h1:"Classement", rank_refresh:"↻ Actualiser",
       rank_sub:"Les meilleures brutes du jeu.",
       rank_note:"Uniquement des joueurs réels. Les brutes de la maison sont inventées au moment de l'appariement et ne sont jamais sauvegardées : elles ne comptent pas.",
@@ -666,28 +714,13 @@
   const KEY_ME = "solbrute:ludus:v1";
   const utcDay = () => new Date().toISOString().slice(0,10);
 
-  function fakeAddr(){
-    const c = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789";
-    let out = ""; for(let i=0;i<44;i++) out += c[ri(c.length)];
-    return out;
-  }
-  const shortAddr = a => a ? a.slice(0,4) + "…" + a.slice(-4) : "—";
-
-  /* ═══════════ identidad del jugador ═══════════
-     La dirección se guarda en localStorage, que sí sobrevive a recargar la
-     página al abrir el fichero con doble clic. Sin esto, cada recarga sería un
-     jugador nuevo y no volverías a ver tus propios brutos.
-     Hoy la dirección es inventada; en el paso 2 la pondrá la wallet de verdad.
-     La casilla donde se guarda es la misma, así que no habrá que migrar nada. */
+  /* La dirección la pone la wallet. Se guarda en localStorage solo para poder
+     reconectar en silencio en la siguiente visita; no es la fuente de verdad
+     y no vale como prueba de identidad — eso es la firma. */
   const KEY_ADDR = "solbrute:addr:v1";
 
-  function miDireccion(){
-    try{
-      let a = localStorage.getItem(KEY_ADDR);
-      if(!a){ a = fakeAddr(); localStorage.setItem(KEY_ADDR, a); }
-      return a;
-    }catch(e){ return fakeAddr(); }   // navegador con el almacenamiento capado
-  }
+  /* Una dirección de Solana son 44 caracteres: entera no cabe en la barra. */
+  const shortAddr = a => a ? a.slice(0,4) + "…" + a.slice(-4) : "—";
 
   /* true = los brutos viven en Supabase; false = solo en esta pestaña.
      Si la base de datos no responde, el juego sigue funcionando en local en vez
@@ -695,7 +728,9 @@
   let nube = false;
 
   async function loadMe(){
-    addr = miDireccion();
+    /* addr ya viene puesta por entrar(), con la dirección real de la wallet.
+       Antes esta línea llamaba a miDireccion(), que se la inventaba. */
+    if(!addr) throw new Error("loadMe sin dirección: hay que conectar la wallet primero");
     nube = !!(window.SolBruteDB && await window.SolBruteDB.vive());
 
     if(nube){
@@ -1276,16 +1311,94 @@
     if(id === "scRoster") renderRoster();
     window.scrollTo({ top:0, behavior:"instant" });
   }
-  document.querySelectorAll(".js-connect").forEach(b => b.onclick = async () => {
-    b.disabled = true;
+  /* ═══════════ la puerta ═══════════
+     Antes: los dos botones hacían lo mismo y la dirección se la inventaba
+     fakeAddr(). Ahora se conecta la wallet de verdad y se pide una firma.
+
+     OJO con el alcance de esto: la firma se produce pero TODAVÍA NO LA
+     VERIFICA NADIE. Sirve para que el usuario haga el gesto real y para que
+     la dirección sea la suya, no para demostrar nada ante el servidor. Eso
+     llega con las Edge Functions — ver BACKEND.md. */
+
+  let sesionWallet = null;
+
+  function avisoPuerta(clave, tipo){
+    const e = el("gateMsg");
+    e.textContent = clave ? t(clave) : "";
+    e.className = "gate-msg" + (tipo ? " " + tipo : "");
+  }
+
+  /* Pinta qué wallets hay. Antes esto era texto fijo en el HTML que decía
+     "detectada" tuvieras lo que tuvieras. */
+  function pintarWallets(){
+    const w = window.SolBruteWallet.detectar();
+    document.querySelectorAll(".w-state").forEach(n => {
+      const info = w[n.dataset.for];
+      n.textContent = info && info.instalada ? t("w_yes") : t("w_no");
+    });
+    document.querySelectorAll(".js-connect").forEach(b => {
+      b.classList.toggle("off", !(w[b.dataset.wallet] || {}).instalada);
+    });
+    const alguna = window.SolBruteWallet.hayAlguna();
+    el("gateNoWallet").classList.toggle("show", !alguna);
+    return alguna;
+  }
+
+  async function entrar(sesion){
+    sesionWallet = sesion;
+    addr = sesion.direccion;
+    try{ localStorage.setItem(KEY_ADDR, addr); }catch(e){}
     await loadMe();
     el("walletAddr").textContent = shortAddr(addr);
     el("balNum").textContent = balance;
     pintarEstado();
-    b.disabled = false;
+    avisoPuerta("");
     show("scRoster");
+  }
+
+  document.querySelectorAll(".js-connect").forEach(b => b.onclick = async () => {
+    const cual = b.dataset.wallet;
+    b.disabled = true;
+    try{
+      avisoPuerta("g_connecting");
+      const sesion = await SolBruteWallet.conectar(cual);
+
+      /* El mensaje incluye dominio y nonce a propósito. Sin dominio, otra web
+         podría reutilizar tu firma para entrar aquí; sin nonce, quien capture
+         una firma la reutilizaría para siempre.
+         El nonce lo genera el navegador SOLO de momento: cuando exista
+         /auth/nonce lo dará el servidor, que es lo único que lo hace válido
+         como prueba. El formato del mensaje no cambiará. */
+      avisoPuerta("g_signing");
+      const nonce = crypto.getRandomValues(new Uint32Array(4)).join("").slice(0, 24);
+      const mensaje = SolBruteWallet.mensajeInicio({
+        dominio: location.host || "solbrute",
+        direccion: sesion.direccion,
+        uri: location.origin + location.pathname,
+        nonce,
+        fecha: new Date().toISOString()
+      });
+
+      sesion.firma = await SolBruteWallet.firmar(sesion, mensaje);
+      sesion.mensaje = mensaje;
+      sesion.nonce = nonce;
+
+      await entrar(sesion);
+    }catch(e){
+      const porCausa = { rechazado:"g_rejected", "no-instalada":"g_notinstalled", "sin-firma":"g_nosign" };
+      avisoPuerta(porCausa[e.causa] || "g_fail", "err");
+      if(!porCausa[e.causa]) console.warn("[SolBrute] puerta:", e.message);
+    }finally{
+      b.disabled = false;
+    }
   });
-  el("btnDisconnect").onclick = () => show("scGate");
+  el("btnDisconnect").onclick = async () => {
+    await SolBruteWallet.desconectar(sesionWallet);
+    sesionWallet = null; addr = null; brutes = []; loaded = false;
+    try{ localStorage.removeItem(KEY_ADDR); }catch(e){}
+    avisoPuerta(""); pintarWallets();
+    show("scGate");
+  };
   el("btnRank").onclick = openRank;
   el("btnRankRefresh").onclick = async () => {
     const b = el("btnRankRefresh");
@@ -1331,11 +1444,22 @@
     if(cur.id === "scRoster") renderRoster();
     if(cur.id === "scMatch" && active) renderMatch();
     if(cur.id === "scRank") renderRank();
+    if(cur.id === "scGate") pintarWallets();
     if(cur.id === "scForge" && look){ buildCreator(); renderForge(); }
   }
   document.querySelectorAll(".lang-btn").forEach(b => b.onclick = () => applyLang(b.dataset.lang));
 
   applyLang("en"); show("scGate");
+
+  /* Reconexión silenciosa: si ya autorizaste este sitio, entras sin ventanita.
+     Si no, falla en silencio — nunca se abre un diálogo que nadie ha pedido. */
+  (async () => {
+    if(!pintarWallets()) return;
+    for(const id of ["phantom","solflare"]){
+      const s = await SolBruteWallet.reconectar(id);
+      if(s){ await entrar(s); return; }
+    }
+  })();
 })();
 </script>
 </body>
