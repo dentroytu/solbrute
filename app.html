@@ -522,6 +522,9 @@
       g_connecting:"Abriendo la wallet…", g_signing:"Mira tu wallet y firma el mensaje para entrar.",
       g_rejected:"Has cancelado. No se ha enviado nada y no se ha movido ningún fondo.",
       g_nosign:"Esta wallet no sabe firmar mensajes, así que no puedo comprobar que la dirección es tuya.",
+      g_nonce:"Pidiendo un código de un solo uso al servidor…",
+      g_verifying:"Comprobando tu firma…",
+      g_authfail:"El servidor no ha dado por buena la firma. Vuelve a intentarlo.",
       g_fail:"No he podido conectar con la wallet.",
       g_notinstalled:"Esa wallet no está en este navegador.",
       rank_open:"🏆 Clasificación", rank_h1:"Clasificación", rank_refresh:"↻ Actualizar",
@@ -577,6 +580,9 @@
       g_connecting:"Opening your wallet…", g_signing:"Check your wallet and sign the message to enter.",
       g_rejected:"You cancelled. Nothing was sent and no funds moved.",
       g_nosign:"This wallet can't sign messages, so I can't check the address is really yours.",
+      g_nonce:"Asking the server for a one-time code…",
+      g_verifying:"Checking your signature…",
+      g_authfail:"The server didn't accept the signature. Try again.",
       g_fail:"Couldn't reach the wallet.",
       g_notinstalled:"That wallet isn't in this browser.",
       rank_open:"🏆 Leaderboard", rank_h1:"Leaderboard", rank_refresh:"↻ Refresh",
@@ -632,6 +638,9 @@
       g_connecting:"Ouverture du wallet…", g_signing:"Regarde ton wallet et signe le message pour entrer.",
       g_rejected:"Tu as annulé. Rien n'a été envoyé et aucun fonds n'a bougé.",
       g_nosign:"Ce wallet ne sait pas signer de messages, je ne peux donc pas vérifier que l'adresse est bien la tienne.",
+      g_nonce:"Demande d'un code à usage unique au serveur…",
+      g_verifying:"Vérification de ta signature…",
+      g_authfail:"Le serveur n'a pas accepté la signature. Réessaie.",
       g_fail:"Impossible de joindre le wallet.",
       g_notinstalled:"Ce wallet n'est pas dans ce navigateur.",
       rank_open:"🏆 Classement", rank_h1:"Classement", rank_refresh:"↻ Actualiser",
@@ -1363,14 +1372,23 @@
       avisoPuerta("g_connecting");
       const sesion = await SolBruteWallet.conectar(cual);
 
-      /* El mensaje incluye dominio y nonce a propósito. Sin dominio, otra web
-         podría reutilizar tu firma para entrar aquí; sin nonce, quien capture
-         una firma la reutilizaría para siempre.
-         El nonce lo genera el navegador SOLO de momento: cuando exista
-         /auth/nonce lo dará el servidor, que es lo único que lo hace válido
-         como prueba. El formato del mensaje no cambiará. */
+      /* Si ya hay sesión válida de esta misma dirección, no se vuelve a pedir
+         la firma: molestar con una ventana en cada recarga es la mejor forma
+         de que la gente deje de entrar. */
+      if(SolBruteDB.sesionActiva() && SolBruteDB.direccionSesion() === sesion.direccion){
+        await entrar(sesion);
+        return;
+      }
+
+      /* Paso 1 · el NONCE lo da el servidor. Es lo que convierte la firma en
+         una prueba: uno inventado por el navegador no demuestra nada, porque
+         quien se inventa el número se inventa también el resto. */
+      avisoPuerta("g_nonce");
+      const nonce = await SolBruteDB.pedirNonce(sesion.direccion);
+
+      /* Paso 2 · firmar. El mensaje lleva dominio (para que una firma dada en
+         otra web no valga aquí), el nonce (de un solo uso) y la fecha. */
       avisoPuerta("g_signing");
-      const nonce = crypto.getRandomValues(new Uint32Array(4)).join("").slice(0, 24);
       const mensaje = SolBruteWallet.mensajeInicio({
         dominio: location.host || "solbrute",
         direccion: sesion.direccion,
@@ -1378,22 +1396,28 @@
         nonce,
         fecha: new Date().toISOString()
       });
+      const firma = await SolBruteWallet.firmar(sesion, mensaje);
 
-      sesion.firma = await SolBruteWallet.firmar(sesion, mensaje);
-      sesion.mensaje = mensaje;
-      sesion.nonce = nonce;
+      /* Paso 3 · el servidor comprueba la firma con ed25519 y devuelve el
+         token de sesión. Hasta aquí nada demostraba nada; a partir de aquí sí. */
+      avisoPuerta("g_verifying");
+      await SolBruteDB.verificarFirma(sesion.direccion, mensaje, firma);
 
       await entrar(sesion);
     }catch(e){
-      const porCausa = { rechazado:"g_rejected", "no-instalada":"g_notinstalled", "sin-firma":"g_nosign" };
+      const porCausa = { rechazado:"g_rejected", "no-instalada":"g_notinstalled",
+                         "sin-firma":"g_nosign", auth:"g_authfail", red:"g_fail" };
       avisoPuerta(porCausa[e.causa] || "g_fail", "err");
-      if(!porCausa[e.causa]) console.warn("[SolBrute] puerta:", e.message);
+      /* El motivo exacto del rechazo va a consola, no a pantalla: al usuario le
+         sirve saber que no entró; al atacante, saber POR QUÉ falló le ayuda. */
+      console.warn("[SolBrute] puerta:", e.causa || "?", e.message);
     }finally{
       b.disabled = false;
     }
   });
   el("btnDisconnect").onclick = async () => {
     await SolBruteWallet.desconectar(sesionWallet);
+    SolBruteDB.cerrarSesion();
     sesionWallet = null; addr = null; brutes = []; loaded = false;
     try{ localStorage.removeItem(KEY_ADDR); }catch(e){}
     avisoPuerta(""); pintarWallets();

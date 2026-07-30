@@ -27,11 +27,38 @@
   const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlocmN2YXJ0dXV5dmZ0eGR4enR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MjYyMzcsImV4cCI6MjEwMTAwMjIzN30.rhX_iI5qZROciWSBP3m0RhkMQXTSz6ttQz2zpXj_uxk";
 
   const REST = URL_BASE + "/rest/v1";
-  const CAB = {
+  const FUNCIONES = URL_BASE + "/functions/v1";
+
+  /* ═══════════ sesión ═══════════
+     Token que emite la Edge Function "auth" tras comprobar tu firma. Mientras
+     esté puesto, las peticiones van firmadas como tú y las políticas RLS te
+     dejan tocar tus filas —y solo las tuyas—.
+
+     Sin token se usa la clave anon, que es la de "cualquiera": sirve para leer
+     rivales y clasificación, que son públicos, pero no para escribir una vez
+     estén aplicadas las políticas del paso 4.
+
+     Se guarda en localStorage con su caducidad para no pedirte la firma en
+     cada recarga. Si el token se filtrara, vale 24 h y solo para tu cuenta;
+     por eso la sesión es corta y no eterna. */
+  const KEY_SESION = "solbrute:sesion:v1";
+  let sesion = null;   // { token, address, exp }
+
+  function cargarSesion(){
+    try{
+      const s = JSON.parse(localStorage.getItem(KEY_SESION) || "null");
+      if(s && s.token && s.exp > Date.now() / 1000 + 60) sesion = s;
+      else localStorage.removeItem(KEY_SESION);
+    }catch(e){ sesion = null; }
+    return sesion;
+  }
+  cargarSesion();
+
+  const CAB = () => ({
     "apikey": ANON,
-    "Authorization": "Bearer " + ANON,
+    "Authorization": "Bearer " + (sesion ? sesion.token : ANON),
     "Content-Type": "application/json"
-  };
+  });
 
   /* Error propio para poder distinguir "nombre pillado" de "no hay red". */
   function ErrorDB(clase, mensaje){
@@ -43,7 +70,7 @@
   async function pedir(ruta, opciones){
     let r;
     try{
-      r = await fetch(REST + ruta, { ...opciones, headers: { ...CAB, ...(opciones && opciones.headers) } });
+      r = await fetch(REST + ruta, { ...opciones, headers: { ...CAB(), ...(opciones && opciones.headers) } });
     }catch(e){
       throw ErrorDB("red", "No se pudo contactar con la base de datos");
     }
@@ -51,6 +78,13 @@
       const cuerpo = await r.text();
       /* 23505 = clave única duplicada en Postgres. Aquí solo puede ser el nombre. */
       if(r.status === 409 || cuerpo.includes("23505")) throw ErrorDB("duplicado", cuerpo);
+      /* 401/403 con sesión puesta = el token caducó o dejó de valer. Se tira y
+         se avisa, para que la app pida firmar otra vez en vez de fallar en
+         bucle sin explicación. */
+      if((r.status === 401 || r.status === 403) && sesion){
+        window.SolBruteDB.cerrarSesion();
+        throw ErrorDB("sesion", "la sesión ya no vale, hay que volver a firmar");
+      }
       throw ErrorDB("http", "HTTP " + r.status + " · " + cuerpo);
     }
     const txt = await r.text();
@@ -76,7 +110,52 @@
     rerolls: f.rerolls_left, pool: f.pool || null
   });
 
+  /* Llamada a la Edge Function "auth". Va siempre con la clave anon: es el
+     único sitio que tiene que funcionar ANTES de tener sesión. */
+  async function pedirAuth(cuerpo){
+    let r;
+    try{
+      r = await fetch(FUNCIONES + "/auth", {
+        method: "POST",
+        headers: { "apikey": ANON, "Authorization": "Bearer " + ANON, "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpo)
+      });
+    }catch(e){ throw ErrorDB("red", "no llego al servidor de login"); }
+
+    const datos = await r.json().catch(() => ({}));
+    if(!r.ok) throw ErrorDB("auth", datos.error || ("HTTP " + r.status));
+    return datos;
+  }
+
   window.SolBruteDB = {
+
+    /* ═══════════ login con firma ═══════════ */
+
+    sesionActiva: () => !!sesion,
+    direccionSesion: () => sesion && sesion.address,
+
+    /* Paso 1: el servidor reserva un número de un solo uso.
+       Que lo dé ÉL es lo que convierte la firma en una prueba: un nonce que se
+       inventa el navegador no demuestra nada. */
+    async pedirNonce(address){
+      const d = await pedirAuth({ accion: "nonce", address });
+      return d.nonce;
+    },
+
+    /* Paso 2: el servidor comprueba la firma con ed25519 y devuelve el token.
+       Si algo no cuadra —firma falsa, nonce usado, dominio ajeno, mensaje
+       viejo— responde 401 y aquí se lanza un error con el motivo. */
+    async verificarFirma(address, message, signature){
+      const d = await pedirAuth({ accion: "verify", address, message, signature });
+      sesion = { token: d.token, address, exp: Math.floor(Date.now()/1000) + (d.expires_in || 86400) };
+      try{ localStorage.setItem(KEY_SESION, JSON.stringify(sesion)); }catch(e){}
+      return sesion;
+    },
+
+    cerrarSesion(){
+      sesion = null;
+      try{ localStorage.removeItem(KEY_SESION); }catch(e){}
+    },
 
     /* ¿Responde la base de datos? Se usa para decidir si caer al modo local. */
     async vive(){
