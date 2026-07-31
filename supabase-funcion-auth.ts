@@ -90,14 +90,67 @@ const b64url = (datos: Uint8Array) =>
 
 const b64urlTexto = (texto: string) => b64url(new TextEncoder().encode(texto));
 
+/* ── El secreto puede venir en varios formatos ────────────────────────────
+   Supabase no siempre entrega el JWT Secret como texto plano: según la
+   antigüedad del proyecto puede ser una cadena de 40 caracteres usada tal
+   cual, o bytes codificados en base64 / base64url / hexadecimal.
+
+   Usar el formato equivocado produce una firma que parece correcta pero que
+   la base de datos rechaza con "no suitable key" — sin ninguna pista de por
+   qué. Así que en vez de suponer, se prueban todas y se elige la que sabe
+   reproducir la firma de la clave anon del propio proyecto, que está firmada
+   con ese mismo secreto. Es una comprobación exacta, no una heurística. */
+function interpretaciones(secreto: string): { nombre: string; bytes: Uint8Array }[] {
+  const salida: { nombre: string; bytes: Uint8Array }[] = [];
+  salida.push({ nombre: "utf8", bytes: new TextEncoder().encode(secreto) });
+
+  const deB64 = (txt: string) => {
+    const normal = txt.replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(normal + "=".repeat((4 - normal.length % 4) % 4));
+    return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  };
+  try { salida.push({ nombre: "base64", bytes: deB64(secreto) }); } catch { /* no era base64 */ }
+
+  if (/^[0-9a-fA-F]+$/.test(secreto) && secreto.length % 2 === 0) {
+    const bytes = new Uint8Array(secreto.length / 2);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(secreto.substr(i * 2, 2), 16);
+    salida.push({ nombre: "hex", bytes });
+  }
+  return salida;
+}
+
+let claveCache: CryptoKey | null = null;
+let formatoUsado = "ninguno";
+
+/* Devuelve la clave HMAC en el formato que de verdad usa el proyecto. */
+async function claveFirma(): Promise<CryptoKey> {
+  if (claveCache) return claveCache;
+
+  const anon = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  const trozos = anon.split(".");
+
+  for (const cand of interpretaciones(JWT_SECRET)) {
+    const clave = await crypto.subtle.importKey(
+      "raw", cand.bytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    );
+    if (trozos.length === 3) {
+      const f = await crypto.subtle.sign("HMAC", clave, new TextEncoder().encode(trozos[0] + "." + trozos[1]));
+      if (b64url(new Uint8Array(f)) === trozos[2]) {
+        claveCache = clave; formatoUsado = cand.nombre;
+        return clave;
+      }
+    }
+  }
+  /* Ninguna cuadra: el secreto es otro, o el proyecto usa claves asimétricas
+     y este enfoque no sirve. Se lanza en vez de emitir un token que la base
+     de datos va a rechazar luego sin explicar por qué. */
+  throw new Error("JWT_SECRET no reproduce la firma de la clave anon");
+}
+
 async function firmarJWT(carga: Record<string, unknown>): Promise<string> {
   const cabecera = { alg: "HS256", typ: "JWT" };
   const cuerpo = b64urlTexto(JSON.stringify(cabecera)) + "." + b64urlTexto(JSON.stringify(carga));
-  const clave = await crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(JWT_SECRET),
-    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
-  );
-  const firma = await crypto.subtle.sign("HMAC", clave, new TextEncoder().encode(cuerpo));
+  const firma = await crypto.subtle.sign("HMAC", await claveFirma(), new TextEncoder().encode(cuerpo));
   return cuerpo + "." + b64url(new Uint8Array(firma));
 }
 
@@ -148,6 +201,29 @@ Deno.serve(async (req) => {
   catch { return responder({ error: "cuerpo no es JSON" }, 400); }
 
   const { accion, address } = cuerpo;
+
+  /* ── ruta 0: autodiagnóstico ──────────────────────────────────────────────
+     Comprueba si JWT_SECRET es el bueno, SIN revelarlo.
+     El truco: la clave anon del propio proyecto está firmada con ese mismo
+     secreto. Si al recalcular su firma con nuestro JWT_SECRET sale la misma,
+     el secreto es correcto. Si no, está mal copiado.
+     Devuelve solo un sí/no y longitudes: nada que sirva para reconstruirlo. */
+  if (accion === "diagnostico") {
+    let correcto = false;
+    let motivo = "";
+    try { await claveFirma(); correcto = true; }
+    catch (e) { motivo = (e as Error).message; }
+
+    return responder({
+      secreto_presente: !!JWT_SECRET,
+      secreto_longitud: JWT_SECRET ? JWT_SECRET.length : 0,
+      espacios_sobrantes: JWT_SECRET ? JWT_SECRET !== JWT_SECRET.trim() : false,
+      formatos_probados: interpretaciones(JWT_SECRET).map((x) => x.nombre),
+      secreto_correcto: correcto,
+      formato_que_funciona: correcto ? formatoUsado : null,
+      motivo,
+    });
+  }
 
   /* La dirección de Solana son 32 bytes, 43-44 caracteres en base58.
      Se valida antes de tocar nada para no guardar basura. */
