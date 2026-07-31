@@ -792,20 +792,21 @@
 
     if(nube){
       try{
-        await SolBruteDB.guardarJugador(addr, balance);
+        /* Los brutos nuevos se crean de uno en uno porque el nombre puede
+           chocar con el de otro jugador; el resto va en una sola petición. */
         for(const b of brutes){
-          if(b.rid){ await SolBruteDB.actualizar(b, b.dia || hoy); continue; }
+          if(b.rid) continue;
           try{
             b.rid = await SolBruteDB.crear(addr, b, b.dia || hoy);
           }catch(e){
-            /* Nombre pillado por otro jugador. La forja ya avisa antes de llegar
-               aquí, así que esto solo lo alcanzan los brutos de la barra de
-               maqueta. Ese se queda sin sincronizar, pero no tiramos la sesión
-               entera al modo local por uno. */
+            /* La forja avisa antes de llegar aquí, así que esto solo lo alcanzan
+               los brutos de la barra de maqueta. Ese se queda sin sincronizar,
+               pero no tiramos la sesión entera al modo local por uno. */
             if(e.clase !== "duplicado") throw e;
             console.warn('[SolBrute] "' + b.name + '" ya existe en el juego; ese no se sube.');
           }
         }
+        await SolBruteDB.guardarTodo(balance, brutes);
         return;
       }catch(e){
         /* Un nombre repetido aquí no debería pasar: la forja lo comprueba antes
@@ -1448,7 +1449,7 @@
   };
   /* La barra de maqueta escribe en la base de datos como todo lo demás, así que
      vaciar el ludus tiene que borrar las filas — si no, vuelven al recargar. */
-  const vaciarNube = async () => { if(nube){ try{ await SolBruteDB.borrarTodos(addr); }catch(e){} } };
+  const vaciarNube = async () => { if(nube){ try{ await SolBruteDB.borrarTodos(); }catch(e){} } };
   el("devReset").onclick  = async () => { await vaciarNube(); seedData(); await saveMe(); el("balNum").textContent = balance; show("scRoster"); };
   el("devEmpty").onclick  = async () => { await vaciarNube(); brutes = []; await saveMe(); show("scRoster"); };
   el("devRefill").onclick = async () => { brutes.forEach(b => { b.fights = FIGHTS_DAY; b.rerolls = REROLLS_DAY; b.pool = null; }); await saveMe(); renderRoster(); };

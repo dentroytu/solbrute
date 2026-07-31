@@ -4,9 +4,17 @@
    Sustituye al STORE que guardaba en el navegador. A partir de aquí, un bruto
    forjado en un ordenador existe para todos los demás.
 
-   Habla directamente con la API REST de Supabase con fetch(), sin librería.
-   Son cuatro peticiones HTTP y así el proyecto sigue sin dependencias ni build,
-   y sigue abriéndose con doble clic.
+   Sin librería, solo fetch(): el proyecto sigue sin dependencias ni build, y
+   sigue abriéndose con doble clic.
+
+   ── Leer va directo, escribir no ──────────────────────────────────────────
+   Las LECTURAS (rivales, clasificación, tu ludus) van a la API REST con la
+   clave anon: son públicas y así no se paga un rodeo.
+
+   Las ESCRITURAS pasan todas por la Edge Function "auth", que comprueba de
+   quién es tu token de sesión y escribe con service_role. Las políticas RLS
+   le deniegan al navegador cualquier escritura, así que abrir la consola no
+   sirve de nada: Postgres rechaza la petición venga de donde venga.
 
    ── Las claves de aquí abajo son públicas a propósito ──────────────────────
    La clave "anon" está diseñada para ir en el navegador: cualquiera que abra
@@ -15,10 +23,11 @@
    clave.
    La clave "service_role" NUNCA va aquí. Esa se salta todas las políticas.
 
-   ── Estado de seguridad, hoy ───────────────────────────────────────────────
-   Las políticas actuales dejan escribir a cualquiera, porque todavía no hay
-   login con firma. Es aceptable mientras no haya nada con valor. El paso 2
-   (Sign In With Solana) lo cierra. Ver BACKEND.md.
+   ── Lo que sigue sin estar cerrado ────────────────────────────────────────
+   El combate lo calcula el navegador. Nadie puede tocar tus brutos, pero tú
+   sí puedes mentir sobre los tuyos: darte monedas o victorias. El servidor
+   recorta lo imposible (nivel 9999, fuerza 500) pero no arbitra. Cerrarlo es
+   mover simulate() al servidor. Ver BACKEND.md.
    ══════════════════════════════════════════════════════════════════════════ */
 (function(){
   "use strict";
@@ -30,13 +39,12 @@
   const FUNCIONES = URL_BASE + "/functions/v1";
 
   /* ═══════════ sesión ═══════════
-     Token que emite la Edge Function "auth" tras comprobar tu firma. Mientras
-     esté puesto, las peticiones van firmadas como tú y las políticas RLS te
-     dejan tocar tus filas —y solo las tuyas—.
+     Token opaco que emite la Edge Function tras comprobar tu firma. No lleva
+     nada dentro: o está en la tabla de sesiones del servidor o no vale, así
+     que no hay nada que falsificar.
 
-     Sin token se usa la clave anon, que es la de "cualquiera": sirve para leer
-     rivales y clasificación, que son públicos, pero no para escribir una vez
-     estén aplicadas las políticas del paso 4.
+     Sirve para ESCRIBIR a través de la función. Las lecturas van con la clave
+     anon, porque rivales y clasificación son públicos.
 
      Se guarda en localStorage con su caducidad para no pedirte la firma en
      cada recarga. Si el token se filtrara, vale 24 h y solo para tu cuenta;
@@ -54,9 +62,11 @@
   }
   cargarSesion();
 
+  /* Las lecturas van siempre con la clave anon. El token de sesión no se
+     manda aquí: a PostgREST no le dice nada, solo lo entiende la función. */
   const CAB = () => ({
     "apikey": ANON,
-    "Authorization": "Bearer " + (sesion ? sesion.token : ANON),
+    "Authorization": "Bearer " + ANON,
     "Content-Type": "application/json"
   });
 
@@ -110,6 +120,8 @@
     rerolls: f.rerolls_left, pool: f.pool || null
   });
 
+  const token = () => (sesion ? sesion.token : "");
+
   /* Llamada a la Edge Function "auth". Va siempre con la clave anon: es el
      único sitio que tiene que funcionar ANTES de tener sesión. */
   async function pedirAuth(cuerpo){
@@ -123,7 +135,14 @@
     }catch(e){ throw ErrorDB("red", "no llego al servidor de login"); }
 
     const datos = await r.json().catch(() => ({}));
-    if(!r.ok) throw ErrorDB("auth", datos.error || ("HTTP " + r.status));
+    if(!r.ok){
+      /* El nombre repetido tiene su propia clase para que la forja pueda
+         avisar en pantalla en vez de soltar un error genérico. */
+      if(r.status === 409 || datos.clase === "duplicado") throw ErrorDB("duplicado", datos.error || "nombre ocupado");
+      /* Sesión caducada o revocada: se tira y la app pedirá firmar otra vez. */
+      if(r.status === 401 && sesion){ window.SolBruteDB.cerrarSesion(); throw ErrorDB("sesion", datos.error || "sesión no válida"); }
+      throw ErrorDB("auth", datos.error || ("HTTP " + r.status));
+    }
     return datos;
   }
 
@@ -187,51 +206,36 @@
       };
     },
 
-    /* Monedas del jugador. */
-    async guardarJugador(addr, balance){
-      await pedir("/players?address=eq." + encodeURIComponent(addr), {
-        method: "PATCH",
-        body: JSON.stringify({ coins: balance, last_seen: new Date().toISOString() })
-      });
-    },
+    /* ═══════════ escrituras ═══════════
+       Ninguna toca la base de datos directamente: van a la Edge Function, que
+       comprueba de quién es el token y escribe por ti con service_role.
 
-    /* Inserta un bruto nuevo y devuelve su id de base de datos.
-       Puede lanzar ErrorDB("duplicado") si el nombre ya existe: los nombres son
-       únicos en todo el juego, no solo dentro de tu ludus. */
+       Las políticas RLS le deniegan al navegador toda escritura, así que
+       intentar saltarse esto abriendo la consola no lleva a ninguna parte:
+       Postgres rechaza la petición venga como venga.
+
+       Las LECTURAS sí van directas (rivales, clasificación, tu ludus): son
+       públicas y así no se paga el rodeo por la función. */
+
+    /* Forja un bruto. El servidor comprueba el tope de 3 y que el nombre esté
+       libre — no el navegador, que puede mentir. */
     async crear(addr, bruto, dia){
-      const filas = await pedir("/brutes", {
-        method: "POST",
-        headers: { "Prefer": "return=representation" },
-        body: JSON.stringify(aFila(bruto, addr, dia))
-      });
-      return filas[0].id;
+      const d = await pedirAuth({ accion: "forjar", token: token(),
+                                  bruto: { ...bruto, dia: bruto.dia || dia } });
+      return d.id;
     },
 
-    /* Actualiza un bruto que ya existe (tras pelear, subir de nivel…). */
-    async actualizar(bruto, dia){
-      if(!bruto.rid) return;
-      await pedir("/brutes?id=eq." + bruto.rid, {
-        method: "PATCH",
-        body: JSON.stringify({
-          level: bruto.lv, xp: bruto.xp, hp_max: bruto.hpMax,
-          str: bruto.str, agi: bruto.agi, spd: bruto.spd,
-          wins: bruto.w, losses: bruto.l,
-          fights_left: bruto.fights, fights_day: dia,
-          rerolls_left: bruto.rerolls, pool: bruto.pool || null
-        })
-      });
+    /* Guarda monedas y brutos de una vez. Antes era una petición por bruto;
+       ahora va todo junto porque cada una cuesta un viaje a la función. */
+    async guardarTodo(balance, brutos){
+      await pedirAuth({ accion: "guardar", token: token(), balance,
+                        brutos: (brutos || []).filter(b => b.rid) });
     },
 
-    async borrar(bruto){
-      if(!bruto.rid) return;
-      await pedir("/brutes?id=eq." + bruto.rid, { method:"DELETE" });
-    },
-
-    /* Vacía el ludus. Lo usan los botones de la barra de maqueta; sin esto,
-       "Ludus vacío" los borraría de la pantalla pero no de la base de datos, y
-       reaparecerían al recargar. */
-    async borrarTodos(addr){
-      await pedir("/brutes?owner=eq." + encodeURIComponent(addr), { method:"DELETE" });
+    /* Vacía tu ludus. Solo puede borrar los tuyos: el servidor filtra por el
+       dueño de la sesión, no por lo que diga el navegador. */
+    async borrarTodos(){
+      await pedirAuth({ accion: "vaciar", token: token() });
     },
 
     /* Rivales de otros jugadores, de nivel parecido.
