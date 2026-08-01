@@ -202,6 +202,42 @@ async function duenoDe(token: string): Promise<string | null> {
    convierte al servidor en árbitro —el combate lo sigue calculando el
    cliente, así que puede mentir sobre sus propias peleas— pero corta el
    fraude perezoso: nivel 9999, fuerza 500 o vida infinita. */
+/* ── Nombres ──
+   Se filtran con lista blanca: letras, números, espacio y cuatro signos. Todo
+   lo demás fuera.
+
+   Motivo: el nombre lo escribe el jugador y se pinta en la lista de rivales y
+   en la clasificación de TODOS los demás. Un "<img src=x onerror=…>" ahí es
+   XSS almacenado, y con el token de sesión en localStorage eso es robar
+   cuentas. El navegador también escapa, pero una sola capa no basta cuando el
+   dato viaja a pantallas ajenas. */
+function sanearNombre(v: unknown): string {
+  /* Solo texto. Sin esto, un objeto mandado como nombre acababa llamándose
+     "object Object" y colándose por el mínimo de 2 caracteres. */
+  if (typeof v !== "string") return "";
+  return v
+    .replace(/[^\p{L}\p{N} .'\-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 16);
+}
+
+/* ── Aspecto ──
+   Los diez enteros del creador, cada uno dentro de su rango. Se comprobó que
+   guardando {skin:"<script>", hair:999} el renderizador LANZA, y como el
+   aspecto se dibuja en la lista de rivales de otros, un solo bruto envenenado
+   dejaba la pantalla en blanco a todos los de su nivel. Griefing barato. */
+function sanearLook(v: unknown): Record<string, number> {
+  const l = (v && typeof v === "object") ? v as Record<string, unknown> : {};
+  const N = C.LOOK_N;
+  const limpio: Record<string, number> = {};
+  for (const k of Object.keys(N)) {
+    const n = Math.floor(Number(l[k]));
+    limpio[k] = (Number.isFinite(n) && n >= 0 && n < N[k]) ? n : 0;
+  }
+  return limpio;
+}
+
 const entre = (v: unknown, min: number, max: number, pordefecto: number) => {
   const n = Math.round(Number(v));
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : pordefecto;
@@ -209,7 +245,7 @@ const entre = (v: unknown, min: number, max: number, pordefecto: number) => {
 
 function sanearBruto(b: Record<string, unknown>) {
   return {
-    name: String(b.name ?? "").trim().slice(0, 16),
+    name: sanearNombre(b.name),
     level: entre(b.lv, 1, NIVEL_MAX, 1),
     xp: entre(b.xp, 0, 1e6, 0),
     hp_max: entre(b.hpMax, 1, HP_MAX, 40),
@@ -221,13 +257,24 @@ function sanearBruto(b: Record<string, unknown>) {
     fights_left: entre(b.fights, 0, 3, 3),
     rerolls_left: entre(b.rerolls, 0, 1, 1),
     fights_day: String(b.dia ?? "").slice(0, 10) || new Date().toISOString().slice(0, 10),
-    look: b.look ?? {},
+    look: sanearLook(b.look),
     pool: b.pool ?? null,
   };
 }
 
 /* ═══════════ servidor ═══════════ */
 Deno.serve(async (req) => {
+  try { return await manejar(req); }
+  catch (e) {
+    /* Cualquier fallo no previsto sale como un error limpio y con el motivo en
+       los logs, no como un 500 con el cuerpo vacío. Un 500 mudo no le dice
+       nada al jugador y tampoco a quien tenga que arreglarlo. */
+    console.error("fallo no previsto: " + ((e as Error)?.stack || e));
+    return responder({ error: "algo ha fallado en el servidor" }, 500);
+  }
+});
+
+async function manejar(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return responder({ error: "solo POST" }, 405);
 
@@ -235,7 +282,18 @@ Deno.serve(async (req) => {
   try { cuerpo = await req.json(); }
   catch { return responder({ error: "cuerpo no es JSON" }, 400); }
 
-  const accion = cuerpo.accion;
+  /* accion tiene que ser texto: con un número o un objeto, el .startsWith de
+     más abajo lanzaba y la función respondía un 500 mudo. */
+  const accion = typeof cuerpo.accion === "string" ? cuerpo.accion : "";
+  if (!accion) return responder({ error: "falta la acción" }, 400);
+
+  /* Los identificadores son enteros. No hay inyección posible —PostgREST
+     parametriza— pero "1 or 1=1" hacía fallar el cast en Postgres y salía otro
+     500 sin explicación. Mejor rechazarlo aquí y decir qué pasa. */
+  const idEntero = (v: unknown) => {
+    const n = Math.floor(Number(v));
+    return (Number.isFinite(n) && n > 0 && n < 1e15) ? String(n) : null;
+  };
 
   /* ══════════ rutas de login ══════════ */
 
@@ -402,55 +460,21 @@ Deno.serve(async (req) => {
   }
 
   if (accion === "guardar") {
-    /* El saldo YA NO se acepta del navegador. Las monedas solo cambian por dos
-       vías, y las dos las decide el servidor: la recompensa de una pelea y el
-       precio de una plaza. Antes se aceptaba recortado a mil millones, que es
-       como decir "puedes robar, pero no demasiado". */
+    /* ── Esta ruta ya no toca los brutos. ──
+       Se comprobó contra el servidor desplegado: aceptaba nivel, XP,
+       atributos, vida y victorias, así que un jugador se ponía nivel 100 con
+       10/10/10, 300 de vida y 99.999 victorias sin pelear una sola vez. Eso
+       anulaba de un plumazo todo el arbitraje del combate.
+
+       Desde que el servidor arbitra, NADA del bruto viene del navegador: el
+       combate lo escribe "pelear", el arma "comprar" y "equipar", la lista de
+       rivales "arena", y el aspecto y el nombre se fijan al forjar y no
+       cambian. Aquí no queda nada legítimo que guardar.
+
+       Se conserva la ruta —el cliente la llama— pero solo marca la visita. */
     await db("/players?address=eq." + encodeURIComponent(dueno), {
       method: "PATCH", body: JSON.stringify({ last_seen: new Date().toISOString() }),
     }).catch(() => {});
-
-    for (const b of (cuerpo.brutos || [])) {
-      if (!b || !b.rid) continue;
-
-      /* Lo que el navegador NO puede fijar, y por qué:
-
-         · name          es "público y permanente"; aceptarlo dejaba renombrar
-                         el bruto e incluso hacerse pasar por otro.
-         · fights_left   son las peleas del día. Se comprobó: mandándolo se
-                         encadenaban 12 peleas en un día en vez de 3, o sea
-                         monedas infinitas.
-         · rerolls_left  mismo caso, el cambio de lista del día.
-         · pool          la lista de rivales. Se comprobó: mandándola se peleaba
-                         contra un rival de 1 punto de vida inventado por el
-                         propio cliente. Ahora la arma el servidor en /arena.
-
-         Lo que queda aquí es cosmético; lo que vale lo decide el servidor. */
-      const campos = sanearBruto(b) as Record<string, unknown>;
-      delete campos.name;
-      delete campos.fights_left;
-      delete campos.rerolls_left;
-      delete campos.fights_day;
-      delete campos.pool;
-      /* El arma y el inventario los lleva el servidor: se ganan subiendo de
-         nivel, se rompen solos, y se cambian por la ruta "equipar". */
-      delete campos.arma;
-      delete campos.armas;
-
-      /* El filtro lleva owner además de id: aunque el navegador mande el id de
-         un bruto ajeno, la fila no casa y no se toca nada. */
-      try {
-        await db("/brutes?id=eq." + encodeURIComponent(String(b.rid)) + "&owner=eq." + encodeURIComponent(dueno), {
-          method: "PATCH",
-          body: JSON.stringify(campos),
-        });
-      } catch (e) {
-        /* Un bruto que no se pueda guardar no debe tumbar el resto del guardado
-           ni devolver un 500 mudo. */
-        console.warn("guardar: bruto " + b.rid + " → " + (e as Error).message);
-        return responder({ error: "no pude guardar un bruto", clase: "guardado" }, 409);
-      }
-    }
     return responder({ ok: true });
   }
 
@@ -463,7 +487,9 @@ Deno.serve(async (req) => {
      El precio lo pone el servidor desde brute-combate.js, y el cobro va
      después de añadir el arma: si algo falla en medio, no se paga por nada. */
   if (accion === "comprar") {
-    const filas = await db("/brutes?id=eq." + encodeURIComponent(String(cuerpo.bruteId)) +
+    const bid = idEntero(cuerpo.bruteId);
+    if (!bid) return responder({ error: "identificador no válido" }, 400);
+    const filas = await db("/brutes?id=eq." + bid +
                            "&owner=eq." + encodeURIComponent(dueno) + "&select=id,arma,armas");
     const fila = filas && filas[0];
     if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
@@ -497,7 +523,9 @@ Deno.serve(async (req) => {
      Solo se puede llevar lo que se tiene, y eso lo comprueba el servidor
      contra su propia lista: mandar "mandoble" sin tenerlo no hace nada. */
   if (accion === "equipar") {
-    const filas = await db("/brutes?id=eq." + encodeURIComponent(String(cuerpo.bruteId)) +
+    const bid = idEntero(cuerpo.bruteId);
+    if (!bid) return responder({ error: "identificador no válido" }, 400);
+    const filas = await db("/brutes?id=eq." + bid +
                            "&owner=eq." + encodeURIComponent(dueno) + "&select=id,arma,armas");
     const fila = filas && filas[0];
     if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
@@ -525,7 +553,9 @@ Deno.serve(async (req) => {
     if (cuerpo.version !== C.VERSION) {
       return responder({ error: "reglas desactualizadas", clase: "version" }, 409);
     }
-    const filas = await db("/brutes?id=eq." + encodeURIComponent(String(cuerpo.bruteId)) +
+    const bid = idEntero(cuerpo.bruteId);
+    if (!bid) return responder({ error: "identificador no válido" }, 400);
+    const filas = await db("/brutes?id=eq." + bid +
                            "&owner=eq." + encodeURIComponent(dueno) + "&select=*");
     const fila = filas && filas[0];
     if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
@@ -584,9 +614,11 @@ Deno.serve(async (req) => {
                          servidor: C.VERSION, cliente: cuerpo.version }, 409);
     }
 
+    const bid = idEntero(cuerpo.bruteId);
+    if (!bid) return responder({ error: "identificador no válido" }, 400);
     /* El bruto se lee de la BASE DE DATOS, no de lo que mande el navegador.
        Si se usaran sus números, bastaría con decir que tienes fuerza 10. */
-    const filas = await db("/brutes?id=eq." + encodeURIComponent(String(cuerpo.bruteId)) +
+    const filas = await db("/brutes?id=eq." + bid +
                            "&owner=eq." + encodeURIComponent(dueno) + "&select=*");
     const fila = filas && filas[0];
     if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
@@ -737,13 +769,14 @@ Deno.serve(async (req) => {
        administrador está para arreglar cosas, no para crear un bruto con
        fuerza 500 que rompa el equilibrio de todos los demás. */
     if (accion === "admin_editar_bruto") {
-      const id = String(cuerpo.id || "");
+      const id = idEntero(cuerpo.id);
+      if (!id) return responder({ error: "identificador no válido" }, 400);
       const antes = (await db("/brutes?id=eq." + encodeURIComponent(id) + "&select=*"))?.[0];
       if (!antes) return responder({ error: "ese bruto no existe" }, 404);
 
       const c = cuerpo.campos || {};
       const campos: Record<string, unknown> = {};
-      if (c.name !== undefined)   campos.name = String(c.name).trim().slice(0, 16);
+      if (c.name !== undefined)   campos.name = sanearNombre(c.name);
       if (c.level !== undefined)  campos.level = entre(c.level, 1, NIVEL_MAX, antes.level);
       if (c.xp !== undefined)     campos.xp = entre(c.xp, 0, 1e6, antes.xp);
       if (c.hp_max !== undefined) campos.hp_max = entre(c.hp_max, 1, HP_MAX, antes.hp_max);
@@ -785,7 +818,8 @@ Deno.serve(async (req) => {
 
     /* ── borrar un bruto ── */
     if (accion === "admin_borrar_bruto") {
-      const id = String(cuerpo.id || "");
+      const id = idEntero(cuerpo.id);
+      if (!id) return responder({ error: "identificador no válido" }, 400);
       const antes = (await db("/brutes?id=eq." + encodeURIComponent(id) + "&select=*"))?.[0];
       if (!antes) return responder({ error: "ese bruto no existe" }, 404);
       await db("/brutes?id=eq." + encodeURIComponent(id), { method: "DELETE" });
@@ -816,4 +850,4 @@ Deno.serve(async (req) => {
   }
 
   return responder({ error: "acción desconocida" }, 400);
-});
+}

@@ -962,6 +962,16 @@
 
   /* ═══════════ combate determinista ═══════════ */
   /* ═══════════ render ═══════════ */
+  /* Los nombres los escriben los jugadores y se pintan en la lista de rivales
+     y en la clasificación de TODOS los demás. Sin escapar, un nombre con
+     "<img src=x onerror=…>" sería XSS almacenado — y con el token de sesión en
+     localStorage, eso es robar cuentas.
+     El servidor ya filtra el nombre con lista blanca; esto es la segunda capa,
+     porque una sola no basta cuando el dato viaja a pantallas ajenas. */
+  const esc = t => String(t == null ? "" : t)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
   function pips(n){ let h=""; for(let i=0;i<10;i++) h+=`<span class="pip${i<n?" on":""}"></span>`; return h; }
   function statRows(b){
     return `<div class="stat-row"><span class="stat-label">${t("str")}</span><span class="pips">${pips(b.str)}</span></div>
@@ -990,7 +1000,7 @@
     let h = brutes.map(b => `
       <article class="brute-card">
         <div class="portrait">${bust(b.look)}</div>
-        <div class="card-head"><span class="f-name">${b.name}</span><span class="f-lv">Nv. ${b.lv}</span></div>
+        <div class="card-head"><span class="f-name">${esc(b.name)}</span><span class="f-lv">Nv. ${b.lv}</span></div>
         <div class="record"><b>${b.w}${t("wins")}</b> · <i>${b.l}${t("losses")}</i></div>
         <div class="hp-row"><span class="hp-num">${b.hpMax}</span><div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div></div>
         ${xpRow(b)}
@@ -1083,7 +1093,7 @@
     el("armQuien").innerHTML =
       `<span class="arm-quien-lbl">${t("arm_para")}</span>` +
       brutes.map(b => `<button class="${b.id === active.id ? "on" : ""}" data-b="${b.id}">
-          <span class="q-arma">${(O("armas")[b.arma || "ninguna"] || "")}</span>${b.name}</button>`).join("");
+          <span class="q-arma">${esc(O("armas")[b.arma || "ninguna"] || "")}</span>${esc(b.name)}</button>`).join("");
     el("armQuien").querySelectorAll("button").forEach(b => b.onclick = () => {
       active = brutes.find(x => x.id === +b.dataset.b);
       renderArmeria();
@@ -1176,7 +1186,7 @@
         <div class="opp-thumb">${bust(b.look)}</div>
         <div class="opp-mid">
           <div class="opp-top">
-            <span class="opp-name">${b.name}</span>
+            <span class="opp-name">${esc(b.name)}</span>
             ${mio ? `<span class="tag me">${t("rank_me")}</span>` : ""}
             <span class="opp-meta">Nv. ${b.lv} · ${b.w}${t("wins")} ${b.l}${t("losses")}</span>
           </div>
@@ -1206,7 +1216,7 @@
         <div class="opp-thumb">${bust(o.look)}</div>
         <div class="opp-mid">
           <div class="opp-top">
-            <span class="opp-name">${o.name}</span>
+            <span class="opp-name">${esc(o.name)}</span>
             <span class="tag ${o.bot?"bot":"player"}">${o.bot?t("tag_bot"):t("tag_player")}</span>
             <span class="opp-meta">Nv. ${o.lv} · ${o.w}${t("wins")} ${o.l}${t("losses")}</span>
           </div>
@@ -1271,10 +1281,10 @@
   function addLog(e){
     const box = el("log"), d = document.createElement("div");
     let cls = "log-line", txt = "";
-    if(e.type === "dodge"){ cls += " dodge"; txt = `<b>${e.def}</b> ${t("lg_dodge")} <b>${e.att}</b>`; }
-    else if(e.type === "crit"){ cls += " crit"; txt = `<b>${e.att}</b> ${t("lg_crit")} ${e.dmg} ${t("lg_dmg")}`; }
-    else if(e.type === "hit"){ txt = `<b>${e.att}</b> ${t("lg_hit")} <b>${e.def}</b> — ${e.dmg} ${t("lg_dmg")}`; }
-    else{ cls += " ko"; txt = `<b>${e.def}</b> ${t("lg_ko")}`; }
+    if(e.type === "dodge"){ cls += " dodge"; txt = `<b>${esc(e.def)}</b> ${t("lg_dodge")} <b>${esc(e.att)}</b>`; }
+    else if(e.type === "crit"){ cls += " crit"; txt = `<b>${esc(e.att)}</b> ${t("lg_crit")} ${e.dmg} ${t("lg_dmg")}`; }
+    else if(e.type === "hit"){ txt = `<b>${esc(e.att)}</b> ${t("lg_hit")} <b>${esc(e.def)}</b> — ${e.dmg} ${t("lg_dmg")}`; }
+    else{ cls += " ko"; txt = `<b>${esc(e.def)}</b> ${t("lg_ko")}`; }
     d.className = cls; d.innerHTML = `<span class="tn">T${e.turn}</span>${txt}`;
     box.appendChild(d); box.scrollTop = box.scrollHeight;
   }
