@@ -276,6 +276,14 @@
       return await pedirAuth({ accion: "admin_borrar_jugador", token: token(), address });
     },
 
+    /* ═══════════ la armería ═══════════ */
+    async comprarArma(bruteRid, arma){
+      return await pedirAuth({ accion: "comprar", token: token(), bruteId: bruteRid, arma });
+    },
+    async equiparArma(bruteRid, arma){
+      return await pedirAuth({ accion: "equipar", token: token(), bruteId: bruteRid, arma });
+    },
+
     /* Pide la lista de rivales. La arma el servidor y la recuerda; `reroll`
        gasta el cambio del día. Antes la construía el navegador y la mandaba,
        así que se podía pelear contra un rival inventado de 1 punto de vida. */

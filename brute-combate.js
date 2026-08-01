@@ -186,6 +186,24 @@
     escudo:   { id:"escudo",   nombre:"Escudo",   golpes:1, dmg:0.74, crit:0.00, esq:0.01, ini:-1, def:0.72, perder:0.025, fragil:0.05 },
   };
   const PUNOS = ARMAS.ninguna;
+
+  /* ── Precios ──
+     Puestos para que el coste POR COMBATE sea parecido en todas: como las
+     cinco están equilibradas, lo único que cambia entre ellas es cuánto duran.
+     Sale a unas 3 monedas por pelea, sobre las ~40 que se ganan al día.
+
+     Es un primer número, no una verdad. Cuando haya jugadores, el panel dirá
+     si sobra o falta: si nadie compra, están caras; si todo el mundo lleva
+     siempre la misma, están baratas. */
+  ARMAS.daga.precio     = 100;   // ~33 combates
+  ARMAS.escudo.precio   =  60;   // ~20
+  ARMAS.lanza.precio    =  50;   // ~17
+  ARMAS.mandoble.precio =  35;   // ~11
+  ARMAS.ninguna.precio  =   0;
+
+  /* Cuántos combates aguanta de media, para poder enseñarlo en la armería:
+     comprar a ciegas algo que se rompe es una mala experiencia. */
+  const duracion = id => { const w = ARMAS[id]; return w && w.fragil ? Math.round(1 / w.fragil) : 0; };
   /* Las que pueden tocar o comprarse. Los puños no son un arma, son no llevar. */
   const ARMAS_REALES = ["daga","mandoble","lanza","escudo"];
 
@@ -326,7 +344,7 @@
     VERSION,
     STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS, PROB_ATRIBUTO, PROB_ARMA,
     OPP_COUNT, LEVEL_SPREAD, FIGHTS_DAY, REROLLS_DAY, NAMES, LOOK_N,
-    ARMAS, ARMAS_REALES, arma, seRompe,
+    ARMAS, ARMAS_REALES, arma, seRompe, duracion,
     randomLook, barajar, nuevoBot,
     ri, xpNeed, rollStats, subirAtributo, botStats,
     mulberry32, simulate, recompensa, aplicar

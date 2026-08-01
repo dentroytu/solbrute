@@ -459,6 +459,40 @@ Deno.serve(async (req) => {
     return responder({ ok: true });
   }
 
+  /* ══════════ comprar en la armería ══════════
+     El precio lo pone el servidor desde brute-combate.js, y el cobro va
+     después de añadir el arma: si algo falla en medio, no se paga por nada. */
+  if (accion === "comprar") {
+    const filas = await db("/brutes?id=eq." + encodeURIComponent(String(cuerpo.bruteId)) +
+                           "&owner=eq." + encodeURIComponent(dueno) + "&select=id,arma,armas");
+    const fila = filas && filas[0];
+    if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
+
+    const id = String(cuerpo.arma || "");
+    const w = C.ARMAS[id];
+    if (!w || id === "ninguna") return responder({ error: "esa arma no existe" }, 400);
+
+    const tiene: string[] = Array.isArray(fila.armas) ? fila.armas : [];
+    if (tiene.includes(id)) return responder({ error: "ya la tienes", clase: "ya_tienes" }, 409);
+
+    const jug = await db("/players?address=eq." + encodeURIComponent(dueno) + "&select=coins");
+    const saldo = Number((jug && jug[0] && jug[0].coins) || 0);
+    if (saldo < w.precio) return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
+
+    const inventario = tiene.concat([id]);
+    await db("/brutes?id=eq." + fila.id + "&owner=eq." + encodeURIComponent(dueno), {
+      method: "PATCH",
+      /* Si peleaba a puño limpio, se equipa sola: comprar algo y no verlo
+         puesto es una mala primera impresión. */
+      body: JSON.stringify({ armas: inventario, arma: fila.arma === "ninguna" ? id : fila.arma }),
+    });
+    const restante = saldo - w.precio;
+    await db("/players?address=eq." + encodeURIComponent(dueno), {
+      method: "PATCH", body: JSON.stringify({ coins: restante }),
+    });
+    return responder({ arma: id, armas: inventario, balance: restante });
+  }
+
   /* ══════════ equipar un arma ══════════
      Solo se puede llevar lo que se tiene, y eso lo comprueba el servidor
      contra su propia lista: mandar "mandoble" sin tenerlo no hace nada. */

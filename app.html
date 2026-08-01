@@ -137,6 +137,23 @@
   .opp-meta{ font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
   .opp-stats{ display:flex; gap:12px; margin-top:5px; font-size:10.5px; color:var(--muted); flex-wrap:wrap; }
   /* ── clasificación ── */
+  /* ── armería ── */
+  .arm-lista{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; }
+  .arm{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:15px 17px;
+        display:flex; flex-direction:column; gap:9px; }
+  .arm.puesta{ border-color:var(--sol-teal); background:linear-gradient(180deg,#16241d,var(--surface)); }
+  .arm-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .arm-nom{ font-family:'Cinzel',serif; font-weight:800; font-size:16px; color:var(--bronze-light); }
+  .arm-precio{ font-size:12.5px; color:var(--sol-teal); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .arm-como{ font-size:12.5px; color:var(--muted); line-height:1.45; }
+  .arm-datos{ display:flex; gap:12px; font-size:10.5px; color:var(--muted); flex-wrap:wrap;
+              border-top:1px solid rgba(58,46,28,.5); padding-top:8px; }
+  .arm-datos b{ color:var(--text); font-variant-numeric:tabular-nums; }
+  .arm-pie{ margin-top:auto; }
+  .arm-pie .btn{ width:100%; }
+  .arm-tengo{ font-size:11px; color:var(--sol-teal); text-align:center; padding:9px 0; font-weight:600; }
+  .bruto-arma{ font-size:11px; color:var(--bronze-light); }
+
   .rank-pos{ font-family:'Cinzel',serif; font-weight:800; font-size:19px; color:var(--muted);
              min-width:38px; text-align:center; flex-shrink:0; font-variant-numeric:tabular-nums; }
   .rank-pos.top{ color:var(--bronze-light); }
@@ -321,6 +338,15 @@
     <div class="roster" id="roster"></div>
   </section>
 
+  <section class="screen" id="scArmeria">
+    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
+    <div class="page-head">
+      <div><h1 data-i18n="arm_h1">The armoury</h1><p id="armSub"></p></div>
+    </div>
+    <p class="match-note" data-i18n="arm_note">Weapons don't make you stronger: they change how you fight. Each one wins about half its matchups — even bare fists. And they break, so carrying one is a choice you make again and again.</p>
+    <div class="arm-lista" id="armLista"></div>
+  </section>
+
   <section class="screen" id="scRank">
     <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
     <div class="page-head">
@@ -494,6 +520,7 @@
      mientras la pantalla dice que ganaste. */
   const { STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX,
           ri, xpNeed, rollStats, subirAtributo, botStats,
+          ARMAS, ARMAS_REALES, duracion,
           simulate, aplicar } = window.BruteCombate;
 
   /* ═══════════ i18n ═══════════ */
@@ -544,6 +571,12 @@
       g_authfail:"El servidor no ha dado por buena la firma. Vuelve a intentarlo.",
       g_fail:"No he podido conectar con la wallet.",
       g_notinstalled:"Esa wallet no está en este navegador.",
+      arm_h1:"La armería", arm_open:"⚔ Armería",
+      arm_note:"Las armas no te hacen más fuerte: cambian cómo peleas. Cada una gana la mitad de sus enfrentamientos — los puños incluidos. Y se rompen, así que llevar una es una decisión que tomas una y otra vez.",
+      arm_para:"Armería de", arm_puesta:"Equipada", arm_equipar:"Equipar", arm_comprar:"Comprar",
+      arm_dura:"aguanta", arm_combates:"combates", arm_cae:"se cae", arm_turno:"por turno",
+      arm_sin:"Sin arma", arm_caro:"No te llegan las monedas", arm_ya:"Ya la tienes",
+      arm_rota:"Se te ha roto:", arm_ganada:"Has encontrado:",
       rank_open:"🏆 Clasificación", rank_h1:"Clasificación", rank_refresh:"↻ Actualizar",
       rank_sub:"Los mejores brutos del juego.",
       rank_note:"Aquí solo hay jugadores reales. Los brutos de la casa se inventan al emparejar y no se guardan, así que no puntúan.",
@@ -552,7 +585,14 @@
       reroll_none:"Ya has cambiado la lista hoy. Vuelve mañana para otra tanda de rivales.",
       rank_empty:"Todavía no hay ningún bruto forjado. El primero serás tú.",
       mock:"Maqueta", dev_reset:"Reiniciar", dev_empty:"Ludus vacío", dev_refill:"Recargar peleas", dev_coins:"+500 $BRUTE",
-      o:{ sex:["hombre","mujer"],
+      o:{
+          armas:{ ninguna:"Puños", daga:"Daga", mandoble:"Mandoble", lanza:"Lanza", escudo:"Escudo" },
+          como:{ ninguna:"Equilibrado y no se rompe nunca. No llevar nada es una opción de verdad.",
+               daga:"Dos golpes rápidos y flojos. Cada uno se esquiva por separado, así que sufre contra rivales ágiles.",
+               mandoble:"Un golpe demoledor, pero pesado: golpeas el último y encajas peor. Es el que más se te cae.",
+               lanza:"Alcance. Golpeas antes y algo más fuerte, a cambio de cubrirte menos.",
+               escudo:"Pegas poco y encajas mucho menos. Gana por agotamiento." },
+          sex:["hombre","mujer"],
           hairM:["calvo","rapado","cresta","melena","moño","rizos"],
           hairF:["coleta","trenza","suelta","recogido","rapado","rizos"],
           cloth:["desnudo","túnica","malla","coraza","capa"],
@@ -605,6 +645,12 @@
       g_authfail:"The server didn't accept the signature. Try again.",
       g_fail:"Couldn't reach the wallet.",
       g_notinstalled:"That wallet isn't in this browser.",
+      arm_h1:"The armoury", arm_open:"⚔ Armoury",
+      arm_note:"Weapons don't make you stronger: they change how you fight. Each one wins about half its matchups — bare fists included. And they break, so carrying one is a choice you make again and again.",
+      arm_para:"Armoury for", arm_puesta:"Equipped", arm_equipar:"Equip", arm_comprar:"Buy",
+      arm_dura:"lasts", arm_combates:"fights", arm_cae:"dropped", arm_turno:"per turn",
+      arm_sin:"No weapon", arm_caro:"Not enough coins", arm_ya:"You already have it",
+      arm_rota:"It broke:", arm_ganada:"You found:",
       rank_open:"🏆 Leaderboard", rank_h1:"Leaderboard", rank_refresh:"↻ Refresh",
       rank_sub:"The strongest brutes in the game.",
       rank_note:"Real players only. House brutes are made up at matchmaking time and never saved, so they don't score.",
@@ -613,7 +659,14 @@
       reroll_none:"You already swapped the list today. Come back tomorrow for a fresh set.",
       rank_empty:"No brute has been forged yet. You could be the first.",
       mock:"Mock", dev_reset:"Reset", dev_empty:"Empty ludus", dev_refill:"Refill fights", dev_coins:"+500 $BRUTE",
-      o:{ sex:["male","female"],
+      o:{
+          armas:{ ninguna:"Bare fists", daga:"Dagger", mandoble:"Greatsword", lanza:"Spear", escudo:"Shield" },
+          como:{ ninguna:"Balanced, and never breaks. Carrying nothing is a real option.",
+               daga:"Two quick, weak strikes. Each is dodged separately, so it struggles against nimble opponents.",
+               mandoble:"One devastating blow, but heavy: you strike last and take more. It slips from your hands the most.",
+               lanza:"Reach. You strike first and a little harder, at the cost of guarding less.",
+               escudo:"You hit softly and take far less. It wins by attrition." },
+          sex:["male","female"],
           hairM:["bald","buzzed","mohawk","mane","topknot","curls"],
           hairF:["ponytail","braid","loose","bun","buzzed","curls"],
           cloth:["bare","tunic","chainmail","cuirass","cloak"],
@@ -666,6 +719,12 @@
       g_authfail:"Le serveur n'a pas accepté la signature. Réessaie.",
       g_fail:"Impossible de joindre le wallet.",
       g_notinstalled:"Ce wallet n'est pas dans ce navigateur.",
+      arm_h1:"L'armurerie", arm_open:"⚔ Armurerie",
+      arm_note:"Les armes ne te rendent pas plus fort : elles changent ta façon de combattre. Chacune gagne environ la moitié de ses duels — poings nus compris. Et elles cassent, donc en porter une est un choix qui se répète.",
+      arm_para:"Armurerie de", arm_puesta:"Équipée", arm_equipar:"Équiper", arm_comprar:"Acheter",
+      arm_dura:"tient", arm_combates:"combats", arm_cae:"tombe", arm_turno:"par tour",
+      arm_sin:"Sans arme", arm_caro:"Pas assez de pièces", arm_ya:"Tu l'as déjà",
+      arm_rota:"Elle a cassé :", arm_ganada:"Tu as trouvé :",
       rank_open:"🏆 Classement", rank_h1:"Classement", rank_refresh:"↻ Actualiser",
       rank_sub:"Les meilleures brutes du jeu.",
       rank_note:"Uniquement des joueurs réels. Les brutes de la maison sont inventées au moment de l'appariement et ne sont jamais sauvegardées : elles ne comptent pas.",
@@ -674,7 +733,14 @@
       reroll_none:"Tu as déjà changé la liste aujourd'hui. Reviens demain pour d'autres adversaires.",
       rank_empty:"Aucune brute forgée pour l'instant. Tu peux être le premier.",
       mock:"Maquette", dev_reset:"Réinitialiser", dev_empty:"Ludus vide", dev_refill:"Recharger", dev_coins:"+500 $BRUTE",
-      o:{ sex:["homme","femme"],
+      o:{
+          armas:{ ninguna:"Poings nus", daga:"Dague", mandoble:"Espadon", lanza:"Lance", escudo:"Bouclier" },
+          como:{ ninguna:"Équilibré, et ne casse jamais. Ne rien porter est une vraie option.",
+               daga:"Deux coups rapides et faibles. Chacun s'esquive séparément : difficile contre les agiles.",
+               mandoble:"Un coup dévastateur, mais lourd : tu frappes en dernier et encaisses plus. C'est celle qui tombe le plus.",
+               lanza:"De l'allonge. Tu frappes en premier et un peu plus fort, en te gardant moins.",
+               escudo:"Tu frappes peu et encaisses beaucoup moins. Il gagne par usure." },
+          sex:["homme","femme"],
           hairM:["chauve","rasé","crête","crinière","chignon","boucles"],
           hairF:["queue","tresse","lâchés","chignon","rasé","boucles"],
           cloth:["torse nu","tunique","mailles","cuirasse","cape"],
@@ -906,9 +972,11 @@
         ${xpRow(b)}
         ${statRows(b)}
         <div class="fights">${torchRow(b.fights)}</div>
+        <div class="bruto-arma">⚔ ${O("armas")[b.arma || "ninguna"] || t("arm_sin")}</div>
         <div class="card-foot">
           <button class="btn btn-primary btn-sm js-go" data-id="${b.id}"${b.fights>0?"":" disabled"}>
             ${b.fights>0 ? t("fight") : t("no_fights")}</button>
+          <button class="btn btn-ghost btn-sm js-arm" data-id="${b.id}">${t("arm_open")}</button>
         </div>
       </article>`).join("");
     for(let i = brutes.length; i < MAX_BRUTES; i++){
@@ -929,6 +997,7 @@
     el("roster").innerHTML = h;
     el("roster").querySelectorAll(".js-go").forEach(b => b.onclick = () => openMatch(+b.dataset.id));
     el("roster").querySelectorAll(".js-forge").forEach(b => b.onclick = () => openForge(+b.dataset.price));
+    el("roster").querySelectorAll(".js-arm").forEach(b => b.onclick = () => openArmeria(+b.dataset.id));
   }
 
   /* ═══════════ emparejamiento ═══════════ */
@@ -962,6 +1031,79 @@
       console.warn("[SolBrute] arena:", e.clase || "?", e.message);
     }
   }
+  /* ═══════════ la armería ═══════════
+     Comprar y equipar los decide el servidor: aquí solo se pinta lo que dice.
+     El precio, el saldo y qué armas tienes viven allí, así que tocar esta
+     pantalla desde la consola no consigue nada. */
+  function openArmeria(id){
+    active = brutes.find(b => b.id === id);
+    if(!active) return;
+    show("scArmeria");
+    renderArmeria();
+  }
+
+  function renderArmeria(){
+    if(!active) return;
+    el("armSub").textContent = `${t("arm_para")} ${active.name} · ${t("lvl")} ${active.lv}`;
+    const mias = active.armas || [];
+    const puesta = active.arma || "ninguna";
+    const nombres = O("armas"), comos = O("como");
+
+    const tarjeta = id => {
+      const w = ARMAS[id];
+      const tengo = id === "ninguna" || mias.includes(id);
+      const llevo = puesta === id;
+      let pie;
+      if(llevo)      pie = `<div class="arm-tengo">✓ ${t("arm_puesta")}</div>`;
+      else if(tengo) pie = `<button class="btn btn-ghost btn-sm js-eq" data-a="${id}">${t("arm_equipar")}</button>`;
+      else if(balance >= w.precio)
+                     pie = `<button class="btn btn-primary btn-sm js-comp" data-a="${id}">${t("arm_comprar")} · ${w.precio}</button>`;
+      else           pie = `<div class="arm-tengo" style="color:var(--muted)">${t("arm_caro")} (${w.precio})</div>`;
+
+      /* Los puños no se compran ni se rompen: no llevan ni precio ni desgaste. */
+      const datos = id === "ninguna" ? "" : `
+        <div class="arm-datos">
+          <span>${t("arm_dura")} <b>~${duracion(id)}</b> ${t("arm_combates")}</span>
+          <span>${t("arm_cae")} <b>${(w.perder*100).toFixed(1)}%</b> ${t("arm_turno")}</span>
+        </div>`;
+
+      return `<div class="arm${llevo ? " puesta" : ""}">
+        <div class="arm-top">
+          <span class="arm-nom">${nombres[id]}</span>
+          ${id === "ninguna" ? "" : `<span class="arm-precio">${w.precio} $BRUTE</span>`}
+        </div>
+        <p class="arm-como">${comos[id]}</p>
+        ${datos}
+        <div class="arm-pie">${pie}</div>
+      </div>`;
+    };
+
+    el("armLista").innerHTML = ["ninguna", ...ARMAS_REALES].map(tarjeta).join("");
+    el("armLista").querySelectorAll(".js-eq").forEach(b => b.onclick = () => equipar(b.dataset.a));
+    el("armLista").querySelectorAll(".js-comp").forEach(b => b.onclick = () => comprar(b.dataset.a));
+  }
+
+  async function equipar(id){
+    try{
+      await SolBruteDB.equiparArma(active.rid, id);
+      active.arma = id;
+      renderArmeria();
+    }catch(e){ console.warn("[SolBrute] equipar:", e.clase || "?", e.message); }
+  }
+
+  async function comprar(id){
+    try{
+      const r = await SolBruteDB.comprarArma(active.rid, id);
+      /* Lo que vale es lo que responde el servidor, no lo que calcule esta
+         pantalla: el precio y el saldo los lleva él. */
+      active.armas = r.armas;
+      active.arma = r.arma;
+      balance = r.balance;
+      el("balNum").textContent = balance;
+      renderArmeria();
+    }catch(e){ console.warn("[SolBrute] comprar:", e.clase || "?", e.message); }
+  }
+
   /* ═══════════ clasificación ═══════════ */
   let rank = [];
 
@@ -1149,7 +1291,16 @@
 
     el("bannerWhat").textContent = fight.timeout ? t("points") : (won ? t("win") : t("lose"));
     el("bannerWho").textContent = won ? active.name : foe.name;
-    el("bannerRew").innerHTML = `+<b>${premio.coins}</b> ${t("coins")} · +<b>${premio.xp}</b> XP${lvl}`;
+    /* Que el arma se rompa sin avisar sería lo peor: el jugador vería su bruto
+       peor sin saber por qué. */
+    const nombres = O("armas");
+    let extra = "";
+    if(premio.arma_rota)  extra += ` · ${t("arm_rota")} ${nombres[premio.arma_rota] || premio.arma_rota}`;
+    if(premio.arma_nueva) extra += ` · ${t("arm_ganada")} ${nombres[premio.arma_nueva] || premio.arma_nueva}`;
+    active.arma  = premio.arma;
+    active.armas = premio.armas;
+
+    el("bannerRew").innerHTML = `+<b>${premio.coins}</b> ${t("coins")} · +<b>${premio.xp}</b> XP${lvl}${extra}`;
     el("banner").classList.add("show");
     el("balNum").textContent = balance;
   }
@@ -1459,6 +1610,7 @@
     if(cur.id === "scRoster") renderRoster();
     if(cur.id === "scMatch" && active) renderMatch();
     if(cur.id === "scRank") renderRank();
+    if(cur.id === "scArmeria" && active) renderArmeria();
     if(cur.id === "scGate") pintarWallets();
     if(cur.id === "scForge" && look){ buildCreator(); renderForge(); }
   }
