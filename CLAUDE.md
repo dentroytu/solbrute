@@ -30,6 +30,7 @@ experiencia y sube de nivel.
 | `prueba-banco.ts` | Base de datos simulada para el banco de ataque | Herramienta |
 | `supabase-10-permisos.sql` | Cierra funciones que quedaron ejecutables por `public` | Aplicado |
 | `BACKEND.md` | Esquema y contrato de API | Paso 1 hecho a medias |
+| `TOKEN.md` | Diseño económico del token | Modelo decidido, nada creado |
 | `EMPEZAR.md` | Guía de arranque para novato | — |
 
 Hubo dos bancos de pruebas (`creator.html`, `fight.html`) que se eliminaron al
@@ -200,10 +201,16 @@ Comprobado con 5.000 combates por nivel simulados.
 
 ### Sobre la economía del token
 
-Cuidado con esto: si más brutos = más peleas = más recompensas, comprar plazas se
-vuelve pay-to-earn y el juego se convierte en granja. **La recompensa por plaza
-extra tiene que ser sublineal**, o la plaza no puede pagarse a sí misma. Es lo
-que hunde a la mayoría de juegos con token.
+Ver `TOKEN.md` para el modelo completo. En corto: el juego emite **+95 monedas
+netas por jugador y día**, así que a 1:1 y sin límite serían 34,6 millones de
+tokens al año con mil jugadores. El modelo elegido es **reserva fija con
+reparto diario**: la emisión es exacta, no depende de cuánta gente juegue, y
+meter bots te diluye a ti mismo.
+
+Cuidado también con esto: si más brutos = más peleas = más recompensas, comprar
+plazas se vuelve pay-to-earn y el juego se convierte en granja. **La recompensa
+por plaza extra tiene que ser sublineal**, o la plaza no puede pagarse a sí
+misma. Es lo que hunde a la mayoría de juegos con token.
 
 Y el primer bruto es gratis por una razón comercial: nadie compra una cripto para
 probar un juego que no ha jugado.
