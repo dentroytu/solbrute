@@ -238,6 +238,18 @@
       await pedirAuth({ accion: "vaciar", token: token() });
     },
 
+    /* Pide una pelea. El servidor elige la semilla, calcula el combate y
+       aplica monedas y experiencia; aquí solo llega el registro para animarlo.
+
+       `opponentIdx` es la posición en la lista que el propio servidor guardó
+       (brutes.pool), no un rival que mande el navegador: así no se puede pedir
+       pelea contra un enemigo inventado de 1 punto de vida. */
+    async pelear(bruteRid, opponentIdx){
+      return await pedirAuth({ accion: "pelear", token: token(),
+                               bruteId: bruteRid, opponentIdx,
+                               version: window.BruteCombate.VERSION });
+    },
+
     /* Rivales de otros jugadores, de nivel parecido.
        El filtro por nivel lo hace Postgres, no el navegador: por eso la tabla
        tiene el índice brutes_level_idx. */

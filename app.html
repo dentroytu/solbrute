@@ -469,6 +469,7 @@
 <script src="brute-render.js"></script>
 <script src="supabase-cliente.js"></script>
 <script src="wallet-solana.js"></script>
+<script src="brute-combate.js"></script>
 <script>
 (function(){
   "use strict";
@@ -481,6 +482,14 @@
           shade, torsoPath, HEADP,
           drawBody, drawTat, drawCloth, drawFace, drawHair,
           bust, spriteProfile } = window.BruteRender;
+
+  /* Reglas del combate y del equilibrio — ver brute-combate.js.
+     El servidor carga ESE MISMO fichero, así que aquí no hay ninguna fórmula:
+     dos copias que divergen significan que el servidor dice que perdiste
+     mientras la pantalla dice que ganaste. */
+  const { STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX,
+          ri, xpNeed, rollStats, subirAtributo, botStats,
+          simulate, aplicar } = window.BruteCombate;
 
   /* ═══════════ i18n ═══════════ */
   const T = {
@@ -522,6 +531,8 @@
       g_connecting:"Abriendo la wallet…", g_signing:"Mira tu wallet y firma el mensaje para entrar.",
       g_rejected:"Has cancelado. No se ha enviado nada y no se ha movido ningún fondo.",
       g_nosign:"Esta wallet no sabe firmar mensajes, así que no puedo comprobar que la dirección es tuya.",
+      f_error:"No he podido resolver el combate. Inténtalo otra vez.",
+      f_version:"El juego se ha actualizado. Recarga la página para seguir jugando.",
       g_nonce:"Pidiendo un código de un solo uso al servidor…",
       g_verifying:"Comprobando tu firma…",
       g_authfail:"El servidor no ha dado por buena la firma. Vuelve a intentarlo.",
@@ -580,6 +591,8 @@
       g_connecting:"Opening your wallet…", g_signing:"Check your wallet and sign the message to enter.",
       g_rejected:"You cancelled. Nothing was sent and no funds moved.",
       g_nosign:"This wallet can't sign messages, so I can't check the address is really yours.",
+      f_error:"Couldn't resolve the fight. Try again.",
+      f_version:"The game was updated. Reload the page to keep playing.",
       g_nonce:"Asking the server for a one-time code…",
       g_verifying:"Checking your signature…",
       g_authfail:"The server didn't accept the signature. Try again.",
@@ -638,6 +651,8 @@
       g_connecting:"Ouverture du wallet…", g_signing:"Regarde ton wallet et signe le message pour entrer.",
       g_rejected:"Tu as annulé. Rien n'a été envoyé et aucun fonds n'a bougé.",
       g_nosign:"Ce wallet ne sait pas signer de messages, je ne peux donc pas vérifier que l'adresse est bien la tienne.",
+      f_error:"Impossible de résoudre le combat. Réessaie.",
+      f_version:"Le jeu a été mis à jour. Recharge la page pour continuer.",
       g_nonce:"Demande d'un code à usage unique au serveur…",
       g_verifying:"Vérification de ta signature…",
       g_authfail:"Le serveur n'a pas accepté la signature. Réessaie.",
@@ -672,25 +687,12 @@
      Va junto a las peleas porque se recarga igual, al cambiar el día UTC. */
   const REROLLS_DAY = 1;
 
-  /* ═══════════ equilibrio ═══════════
-     Un bruto recién forjado es flojo a propósito: 1-4 en cada atributo sobre un
-     tope de 10. Así hay recorrido que recorrer, y el salto de nivel 1 a nivel 2
-     se nota. Si empezaran cerca del tope, subir de nivel no cambiaría nada y la
-     progresión —que es el motor del género— dejaría de existir.
-
-     El techo de 10 no se toca: las fórmulas de daño y esquiva están calibradas
-     para ese rango. Ver CLAUDE.md › Combate. */
-  const STAT_INI = 1, STAT_VAR = 4;    // atributos de partida: 1..4
-  const HP_INI = 40, HP_VAR = 11;      // vida de partida:      40..50
-  const HP_NIVEL = 3;                  // vida que suma cada nivel
-  const STAT_MAX = 10;                 // tope de fuerza / agilidad / velocidad
   const sprite = spriteProfile;
 
   /* ═══════════ estado ═══════════ */
   const NAMES = ["Vurkas","Torvald","Maximus","Drusa","Kaelo","Brennus","Sabina","Orlok","Crixus","Vardo","Nerva","Thrax","Galba","Rufa","Sceva","Murro","Balba","Priscus","Verus","Calpa"];
   let balance = 120, brutes = [], nextId = 1, pool = [], active = null;
   let addr = null, loaded = false;
-  const ri = n => Math.floor(Math.random()*n);
 
   /* ══════════════════════════════════════════════════════════════
      ALMACENAMIENTO
@@ -843,31 +845,8 @@
              cloth:ri(CLOTHS.length), clothC:ri(CLOTHC.length), face:ri(FACES.length),
              eyeC:ri(EYEC.length), tat:ri(TATS.length), tatC:ri(INK.length) };
   }
-  function rollStats(){
-    return { str:STAT_INI+ri(STAT_VAR), agi:STAT_INI+ri(STAT_VAR),
-             spd:STAT_INI+ri(STAT_VAR), hpMax:HP_INI+ri(HP_VAR) };
-  }
 
-  /* Sube un atributo al azar, respetando el tope. Lo usan el salto de nivel y
-     la generación de brutos de la casa, para que sigan la misma curva. */
-  function subirAtributo(b){
-    const libres = ["str","agi","spd"].filter(k => b[k] < STAT_MAX);
-    if(!libres.length) return "";
-    const k = libres[ri(libres.length)];
-    b[k]++;
-    return k;
-  }
 
-  /* Estadísticas de un bruto de la casa de nivel `lv`.
-     Un jugador de nivel L ha subido L-1 veces, así que el bot recibe L-1 puntos
-     y la misma vida por nivel. Si los bots siguieran otra curva, el
-     emparejamiento por nivel sería una mentira: mismo número, distinta fuerza. */
-  function botStats(lv){
-    const st = rollStats();
-    for(let i = 0; i < lv - 1; i++) subirAtributo(st);
-    st.hpMax += (lv - 1) * HP_NIVEL;
-    return st;
-  }
 
   /* Fisher-Yates. El `sort(() => Math.random() - .5)` que había antes no baraja
      bien: da un orden sesgado y el comparador es inconsistente. Con pocos
@@ -893,34 +872,6 @@
   }
 
   /* ═══════════ combate determinista ═══════════ */
-  function mulberry32(a){
-    return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
-      t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
-  }
-  function simulate(a, b, seed){
-    const rnd = mulberry32(seed);
-    const F = { A:{...a, hp:a.hpMax, side:"A"}, B:{...b, hp:b.hpMax, side:"B"} };
-    const first = F.A.spd > F.B.spd ? "A" : F.B.spd > F.A.spd ? "B" : (rnd()<.5?"A":"B");
-    const order = first === "A" ? ["A","B"] : ["B","A"];
-    const log = []; let turn = 0;
-    while(F.A.hp>0 && F.B.hp>0 && turn<40){
-      turn++;
-      for(const k of order){
-        if(F.A.hp<=0 || F.B.hp<=0) break;
-        const att = F[k], def = F[k==="A"?"B":"A"];
-        if(rnd() < 0.06 + def.agi*0.019){ log.push({turn,type:"dodge",att:att.name,def:def.name,side:def.side}); continue; }
-        let dmg = Math.round((3 + att.str*1.45) * (0.8 + rnd()*0.4)), type = "hit";
-        if(rnd() < 0.05 + att.agi*0.014){ dmg = Math.round(dmg*1.9); type = "crit"; }
-        def.hp = Math.max(0, def.hp - dmg);
-        log.push({turn,type,att:att.name,def:def.name,side:def.side,dmg,hp:def.hp,hpMax:def.hpMax});
-        if(def.hp <= 0){ log.push({turn,type:"ko",def:def.name,side:def.side}); break; }
-      }
-    }
-    const timeout = F.A.hp>0 && F.B.hp>0;
-    const winner = F.A.hp<=0 ? "B" : F.B.hp<=0 ? "A" : (F.A.hp>=F.B.hp ? "A" : "B");
-    return { log, winner, timeout, turns:turn, seed };
-  }
-
   /* ═══════════ render ═══════════ */
   function pips(n){ let h=""; for(let i=0;i<10;i++) h+=`<span class="pip${i<n?" on":""}"></span>`; return h; }
   function statRows(b){
@@ -928,7 +879,6 @@
             <div class="stat-row"><span class="stat-label">${t("agi")}</span><span class="pips">${pips(b.agi)}</span></div>
             <div class="stat-row"><span class="stat-label">${t("spd")}</span><span class="pips">${pips(b.spd)}</span></div>`;
   }
-  const xpNeed = lv => lv * 100;
   function xpRow(b){
     const need = xpNeed(b.lv), pct = Math.min(100, Math.round(b.xp / need * 100));
     return `<div class="xp-row">
@@ -1098,20 +1048,44 @@
         </div>
         <button class="btn btn-primary btn-sm js-pick" data-i="${i}">${t("go")}</button>
       </div>`).join("");
-    el("oppList").querySelectorAll(".js-pick").forEach(b => b.onclick = () => startFight(pool[+b.dataset.i]));
+    el("oppList").querySelectorAll(".js-pick").forEach(b => b.onclick = () => startFight(+b.dataset.i));
   }
 
   /* ═══════════ arena ═══════════ */
   let fight = null, foe = null, speed = 1, abort = false, playing = false;
   const wait = ms => new Promise(r => setTimeout(r, ms/speed));
 
-  function startFight(opponent){
+  /* Guarda lo que decidió el servidor, para que el cartel del final diga lo
+     que de verdad se ha escrito y no lo que calcule el navegador. */
+  let premio = null;
+
+  async function startFight(idx){
+    const opponent = pool[idx];
+    if(!opponent || !active) return;
+
+    /* La pelea la decide el SERVIDOR: elige la semilla, calcula el combate y
+       aplica monedas y experiencia. Aquí solo llega el registro para animarlo.
+       El navegador ya no puede decir "he ganado". */
+    let r;
+    try{
+      r = await SolBruteDB.pelear(active.rid, idx);
+    }catch(e){
+      const porClase = { version:"f_version", sesion:"g_authfail" };
+      alert(t(porClase[e.clase] || "f_error"));
+      console.warn("[SolBrute] pelea:", e.clase || "?", e.message);
+      return;
+    }
+
     foe = opponent;
-    active.fights = Math.max(0, active.fights - 1);
-    saveMe();
-    const seed = Math.floor(Math.random()*900000)+100000;
-    fight = simulate(active, foe, seed);
-    el("seedOut").textContent = seed;
+    fight = { log:r.log, winner:r.winner, timeout:r.timeout, turns:r.turns, seed:r.seed };
+    premio = r;
+
+    /* El estado local se pone al día con lo que dice el servidor, no al revés. */
+    active.fights = r.fights_left;
+    balance = r.balance;
+    el("balNum").textContent = balance;
+
+    el("seedOut").textContent = r.seed;
     el("nameA").textContent = active.name; el("nameB").textContent = foe.name;
     el("subA").textContent = `Nv. ${active.lv} · ${active.w}${t("wins")} ${active.l}${t("losses")}`;
     el("subB").textContent = `Nv. ${foe.lv} · ${foe.w}${t("wins")} ${foe.l}${t("losses")}`;
@@ -1174,28 +1148,21 @@
     finish();
   }
   function finish(){
-    if(!playing) return;
+    if(!playing || !premio) return;
     playing = false;
     const won = fight.winner === "A";
-    const coins = won ? 12 + fight.turns : Math.round((12 + fight.turns)/3);
-    const xp = won ? 40 + fight.turns*3 : 12 + fight.turns;
-    if(won) active.w++; else active.l++;
-    active.xp += xp;
-    let lvl = "";
-    const need = xpNeed(active.lv);
-    if(active.xp >= need){
-      active.xp -= need; active.lv++;
-      subirAtributo(active);
-      active.hpMax += HP_NIVEL;
-      lvl = ` · ${t("lvup")} ${active.lv}!`;
-    }
-    balance += coins;
+
+    /* Nada se calcula aquí: el servidor ya aplicó la recompensa y subió el
+       nivel si tocaba. Estos números son los que están en la base de datos.
+       Si el navegador los recalculara y no cuadraran, el cartel mentiría. */
+    Object.assign(active, premio.bruto);
+    const lvl = premio.subio ? ` · ${t("lvup")} ${active.lv}!` : "";
+
     el("bannerWhat").textContent = fight.timeout ? t("points") : (won ? t("win") : t("lose"));
     el("bannerWho").textContent = won ? active.name : foe.name;
-    el("bannerRew").innerHTML = `+<b>${coins}</b> ${t("coins")} · +<b>${xp}</b> XP${lvl}`;
+    el("bannerRew").innerHTML = `+<b>${premio.coins}</b> ${t("coins")} · +<b>${premio.xp}</b> XP${lvl}`;
     el("banner").classList.add("show");
     el("balNum").textContent = balance;
-    saveMe();
   }
   el("btnSkip").onclick = () => {
     if(!playing) return;

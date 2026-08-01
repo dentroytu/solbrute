@@ -43,6 +43,18 @@
    Ver BACKEND.md.
    ══════════════════════════════════════════════════════════════════════════ */
 
+/* ── Las reglas del combate se cargan del MISMO fichero que usa el navegador ──
+   No hay una copia de las fórmulas aquí dentro: si la hubiera, acabaría
+   divergiendo de la del juego y el servidor diría que perdiste mientras la
+   pantalla dice que ganaste.
+
+   Deno se queda con la copia del momento del despliegue. Por eso cada petición
+   de combate trae la versión del navegador y se compara: si no coinciden, se
+   rechaza la pelea en vez de arbitrarla con reglas distintas. Cuando toques
+   brute-combate.js, sube su VERSION y vuelve a desplegar esta función. */
+import "https://dentroytu.github.io/solbrute/brute-combate.js";
+const C = (globalThis as any).BruteCombate;
+
 /* Dominios desde los que se acepta un login. El mensaje firmado lleva dentro
    el dominio; si no se comprobara, una web fraudulenta podría hacerte firmar
    "malaweb.com quiere que inicies sesión" y reutilizar esa firma aquí.
@@ -330,6 +342,87 @@ Deno.serve(async (req) => {
   if (accion === "vaciar") {
     await db("/brutes?owner=eq." + encodeURIComponent(dueno), { method: "DELETE" });
     return responder({ ok: true });
+  }
+
+  /* ══════════ el combate ══════════
+     Aquí es donde el servidor deja de creerse al navegador. Antes el cliente
+     calculaba la pelea y luego decía "he ganado, dame 20 monedas"; ahora dice
+     "quiero pelear contra el rival 3 de mi lista" y el resto lo decide esto.
+
+     El navegador solo reproduce el registro que se le devuelve. */
+  if (accion === "pelear") {
+    if (cuerpo.version !== C.VERSION) {
+      return responder({ error: "reglas desactualizadas", clase: "version",
+                         servidor: C.VERSION, cliente: cuerpo.version }, 409);
+    }
+
+    /* El bruto se lee de la BASE DE DATOS, no de lo que mande el navegador.
+       Si se usaran sus números, bastaría con decir que tienes fuerza 10. */
+    const filas = await db("/brutes?id=eq." + encodeURIComponent(String(cuerpo.bruteId)) +
+                           "&owner=eq." + encodeURIComponent(dueno) + "&select=*");
+    const fila = filas && filas[0];
+    if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
+
+    /* Recarga diaria: si es un día nuevo, se reponen peleas y cambio de lista
+       y se tira la lista de ayer. Se comprueba aquí porque el navegador puede
+       mentir sobre qué día es. */
+    const hoy = new Date().toISOString().slice(0, 10);
+    let pool = fila.pool;
+    let peleas = fila.fights_left;
+    if (fila.fights_day !== hoy) { peleas = 3; pool = null; }
+
+    if (peleas <= 0) return responder({ error: "sin peleas hoy" }, 403);
+
+    /* El rival tiene que salir de la lista que ofreció el servidor. Sin esto,
+       el navegador podría pedir pelear contra un rival inventado de nivel 1
+       con 1 de vida. Por eso se guarda `pool`. */
+    if (!Array.isArray(pool) || !pool.length) {
+      return responder({ error: "no tienes lista de rivales; entra a la arena primero" }, 409);
+    }
+    const idx = Number(cuerpo.opponentIdx);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= pool.length) {
+      return responder({ error: "ese rival no está en tu lista" }, 403);
+    }
+    const foe = pool[idx];
+
+    const mio = {
+      name: fila.name, lv: fila.level, xp: fila.xp, hpMax: fila.hp_max,
+      str: fila.str, agi: fila.agi, spd: fila.spd, w: fila.wins, l: fila.losses,
+    };
+
+    /* La semilla la genera el SERVIDOR. Si la eligiera el cliente, elegiría su
+       victoria: probaría semillas hasta encontrar una que gane. */
+    const seed = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000000;
+    const fight = C.simulate(mio, foe, seed);
+    const gano = fight.winner === "A";
+    const premio = C.aplicar(mio, fight, gano);
+
+    /* Monedas: se leen de la base y se suman aquí. El navegador no interviene. */
+    const jug = await db("/players?address=eq." + encodeURIComponent(dueno) + "&select=coins");
+    const monedas = Number((jug && jug[0] && jug[0].coins) || 0) + premio.coins;
+
+    await db("/brutes?id=eq." + fila.id + "&owner=eq." + encodeURIComponent(dueno), {
+      method: "PATCH",
+      body: JSON.stringify({
+        level: mio.lv, xp: mio.xp, hp_max: mio.hpMax,
+        str: mio.str, agi: mio.agi, spd: mio.spd,
+        wins: mio.w, losses: mio.l,
+        fights_left: peleas - 1, fights_day: hoy, pool,
+      }),
+    });
+    await db("/players?address=eq." + encodeURIComponent(dueno), {
+      method: "PATCH", body: JSON.stringify({ coins: monedas, last_seen: new Date().toISOString() }),
+    });
+
+    /* Se devuelve semilla + registro: el navegador puede recalcular la pelea
+       con las mismas reglas y comprobar que cuadra. Eso es la promesa de
+       "combate verificable" de la landing, y el ensayo de lo que hará la
+       cadena en la fase 2. */
+    return responder({
+      seed, log: fight.log, winner: fight.winner, timeout: fight.timeout, turns: fight.turns,
+      coins: premio.coins, xp: premio.xp, subio: premio.subio,
+      bruto: mio, fights_left: peleas - 1, balance: monedas,
+    });
   }
 
   return responder({ error: "acción desconocida" }, 400);
