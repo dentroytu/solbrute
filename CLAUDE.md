@@ -17,6 +17,11 @@ experiencia y sube de nivel.
 | `supabase-03-auth.sql` | Tabla `auth_nonces` | Aplicado |
 | `supabase-05-sesiones.sql` | Tabla `sessions` | Aplicado |
 | `supabase-04-cerrar.sql` | Cierra las políticas: leer sí, escribir no | Aplicado |
+| `supabase-06-tirada.sql` | `sessions.roll`: la tirada de atributos la guarda el servidor | Aplicado |
+| `supabase-07-peleas.sql` | Tabla `fights` y resumen para el panel | Aplicado |
+| `supabase-08-admin.sql` | Tabla `admin_log` (auditoría) | Aplicado |
+| `admin.html` | Panel de administración | Funcionando |
+| `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
 | `supabase-02-rerolls.sql` | Añade `rerolls_left` y `pool` a `brutes` | Aplicado |
 | `servidor-local.js` | Servidor de desarrollo, sin caché. No lo necesita el juego | Herramienta |
@@ -408,6 +413,63 @@ con el motivo escrito debajo, en vez de quedarse mudo.
 
 ---
 
+## Panel de administración
+
+`admin.html`, fuera del juego y sin enlazar desde él. Se entra **firmando con
+la wallet**, igual que un jugador; la diferencia es que el servidor comprueba
+además si la dirección está en `ADMIN_WALLETS`.
+
+**Esa lista va en un secreto de Supabase, no en el código.** El repositorio es
+público y ahí dentro la wallet del dueño quedaría a la vista. Añadir un
+administrador es editar el secreto, sin desplegar.
+
+**La comprobación está en el servidor, no en la página.** Un panel que solo
+esconde botones no protege nada: las rutas se pueden llamar con `curl`. A quien
+no es admin se le responde lo mismo que a una sesión caducada, sin confirmarle
+que el panel existe.
+
+Puede editar y borrar jugadores y brutos. Los valores se recortan al mismo
+rango legal que usa el juego: un administrador está para arreglar cosas, no
+para crear sin querer un bruto con fuerza 500. Y no puede borrarse a sí mismo.
+
+### Todo cambio queda en `admin_log`
+
+Con el **antes y el después** — sin el antes, un registro solo dice que algo
+cambió, no de qué a qué. La tabla tiene RLS activo y cero políticas: un
+registro de auditoría que el auditado puede editar no vale nada.
+
+No está para vigilar a nadie: está para poder demostrar qué pasó el día que
+alguien pregunte por su saldo. Con un token de por medio, el primer sospechoso
+de un saldo raro es siempre quien tiene el panel.
+
+### Trampa de Postgres: `revoke` a `public`
+
+`admin_resumen()` es `security definer`, así que se salta RLS. Revocar su
+ejecución **solo a `anon` y `authenticated` no sirve**: en Postgres una función
+nace ejecutable por `PUBLIC`, y ese permiso queda. Se comprobó — con el revoke
+incompleto, un `POST /rest/v1/rpc/admin_resumen` con la clave pública devolvía
+las estadísticas completas del juego.
+
+Y hay que repetir el `revoke` **cada vez** que se haga `create or replace` de
+la función, porque recrearla vuelve a conceder el permiso por defecto. Fue lo
+que pasó: el paso 8 deshizo en silencio lo que había puesto el 7.
+
+---
+
+## Registro de peleas
+
+Tabla `fights`: semilla, registro completo, ganador, turnos, monedas y XP, más
+una **copia congelada del rival** (`b_snapshot`). Ese snapshot es
+imprescindible: el rival sube de nivel después, y sin él la pelea dejaría de
+poder reproducirse.
+
+Guardar la pelea sale casi gratis porque el servidor ya tiene el resultado en
+la mano cuando escribe el bruto. Sirve para el historial por bruto, para el
+panel, y sobre todo para saber **cuántas monedas se emiten al día** — el número
+que avisa de que la economía se ha roto antes de que se note en el precio.
+
+---
+
 ## Clasificación
 
 Pantalla `scRank`, ordenada por nivel → XP → victorias.
@@ -484,7 +546,8 @@ dos lados.
 - [ ] Sustituir `REPLACE_WITH_YOUR_DOMAIN` en los meta tags de `index.html`
 - [ ] Subir `og-image.png` (1200×630) a la raíz
 - [ ] Quitar la barra de maqueta de `app.html` antes de publicar
-- [ ] Historial de combates por bruto (el registro ya se genera, falta guardarlo)
+- [x] ~~Historial de combates por bruto~~ — las peleas se guardan en `fights`.
+      Falta la pantalla que lo enseñe al jugador.
 - [ ] Arte de personajes con ilustrador (capas en PNG sobre el sistema actual)
 - [x] ~~Portar el renderizador por capas a la landing~~ — hecho: las dos páginas
       dibujan desde `brute-render.js`. (La nota de "bustos con casco" en el hero
