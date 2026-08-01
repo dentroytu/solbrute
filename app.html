@@ -531,6 +531,7 @@
       g_connecting:"Abriendo la wallet…", g_signing:"Mira tu wallet y firma el mensaje para entrar.",
       g_rejected:"Has cancelado. No se ha enviado nada y no se ha movido ningún fondo.",
       g_nosign:"Esta wallet no sabe firmar mensajes, así que no puedo comprobar que la dirección es tuya.",
+      gain_hp:"vida",
       f_error:"No he podido resolver el combate. Inténtalo otra vez.",
       f_version:"El juego se ha actualizado. Recarga la página para seguir jugando.",
       g_nonce:"Pidiendo un código de un solo uso al servidor…",
@@ -591,6 +592,7 @@
       g_connecting:"Opening your wallet…", g_signing:"Check your wallet and sign the message to enter.",
       g_rejected:"You cancelled. Nothing was sent and no funds moved.",
       g_nosign:"This wallet can't sign messages, so I can't check the address is really yours.",
+      gain_hp:"health",
       f_error:"Couldn't resolve the fight. Try again.",
       f_version:"The game was updated. Reload the page to keep playing.",
       g_nonce:"Asking the server for a one-time code…",
@@ -651,6 +653,7 @@
       g_connecting:"Ouverture du wallet…", g_signing:"Regarde ton wallet et signe le message pour entrer.",
       g_rejected:"Tu as annulé. Rien n'a été envoyé et aucun fonds n'a bougé.",
       g_nosign:"Ce wallet ne sait pas signer de messages, je ne peux donc pas vérifier que l'adresse est bien la tienne.",
+      gain_hp:"vie",
       f_error:"Impossible de résoudre le combat. Réessaie.",
       f_version:"Le jeu a été mis à jour. Recharge la page pour continuer.",
       g_nonce:"Demande d'un code à usage unique au serveur…",
@@ -1156,7 +1159,15 @@
        nivel si tocaba. Estos números son los que están en la base de datos.
        Si el navegador los recalculara y no cuadraran, el cartel mentiría. */
     Object.assign(active, premio.bruto);
-    const lvl = premio.subio ? ` · ${t("lvup")} ${active.lv}!` : "";
+
+    /* Con atributo solo 4 de cada 10 veces, hay que decir qué tocó. Si no,
+       seis de cada diez niveles parecen no dar nada. */
+    let lvl = "";
+    if(premio.subio){
+      const etiqueta = { str:t("str"), agi:t("agi"), spd:t("spd") }[premio.ganancia];
+      const gano = etiqueta ? `+1 ${etiqueta}` : `+${HP_NIVEL} ${t("gain_hp")}`;
+      lvl = ` · ${t("lvup")} ${active.lv}! (${gano})`;
+    }
 
     el("bannerWhat").textContent = fight.timeout ? t("points") : (won ? t("win") : t("lose"));
     el("bannerWho").textContent = won ? active.name : foe.name;

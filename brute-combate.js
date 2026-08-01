@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 1;
+  const VERSION = 2;
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -47,12 +47,28 @@
      El tope de 10 no se toca sin recalibrar daño y esquiva. */
   const STAT_INI = 1, STAT_VAR = 4;    // atributos de partida: 1..4
   const HP_INI = 40, HP_VAR = 11;      // vida de partida:      40..50
-  const HP_NIVEL = 3;                  // vida que suma cada nivel
+  const HP_NIVEL = 2;                  // vida que suma cada nivel
   const STAT_MAX = 10;
   const TOPE_TURNOS = 40;              // sin él, dos brutos muy esquivos no acabarían
 
+  /* Subir de nivel NO garantiza un atributo: sale 4 de cada 10 veces. Es lo
+     que los hace escasos de verdad.
+
+     El resto de veces solo das vida, y es a propósito que sea poca: probamos
+     compensar con vida extra y los combates pasaban de 7 turnos a 19, porque
+     la vida crecía y el daño no. Un bruto de nivel 20 pasa de 8,8 de media por
+     atributo a 5,0, y las peleas solo se alargan de 7 a 8 turnos.
+
+     Cuando existan armas y mascotas, este es el hueco donde entran: el 60%
+     que hoy solo da vida será donde caiga el botín. */
+  const PROB_ATRIBUTO = 0.40;
+
   const ri = n => Math.floor(Math.random() * n);
-  const xpNeed = lv => lv * 100;
+
+  /* Curva empinada: el primer nivel llega en dos peleas —engancha— y a partir
+     de ahí cuesta cada vez más. Con 3 peleas al día, el nivel 5 son ~8 días y
+     el nivel 10 unos ~54. Antes eran 6 y 27. */
+  const xpNeed = lv => Math.round(80 * Math.pow(lv, 1.5));
 
   function rollStats(){
     return { str: STAT_INI + ri(STAT_VAR), agi: STAT_INI + ri(STAT_VAR),
@@ -148,21 +164,24 @@
     if(gano) bruto.w++; else bruto.l++;
     bruto.xp += xp;
 
-    let subio = false;
+    let subio = false, ganancia = "";
     const need = xpNeed(bruto.lv);
     if(bruto.xp >= need){
       bruto.xp -= need;
       bruto.lv++;
-      subirAtributo(bruto);
       bruto.hpMax += HP_NIVEL;
       subio = true;
+      /* El atributo no está garantizado. Se devuelve QUÉ tocó para que la
+         pantalla lo diga: un nivel que solo da vida y no lo explica parece un
+         nivel que no dio nada. */
+      ganancia = (Math.random() < PROB_ATRIBUTO) ? (subirAtributo(bruto) || "hp") : "hp";
     }
-    return { coins, xp, subio };
+    return { coins, xp, subio, ganancia };
   }
 
   globalThis.BruteCombate = {
     VERSION,
-    STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS,
+    STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS, PROB_ATRIBUTO,
     ri, xpNeed, rollStats, subirAtributo, botStats,
     mulberry32, simulate, recompensa, aplicar
   };
