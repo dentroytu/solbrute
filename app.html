@@ -139,6 +139,34 @@
   /* ── clasificación ── */
   /* ── armería ── */
   .salas{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* ── historial ──
+     Una fila por movimiento. El signo manda en el color: rojo sangre lo que
+     sale del saldo, verde Solana lo que entra. Es la misma regla de color de
+     todo el juego (rojo = daño, verde = progreso), aplicada al dinero. */
+  .hist-lista{ display:flex; flex-direction:column; gap:6px; }
+  .hist-row{ display:flex; align-items:center; gap:12px; padding:11px 14px;
+             background:var(--surface); border:1px solid var(--line); border-radius:10px; }
+  .hist-row .h-fecha{ font-size:11px; color:var(--muted); min-width:96px; }
+  .hist-row .h-que{ flex:1; min-width:0; }
+  .hist-row .h-tipo{ display:block; font-size:13px; }
+  .hist-row .h-det{ display:block; font-size:11px; color:var(--muted); margin-top:2px;
+                    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hist-row .h-mon{ font-family:'Cinzel',serif; font-size:15px; white-space:nowrap; }
+  .hist-row .h-mon.neg{ color:var(--blood-bright); }
+  .hist-row .h-mon.pos{ color:var(--sol-teal); }
+  /* Estado de una retirada. Solo aparece en las retiradas, que son las únicas
+     que pueden quedarse a medias entre la base de datos y la cadena. */
+  .hist-row .h-est{ font-size:10px; padding:2px 7px; border-radius:99px;
+                    border:1px solid var(--line); color:var(--muted); }
+  .hist-row .h-est.enviada{ color:var(--sol-teal); border-color:var(--sol-teal); }
+  .hist-row .h-est.fallida{ color:var(--blood-bright); border-color:var(--blood); }
+  .hist-vacio{ padding:26px; text-align:center; color:var(--muted); font-size:13px;
+               border:1px dashed var(--line); border-radius:10px; }
+  @media(max-width:560px){
+    .hist-row{ flex-wrap:wrap; }
+    .hist-row .h-fecha{ min-width:0; order:3; }
+  }
   /* Selector de bruto de la armería: con un solo bruto no hace falta enseñarlo. */
   .arm-quien{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
   .arm-quien{ align-items:center; }
@@ -212,6 +240,10 @@
   .banner .who{ font-family:'Cinzel',serif; font-size:clamp(21px,5vw,32px); font-weight:900; color:var(--bronze-light); }
   .banner .rew{ font-size:12px; color:var(--muted); margin-top:6px; }
   .banner .rew b{ color:var(--sol-teal); }
+  /* El cambio del día va en su propia línea y apagado: es información, no
+     premio. Si compitiera en color con las monedas, el jugador leería primero
+     la letra pequeña que lo que acaba de ganar. */
+  .banner .rate{ display:block; margin-top:4px; font-size:11px; opacity:.6; }
   .banner .btn{ margin-top:14px; }
   .arena-controls{ display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
   .spd{ display:flex; gap:3px; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:3px; margin-left:auto; }
@@ -353,6 +385,7 @@
       <nav class="salas">
         <button class="btn btn-ghost btn-sm" id="btnArm" data-i18n="arm_open">⚔ Armoury</button>
         <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
+        <button class="btn btn-ghost btn-sm" id="btnHist" data-i18n="hist_open">📜 History</button>
       </nav>
     </div>
     <div class="roster" id="roster"></div>
@@ -376,6 +409,16 @@
     </div>
     <p class="match-note" data-i18n="rank_note">Real players only. House brutes are made up at matchmaking time and never saved, so they don't score.</p>
     <div class="opp-list" id="rankList"></div>
+  </section>
+
+  <section class="screen" id="scHist">
+    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
+    <div class="page-head">
+      <div><h1 data-i18n="hist_h1">History</h1><p data-i18n="hist_sub">Everything you've bought and withdrawn.</p></div>
+      <button class="btn btn-ghost btn-sm" id="btnHistRefresh" data-i18n="rank_refresh">↻ Refresh</button>
+    </div>
+    <p class="match-note" data-i18n="hist_note">Only you can see this. Your history is not readable from the browser: the server hands it over against your session and nothing else.</p>
+    <div class="hist-lista" id="histLista"></div>
   </section>
 
   <!-- 3 · MATCH -->
@@ -585,6 +628,16 @@
       g_rejected:"Has cancelado. No se ha enviado nada y no se ha movido ningún fondo.",
       g_nosign:"Esta wallet no sabe firmar mensajes, así que no puedo comprobar que la dirección es tuya.",
       gain_hp:"vida",
+      rate_today:"cambio de hoy",
+      hist_open:"📜 Historial", hist_h1:"Historial",
+      hist_sub:"Todo lo que has comprado y retirado.",
+      hist_note:"Solo lo ves tú. Tu historial no se puede leer desde el navegador: el servidor te lo entrega contra tu sesión y nada más.",
+      hist_empty:"Aquí no hay nada todavía. Compra un arma o retira monedas y aparecerá.",
+      hist_load:"Cargando…", hist_err:"No he podido cargar el historial.",
+      hist_compra_arma:"Arma comprada", hist_compra_plaza:"Plaza de bruto",
+      hist_retirada:"Retirada", hist_skin:"Aspecto", hist_torneo:"Torneo",
+      hist_mascota:"Mascota", hist_ajuste:"Ajuste",
+      hist_pendiente:"pendiente", hist_enviada:"enviada", hist_fallida:"fallida",
       f_error:"No he podido resolver el combate. Inténtalo otra vez.",
       f_version:"El juego se ha actualizado. Recarga la página para seguir jugando.",
       g_nonce:"Pidiendo un código de un solo uso al servidor…",
@@ -660,6 +713,16 @@
       g_rejected:"You cancelled. Nothing was sent and no funds moved.",
       g_nosign:"This wallet can't sign messages, so I can't check the address is really yours.",
       gain_hp:"health",
+      rate_today:"today's rate",
+      hist_open:"📜 History", hist_h1:"History",
+      hist_sub:"Everything you've bought and withdrawn.",
+      hist_note:"Only you can see this. Your history is not readable from the browser: the server hands it over against your session and nothing else.",
+      hist_empty:"Nothing here yet. Buy a weapon or withdraw coins and it'll show up.",
+      hist_load:"Loading…", hist_err:"I couldn't load your history.",
+      hist_compra_arma:"Weapon bought", hist_compra_plaza:"Brute slot",
+      hist_retirada:"Withdrawal", hist_skin:"Skin", hist_torneo:"Tournament",
+      hist_mascota:"Pet", hist_ajuste:"Adjustment",
+      hist_pendiente:"pending", hist_enviada:"sent", hist_fallida:"failed",
       f_error:"Couldn't resolve the fight. Try again.",
       f_version:"The game was updated. Reload the page to keep playing.",
       g_nonce:"Asking the server for a one-time code…",
@@ -735,6 +798,16 @@
       g_rejected:"Tu as annulé. Rien n'a été envoyé et aucun fonds n'a bougé.",
       g_nosign:"Ce wallet ne sait pas signer de messages, je ne peux donc pas vérifier que l'adresse est bien la tienne.",
       gain_hp:"vie",
+      rate_today:"taux du jour",
+      hist_open:"📜 Historique", hist_h1:"Historique",
+      hist_sub:"Tout ce que vous avez acheté et retiré.",
+      hist_note:"Vous seul pouvez le voir. Votre historique n'est pas lisible depuis le navigateur : le serveur le remet contre votre session, et rien d'autre.",
+      hist_empty:"Rien ici pour l'instant. Achetez une arme ou retirez des pièces et cela apparaîtra.",
+      hist_load:"Chargement…", hist_err:"Je n'ai pas pu charger l'historique.",
+      hist_compra_arma:"Arme achetée", hist_compra_plaza:"Place de brute",
+      hist_retirada:"Retrait", hist_skin:"Apparence", hist_torneo:"Tournoi",
+      hist_mascota:"Familier", hist_ajuste:"Ajustement",
+      hist_pendiente:"en attente", hist_enviada:"envoyé", hist_fallida:"échoué",
       f_error:"Impossible de résoudre le combat. Réessaie.",
       f_version:"Le jeu a été mis à jour. Recharge la page pour continuer.",
       g_nonce:"Demande d'un code à usage unique au serveur…",
@@ -1200,6 +1273,76 @@
     }).join("");
   }
 
+  /* ═══════════ el historial ═══════════
+     Compras y retiradas, solo las tuyas.
+
+     A diferencia de los rivales o la clasificación, esto NO se lee de la base
+     de datos directamente. `movimientos` tiene RLS y cero políticas, así que
+     desde el navegador esa tabla no existe. Va por la Edge Function, que saca
+     la dirección del token de sesión.
+
+     No es una vuelta innecesaria: aquí se lee con la clave anon, y para
+     Postgres todos los jugadores son el mismo usuario. Una política de lectura
+     no podría distinguir tu historial del de otro. */
+  const fechaCorta = iso => {
+    const d = new Date(iso);
+    return isNaN(d) ? "" : d.toLocaleDateString(lang === "en" ? "en-GB" : lang,
+             { day:"2-digit", month:"short" }) + " " +
+           d.toLocaleTimeString(lang === "en" ? "en-GB" : lang,
+             { hour:"2-digit", minute:"2-digit" });
+  };
+
+  async function openHist(){
+    show("scHist");
+    el("histLista").innerHTML = `<div class="hist-vacio">${t("hist_load")}</div>`;
+    await cargarHist();
+  }
+
+  async function cargarHist(){
+    try{
+      const r = await SolBruteDB.historial(50);
+      pintarHist(r.movimientos || []);
+    }catch(e){
+      el("histLista").innerHTML = `<div class="hist-vacio">${t("hist_err")}</div>`;
+    }
+  }
+
+  function pintarHist(movs){
+    if(!movs.length){
+      el("histLista").innerHTML = `<div class="hist-vacio">${t("hist_empty")}</div>`;
+      return;
+    }
+    const nombres = O("armas");
+    el("histLista").innerHTML = movs.map(m => {
+      /* Todo lo que sale del servidor se escapa antes de pintarlo. El nombre
+         del bruto que va en `meta` lo escribió un jugador, y aunque la forja
+         lo filtra, esta pantalla no es el sitio donde confiar en eso. */
+      let det = "";
+      if(m.tipo === "compra_arma")
+        det = esc(nombres[m.concepto] || m.concepto || "");
+      else if(m.tipo === "compra_plaza")
+        det = "#" + esc(m.concepto || "?") +
+              (m.meta && m.meta.nombre ? " · " + esc(m.meta.nombre) : "");
+      else if(m.tipo === "retirada")
+        det = m.firma ? esc(String(m.firma).slice(0, 16)) + "…" : esc(m.red || "");
+
+      const est = m.estado
+        ? `<span class="h-est ${esc(m.estado)}">${t("hist_" + m.estado) || esc(m.estado)}</span>`
+        : "";
+      const neg = Number(m.monedas) < 0;
+
+      return `<div class="hist-row">
+        <span class="h-fecha">${fechaCorta(m.created_at)}</span>
+        <span class="h-que">
+          <span class="h-tipo">${t("hist_" + m.tipo) || esc(m.tipo)}</span>
+          <span class="h-det">${det}</span>
+        </span>
+        ${est}
+        <span class="h-mon ${neg ? "neg" : "pos"}">${neg ? "" : "+"}${Number(m.monedas) || 0}</span>
+      </div>`;
+    }).join("");
+  }
+
   function renderMatch(){
     el("matchSub").textContent = `${t("match_for")} ${active.name} · ${t("lvl")} ${active.lv}`;
 
@@ -1356,7 +1499,20 @@
     active.arma  = premio.arma;
     active.armas = premio.armas;
 
-    el("bannerRew").innerHTML = `+<b>${premio.coins}</b> ${t("coins")} · +<b>${premio.xp}</b> XP${lvl}${extra}`;
+    /* El cambio del día, y SOLO si no es 1,0.
+       Las monedas salen de una reserva finita, así que lo que se gana son
+       puntos y la tasa los convierte (ver supabase-12-emision.sql). Mientras
+       la tasa sea 1,0 —o sea, casi siempre— esto no se enseña: sería ruido
+       para explicar algo que no está pasando.
+
+       Cuando baje, hay que decirlo. Si el jugador ve que la misma pelea le
+       paga menos que ayer y nadie se lo explica, lo que piensa es que le están
+       robando, y tiene razón en desconfiar. */
+    let cambio = "";
+    if(typeof premio.tasa === "number" && premio.tasa > 0 && premio.tasa < 0.999){
+      cambio = `<span class="rate">${t("rate_today")} · 1 pt = ${premio.tasa.toFixed(2)}</span>`;
+    }
+    el("bannerRew").innerHTML = `+<b>${premio.coins}</b> ${t("coins")} · +<b>${premio.xp}</b> XP${lvl}${extra}${cambio}`;
     el("banner").classList.add("show");
     el("balNum").textContent = balance;
   }
@@ -1637,6 +1793,8 @@
   };
   el("btnRank").onclick = openRank;
   el("btnArm").onclick = () => openArmeria();
+  el("btnHist").onclick = openHist;
+  el("btnHistRefresh").onclick = cargarHist;
   el("btnRankRefresh").onclick = async () => {
     const b = el("btnRankRefresh");
     b.disabled = true;

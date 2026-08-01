@@ -158,6 +158,60 @@ async function db(ruta: string, opciones: RequestInit = {}) {
   return texto ? JSON.parse(texto) : null;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   Economía: emitir y reciclar
+   ══════════════════════════════════════════════════════════════════════════
+   Lo que gana una pelea ya no son monedas, son PUNTOS. Las monedas las decide
+   la base de datos con la tasa del día (ver supabase-12-emision.sql), porque
+   la reserva es finita y sin esto el juego imprimía sin techo: a 10.000
+   jugadores, los 40 millones se evaporaban en 33 días.
+
+   El equilibrio no cambia — los puntos siguen siendo `12 + turnos` y la tasa
+   arranca en 1,0. Con pocos jugadores nadie nota nada; el tope solo aprieta
+   cuando empieza a hacer falta. */
+async function emitir(puntos: number): Promise<{ monedas: number; tasa: number }> {
+  const r = await db("/rpc/emision_cobrar", {
+    method: "POST",
+    body: JSON.stringify({ p_puntos: Math.max(0, Math.round(puntos)) }),
+  });
+  return { monedas: Number(r?.monedas || 0), tasa: Number(r?.tasa || 0) };
+}
+
+/* Lo que se gasta dentro VUELVE a la reserva (90%) y al fondo de garantía
+   (10%). Es la mitad del modelo del TOKEN.md y hasta ahora no existía: las
+   monedas de un arma comprada simplemente desaparecían.
+
+   Va con `catch` a propósito: el jugador YA ha pagado y ya tiene su arma. Si
+   el reciclaje falla, lo que pasa es que la reserva no se rellena — un error
+   conservador. Tumbar la compra por esto sería cobrarle y no darle nada. */
+function reciclar(monedas: number): void {
+  if (!(monedas > 0)) return;
+  db("/rpc/emision_reciclar", {
+    method: "POST",
+    body: JSON.stringify({ p_monedas: Math.round(monedas) }),
+  }).catch((e) => console.warn("no pude reciclar " + monedas + ": " + e.message));
+}
+
+/* El libro de cuentas del jugador (supabase-13-movimientos.sql). `monedas` va
+   CON SIGNO: negativo lo que sale del saldo, positivo lo que entra.
+
+   Como `reciclar`, no tumba la operación si falla: el jugador ya ha pagado y
+   ya tiene su arma. Quedarse sin apunte es molesto; perder la compra por no
+   poder escribir el apunte sería peor. */
+function apuntar(
+  address: string, tipo: string, concepto: string,
+  monedas: number, meta?: unknown, ref?: number,
+): void {
+  db("/rpc/movimiento_apuntar", {
+    method: "POST",
+    body: JSON.stringify({
+      p_address: address, p_tipo: tipo, p_concepto: concepto,
+      p_monedas: Math.round(monedas),
+      p_meta: meta ?? null, p_ref: ref ?? null,
+    }),
+  }).catch((e) => console.warn("no pude apuntar " + tipo + ": " + e.message));
+}
+
 /* ═══════════ lectura del mensaje firmado ═══════════ */
 /* Se leen los campos del mensaje en vez de reconstruirlo: reconstruirlo
    exigiría reproducir la fecha al milisegundo y cualquier cambio de formato
@@ -450,6 +504,9 @@ async function manejar(req: Request): Promise<Response> {
         await db("/players?address=eq." + encodeURIComponent(dueno), {
           method: "PATCH", body: JSON.stringify({ coins: restante }),
         });
+        reciclar(precio);   // la plaza pagada vuelve a la reserva
+        apuntar(dueno, "compra_plaza", String(cuantos + 1), -precio,
+                { bruto: fila[0].id, nombre: bruto.name });
       }
       return responder({ id: fila[0].id, balance: restante, precio });
     } catch (e) {
@@ -516,6 +573,10 @@ async function manejar(req: Request): Promise<Response> {
     await db("/players?address=eq." + encodeURIComponent(dueno), {
       method: "PATCH", body: JSON.stringify({ coins: restante }),
     });
+    /* El arma comprada vuelve a la reserva. Es el único sumidero que existe
+       hoy, así que es literalmente todo el reciclaje del juego. */
+    reciclar(w.precio);
+    apuntar(dueno, "compra_arma", id, -w.precio, { precio: w.precio });
     return responder({ arma: id, armas: inventario, balance: restante });
   }
 
@@ -681,9 +742,28 @@ async function manejar(req: Request): Promise<Response> {
       if (armaAhora === "ninguna") armaAhora = armaNueva;
     }
 
+    /* ── de puntos a monedas ──
+       `premio.coins` ya no son monedas: son PUNTOS. Lo que se cobra sale de la
+       reserva a la tasa del día, y lo decide la base de datos.
+
+       Se hace AQUÍ, antes de escribir nada. Si la emisión fallara después de
+       guardar el bruto, la pelea habría gastado el intento y no habría pagado;
+       fallando antes no se ha tocado nada y el jugador reintenta sin perder
+       nada. La semilla se sortea otra vez, que no le debe nada a nadie. */
+    let ganadas: number, tasaHoy: number;
+    try {
+      const em = await emitir(premio.coins);
+      ganadas = em.monedas;
+      tasaHoy = em.tasa;
+    } catch (e) {
+      console.error("emisión caída: " + (e as Error).message);
+      return responder({ error: "la economía no responde, inténtalo otra vez",
+                         clase: "emision" }, 503);
+    }
+
     /* Monedas: se leen de la base y se suman aquí. El navegador no interviene. */
     const jug = await db("/players?address=eq." + encodeURIComponent(dueno) + "&select=coins");
-    const monedas = Number((jug && jug[0] && jug[0].coins) || 0) + premio.coins;
+    const monedas = Number((jug && jug[0] && jug[0].coins) || 0) + ganadas;
 
     await db("/brutes?id=eq." + fila.id + "&owner=eq." + encodeURIComponent(dueno), {
       method: "PATCH",
@@ -712,7 +792,10 @@ async function manejar(req: Request): Promise<Response> {
         b_brute: foe.rid || null, b_name: String(foe.name || "?").slice(0, 32),
         b_bot: !!foe.bot, b_snapshot: foe,
         winner: fight.winner, turns: fight.turns, log: fight.log,
-        coins: premio.coins, xp: premio.xp,
+        /* Las monedas REALMENTE emitidas, no los puntos. Es el número que
+           avisa de que la economía se ha roto antes de que se note en el
+           precio, y con la tasa de por medio los puntos ya no lo dicen. */
+        coins: ganadas, xp: premio.xp,
       }),
     }).catch((e) => console.warn("no pude guardar la pelea: " + e.message));
 
@@ -722,13 +805,37 @@ async function manejar(req: Request): Promise<Response> {
        cadena en la fase 2. */
     return responder({
       seed, log: fight.log, winner: fight.winner, timeout: fight.timeout, turns: fight.turns,
-      coins: premio.coins, xp: premio.xp, subio: premio.subio,
+      coins: ganadas, xp: premio.xp, subio: premio.subio,
+      /* Los puntos y la tasa van al navegador para poder enseñar el cambio del
+         día ("1 punto = 0,94 monedas"). Sin eso, el jugador ve que un día cobra
+         menos que otro por la misma pelea y parece que se le está robando. */
+      puntos: premio.coins, tasa: tasaHoy,
       arma: armaAhora, armas: inventario, arma_rota: rota, arma_nueva: armaNueva,
       /* QUÉ tocó al subir: "str" | "agi" | "spd" | "hp". Sin esto el cartel
          del juego no puede decirlo y acaba enseñando siempre vida. */
       ganancia: premio.ganancia,
       bruto: mio, fights_left: peleas - 1, balance: monedas,
     });
+  }
+
+  /* ══════════ historial del jugador ══════════
+     Compras y retiradas, solo las suyas.
+
+     ── La línea que no se puede cruzar ──
+     La dirección sale del TOKEN DE SESIÓN (`dueno`), nunca del cuerpo de la
+     petición. Si se aceptara un `address` del navegador, cualquiera leería el
+     historial de cualquiera: las direcciones de wallet son públicas, salen en
+     la clasificación. Bastaría con copiar una.
+
+     Por eso aquí no se lee `cuerpo.address` en ninguna parte, ni siquiera para
+     comprobarlo — lo que no se lee no se puede colar por descuido. */
+  if (accion === "historial") {
+    const limite = Math.min(Math.max(Math.floor(Number(cuerpo.limite)) || 50, 1), 200);
+    const filas = await db("/rpc/historial_de", {
+      method: "POST",
+      body: JSON.stringify({ p_address: dueno, p_limite: limite }),
+    });
+    return responder({ movimientos: filas || [] });
   }
 
   /* ══════════ panel de administración ══════════

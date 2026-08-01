@@ -499,7 +499,19 @@
 
     const headBlock = headSkin + faceProfile + tatFace + hairTop;
 
-    return `<svg viewBox="0 0 110 130" aria-hidden="true">
+    /* El lienzo empieza en y = -34, no en 0, y por eso mide 164 de alto.
+       Las armas se dibujan por encima de la cabeza —el mandoble llega a y=-14
+       y la punta de la lanza a y=-26— y con el viewBox arrancando en 0 se
+       recortaban contra el borde. El síntoma era que la lanza parecía una
+       tabla: se veía el asta y la punta quedaba fuera.
+
+       Ampliar hacia ARRIBA no encoge al bruto. `.fighter` fija el ancho en
+       116px y deja la altura en `auto`, así que el personaje conserva su
+       tamaño y solo aparece lienzo nuevo donde antes se cortaba. Y como la
+       figura se posiciona desde abajo (`bottom:22px`), los pies no se mueven.
+
+       Si algún día entra un arma más larga, esto es lo que hay que subir. */
+    return `<svg viewBox="0 -34 110 164" aria-hidden="true">
       <g transform="${facingRight ? "" : "translate(110,0) scale(-1,1)"}">
         <ellipse cx="52" cy="126" rx="30" ry="4.5" fill="#000" opacity=".45"/>
         ${cloakBack}${hairBack}

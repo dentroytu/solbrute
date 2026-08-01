@@ -109,7 +109,11 @@
     hp_max: b.hpMax, str: b.str, agi: b.agi, spd: b.spd,
     wins: b.w, losses: b.l, look: b.look,
     fights_left: b.fights, fights_day: dia,
-    rerolls_left: b.rerolls, pool: b.pool || null
+    rerolls_left: b.rerolls, pool: b.pool || null,
+    /* Y de vuelta, para que el modo local (sin base de datos) tampoco pierda
+       el arma. La Edge Function ignora estos campos al escribir —el arma la
+       decide ella en `comprar` y `equipar`— así que mandarlos no abre nada. */
+    arma: b.arma || "ninguna", armas: b.armas || []
   });
 
   const aBruto = (f, idLocal) => ({
@@ -117,7 +121,16 @@
     name: f.name, lv: f.level, xp: f.xp, hpMax: f.hp_max,
     str: f.str, agi: f.agi, spd: f.spd, w: f.wins, l: f.losses,
     fights: f.fights_left, dia: f.fights_day, look: f.look,
-    rerolls: f.rerolls_left, pool: f.pool || null
+    rerolls: f.rerolls_left, pool: f.pool || null,
+    /* El arma tiene que viajar en la traducción o el bruto llega desarmado.
+       Faltaba, y el síntoma era que en la arena NUNCA se veía el arma: la fila
+       traía `arma` (se lee con select=*) pero aquí se quedaba fuera, así que
+       `spriteProfile` recibía `b.arma === undefined` y dibujaba los puños.
+
+       Engañaba porque la armería sí funcionaba: al comprar, la respuesta del
+       servidor escribe `active.arma` a mano. O sea que el arma se veía hasta
+       que recargabas la página, y entonces desaparecía sin motivo aparente. */
+    arma: f.arma || "ninguna", armas: f.armas || []
   });
 
   const token = () => (sesion ? sesion.token : "");
@@ -282,6 +295,18 @@
     },
     async equiparArma(bruteRid, arma){
       return await pedirAuth({ accion: "equipar", token: token(), bruteId: bruteRid, arma });
+    },
+
+    /* El historial va por la función, no por lectura directa como los rivales
+       o la clasificación. No es por comodidad: la tabla `movimientos` tiene RLS
+       y cero políticas, así que desde aquí no se puede leer ni queriendo.
+
+       Tiene que ser así. El navegador lee con la clave anon, y para Postgres
+       todos los jugadores son el mismo usuario `anon` — una política de lectura
+       no podría distinguir tu historial del de otro y los enseñaría todos.
+       La dirección la pone el servidor a partir del token; aquí no se manda. */
+    async historial(limite){
+      return await pedirAuth({ accion: "historial", token: token(), limite: limite || 50 });
     },
 
     /* Pide la lista de rivales. La arma el servidor y la recuerda; `reroll`
