@@ -12,7 +12,11 @@ experiencia y sube de nivel.
 | `app.html` | La app: puerta, ludus, creador, emparejamiento, arena | Prototipo funcional |
 | `brute-render.js` | Renderizador de brutos por capas, compartido | Estable |
 | `supabase-cliente.js` | Acceso a la base de datos (jugadores, brutos, rivales) | Funcionando |
-| `wallet-solana.js` | Conectar y firmar con Phantom / Solflare | Firma sin verificar |
+| `wallet-solana.js` | Conectar y firmar con Phantom / Solflare | Funcionando |
+| `supabase-funcion-auth.ts` | Edge Function: verifica firmas y hace las escrituras | Desplegada |
+| `supabase-03-auth.sql` | Tabla `auth_nonces` | Aplicado |
+| `supabase-05-sesiones.sql` | Tabla `sessions` | Aplicado |
+| `supabase-04-cerrar.sql` | Cierra las políticas: leer sí, escribir no | Aplicado |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
 | `supabase-02-rerolls.sql` | Añade `rerolls_left` y `pool` a `brutes` | Aplicado |
 | `servidor-local.js` | Servidor de desarrollo, sin caché. No lo necesita el juego | Herramienta |
@@ -171,20 +175,57 @@ Autenticación de verdad = el usuario **firma** un mensaje (patrón Sign In With
 Solana) y el servidor verifica la firma. El copy de la Fase 1 del roadmap dice
 "conecta **y firma**" precisamente para comprometernos con esto.
 
-### Dónde estamos: la firma existe, nadie la verifica
+### Cómo funciona el login, y por qué así
+
+1. `wallet-solana.js` conecta con Phantom o Solflare y obtiene tu dirección.
+2. El navegador pide un **nonce al servidor**. Que lo dé él es lo que convierte
+   la firma en una prueba: uno inventado por el navegador no demuestra nada.
+3. Firmas un mensaje con formato Sign In With Solana.
+4. La Edge Function verifica la firma con **ed25519**, tacha el nonce y abre
+   una sesión con un token opaco de 32 bytes.
+
+**El navegador no escribe en la base de datos.** Las políticas RLS solo
+permiten `select`; forjar, guardar y vaciar pasan por la función, que comprueba
+de quién es el token y escribe con `service_role`.
+
+### Por qué no se usa un JWT de Supabase
+
+Fue el primer intento y **no se puede**: el proyecto usa claves de firma
+asimétricas (ECC P-256) y esa clave privada la gestiona Supabase sin
+entregarla, así que es imposible emitir un token que su API acepte. El secreto
+legacy solo verifica y está marcado para revocación.
+
+Síntoma, por si reaparece: `PGRST301 · No suitable key or wrong key type`.
+
+El camino que quedó es mejor. Con el JWT el navegador escribía directamente y
+solo se le impedía tocar filas ajenas: podía mentir cuanto quisiera sobre las
+suyas. Ahora hay un servidor en medio que puede decir que no, y ya rechaza el
+tope de 3 brutos y recorta nivel, atributos y vida a rango.
+
+### Lo que la función NO arregla todavía
+
+El combate lo calcula el navegador y el servidor se lo cree. Recorta lo
+imposible pero no arbitra: puedes darte monedas o victorias en tus propios
+brutos. Cerrarlo es mover `simulate()` a la función.
+
+**Hasta entonces esto no es seguro para dinero real.**
+
+### Comprobado contra el servidor desplegado
+
+13/13, con claves ed25519 reales: token inventado y sin token rechazados;
+modificar el bruto de otra dirección mandando su id no lo toca; cuarto bruto
+rechazado; nivel 9999 → 100, fuerza 500 → 10, vida 99999 → 300; vaciar borra
+los tuyos y no los ajenos; y escribir directamente con `curl` da `42501`.
+
+Ojo con una trampa al probar: un `DELETE` o `PATCH` directo devuelve **204**
+aunque no toque nada. RLS no da error, hace las filas invisibles. Hay que
+comprobar la fila después, no el código de estado.
+
+### Historia: la firma existía y no la verificaba nadie
 
 `wallet-solana.js` conecta de verdad con Phantom y Solflare, y pide la firma.
 Ya no hay direcciones inventadas: `fakeAddr()` y `miDireccion()` se borraron y
 `loadMe()` lanza si se le llama sin dirección.
-
-**Pero la firma no la comprueba nadie todavía**, así que sigue sin ser una
-prueba de identidad. Falta la mitad del servidor: tabla `auth_nonces`, las Edge
-Functions `/auth/nonce` y `/auth/verify`, y endurecer las políticas RLS.
-
-**El nonce lo genera hoy el navegador**, que es justo lo que lo invalida como
-prueba — quien se lo inventa puede inventarse también el resto. Cuando exista
-`/auth/nonce`, solo cambia de dónde sale el número: el formato del mensaje ya es
-el definitivo a propósito, para no rehacer esto.
 
 Qué lleva el mensaje firmado y por qué:
 
@@ -211,8 +252,9 @@ aparente. Hay vectores de prueba conocidos; si tocas esa función, compruébalos
 | Fase | Qué | Estado |
 |---|---|---|
 | 0 | Prototipo jugable, estado en navegador | Hecho |
-| 1a | Backend: los brutos viven en Supabase y se comparten entre jugadores | ACTUAL |
-| 1b | Wallet como cuenta (Phantom / Solflare + firma SIWS) | SIGUIENTE |
+| 1a | Backend: los brutos viven en Supabase y se comparten entre jugadores | Hecho |
+| 1c | Mover `simulate()` al servidor para que arbitre el combate | ACTUAL |
+| 1b | Wallet como cuenta (Phantom / Solflare + firma SIWS) | Hecho |
 | 2 | Programa Anchor en devnet: personajes y resultados on-chain | Próximamente |
 | 3 | Mainnet, token y mercado entre jugadores | Próximamente |
 
@@ -379,13 +421,10 @@ avisa con `name_taken`.
 
 ### Lo que todavía no es seguro
 
-**El navegador sigue decidiendo cosas con valor.** Calcula el combate, se resta
-las peleas y se suma las monedas; la base de datos se lo cree. Las políticas RLS
-actuales dejan escribir a cualquiera porque aún no hay login con firma.
-
-Es aceptable **solo** mientras no exista el token. Ver `BACKEND.md`: el paso 2 es
-Sign In With Solana y el 3 es mover `simulate()` al servidor. Hasta entonces, no
-se anuncia esto como económicamente seguro.
+**El navegador ya no escribe**, pero sigue calculando el combate. La función
+recorta lo imposible y ata cada fila a su dueño; lo que no puede es saber si
+de verdad ganaste esa pelea. Mover `simulate()` al servidor es lo que falta.
+Ver «Wallet» y `BACKEND.md`.
 
 **Un detalle de diseño, no un fallo:** al pelear, el historial del rival no
 cambia. Peleas contra una copia de su bruto, como en el género. Cuando el combate
@@ -396,8 +435,7 @@ dos lados.
 
 ## Pendientes
 
-- [ ] **Login con firma (SIWS)** — es lo siguiente, y es lo que cierra el agujero
-      de escritura descrito en «Persistencia». Ver `BACKEND.md`, paso 1.
+- [x] ~~Login con firma (SIWS)~~ — hecho. Ver «Wallet».
 - [ ] Mover `simulate()` al servidor para que el navegador deje de decidir quién
       gana. Antes conviene sacarlo a un fichero compartido, como se hizo con
       `brute-render.js`, para no acabar con dos copias divergentes de las
