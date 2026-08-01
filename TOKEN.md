@@ -1,128 +1,162 @@
 # SolBrute — diseño del token
 
-Estado: **decidido el modelo, sin crear nada.** Este documento es la decisión
-económica. No hay token en devnet ni en mainnet.
+Estado: **modelo decidido, sin crear nada.** Ni en devnet ni en mainnet.
 
 ---
 
-## El problema que resuelve
+## El modelo: el token ES la moneda del juego
 
-El juego emite **122 monedas por jugador y día** y solo absorbe 27 (armas que
-se rompen). Neto: **+95 al día por jugador**.
+No hay dos monedas. Lo que ganas peleando es $BRUTE, lo que gastas en la
+armería es $BRUTE, y lo que retiras a tu wallet es $BRUTE.
 
-Convertido a token 1:1 y sin límite, eso son **34,6 millones de tokens nuevos
-al año con mil jugadores**. Un token con emisión ilimitada y sumideros que
-cubren el 22% tiende a cero. No es una opinión: es aritmética.
+Eso simplifica una cosa que con dos monedas era un lío: **los precios internos
+ya calibrados siguen valiendo**. Un arma cuesta unas 3 monedas por combate
+sobre las ~40 que se ganan al día, y esa relación se mantiene valga lo que
+valga el token en euros.
 
-Y no se arregla después de lanzarlo, porque para entonces hay gente con tokens
-y cualquier cambio les quita valor.
+### Los cuatro flujos
+
+```
+  reserva  →  jugadores     emisión diaria fija
+  jugadores → reserva       lo que gastan dentro (armas, skins, torneos)
+  jugadores → reserva       la comisión de retirada
+  jugadores → fuera         lo retirado, menos comisión   ← ÚNICA salida real
+```
+
+Solo lo retirado vacía la reserva. Todo lo demás vuelve y se reparte otra vez.
 
 ---
 
-## El modelo elegido: reserva fija y reparto diario
+## Lo que gana el reciclaje
 
-**Las monedas del juego no cambian.** Se ganan igual, se gastan igual, siguen
-viviendo en Postgres. El token solo aparece al **retirar**.
+Reserva de 40 millones, emisión de 27.397/día en el año 1:
 
-Cada día se libera una cantidad **fija** de la reserva y se reparte entre los
-jugadores en proporción a las monedas que ganaron ese día.
-
-### Por qué así y no una tasa fija por moneda
-
-Con una tasa fija (1 moneda = X tokens), la reserva se vacía en función de
-cuánta gente juegue:
-
-| Tasa | 100 jugadores | 1.000 | 10.000 |
+| Gastan dentro | Retiran | Comisión | La reserva dura |
 |---|---|---|---|
-| 1 moneda = 1 token | 17 años | **1,7 años** | 0,2 años |
-| 1 moneda = 0,01 | +200 años | 173 años | 17 años |
+| 30% | 70% | 10% | 6,3 años |
+| 50% | 50% | 10% | 8,9 años |
+| **70%** | **30%** | **10%** | **14,8 años** |
+| 30% | 70% | 20% | 7,1 años |
 
-Si el juego triunfa, se acaba en meses. Si fracasa, dura siglos. Justo al
-revés de lo que interesa.
+Sin reciclaje —todo se retira, sin comisión— la reserva duraba **4 años**.
 
-Con reparto diario fijo, la emisión total es **exacta** y no depende de cuánta
-gente juegue. Y tiene una propiedad que sale gratis: **más jugadores = menos
-por cabeza**, así que meter cuentas falsas te diluye a ti mismo. Los bots
-dejan de ser rentables sin necesidad de detectarlos.
+### El dato que decide dónde poner el esfuerzo
 
-### La curva
+**Que la gente gaste importa el doble que la comisión.**
 
-Reserva de 40 millones, reducción a la mitad cada 2 años:
+Subir la comisión del 5% al 20% añade un año. Conseguir que gasten el 70% en
+vez del 30% añade nueve.
 
-| Periodo | Tokens al día | Acumulado |
+Así que la prioridad no es afinar el porcentaje: es **tener cosas que merezca
+la pena comprar**. Cada sumidero nuevo —skins, entradas de torneo, mascotas,
+reparar armas— alarga la vida del token más que cualquier ajuste de comisión.
+
+**Comisión recomendada: 10%.** Suficiente para notarse, no tanto como para que
+retirar parezca un castigo. Y va entera a la reserva, no a la tesorería: si se
+la queda el equipo, es una tarifa; si vuelve al reparto, es un mecanismo.
+
+---
+
+## Lo que todavía no existe y hace falta construir
+
+Los sumideros son la mitad del modelo y ahora mismo solo hay uno:
+
+| Sumidero | Estado |
+|---|---|
+| Armas que se rompen | **hecho** — ~3 tokens por combate |
+| Plazas de bruto 2ª y 3ª | hecho — 50 y 150, una vez |
+| Skins y aspectos | no existe |
+| Entradas de torneo | no existe |
+| Mascotas | no existe |
+| Reparar un arma antes de que se rompa | no existe |
+
+Con un solo sumidero, el gasto real estará cerca del 30% y la reserva durará
+seis años, no quince. **Los sumideros no son contenido extra: son la mitad de
+la economía.**
+
+---
+
+## La aritmética que no se puede saltar
+
+Esto vale para cualquier modelo, incluido este.
+
+**El dinero que se retira sale de lo que otros metieron.** El reciclaje pauta
+la emisión, pero no crea valor. Si nadie compra $BRUTE, quien retire no tendrá
+comprador y el precio se va a cero.
+
+La fuente de valor de este modelo es concreta: **quien quiera skins, plazas o
+entrar a un torneo sin dedicarle meses, compra tokens.** Ese es el dinero que
+entra. Mientras la demanda de contenido supere a la presión de venta, el precio
+aguanta. Es una economía de juego normal con moneda intercambiable.
+
+Lo que NO puede prometerse es que jugar recupere una inversión. Si los números
+se ajustan para que 50 € se recuperen en seis meses, el juego necesita duplicar
+jugadores cada seis meses o revienta. Es lo que hundió a Axie, a StepN y a
+todos los demás.
+
+**Se vende contenido, no rentabilidad.**
+
+---
+
+## Suministro
+
+**100 millones**, con este reparto:
+
+| Parte | % | Notas |
 |---|---|---|
-| años 0-2 | 27.397 | 20,0 M |
-| años 2-4 | 13.699 | 30,0 M |
-| años 4-6 | 6.849 | 35,0 M |
-| años 6-8 | 3.425 | 37,5 M |
-| años 8-10 | 1.712 | 38,8 M |
+| Recompensas | 40% | la reserva modelada arriba |
+| Liquidez | 25% | **no es tuyo**: queda inmovilizado para que exista mercado |
+| Tesorería | 15% | desarrollo, arte, servidores |
+| Equipo | 15% | **con bloqueo público, 2-4 años y un año de espera** |
+| Comunidad inicial | 5% | primeros jugadores |
 
-Converge a 40 millones y **nunca los supera**, jueguen cien personas o cien
-mil. Los primeros ganan más, que es lo normal y lo que premia llegar pronto.
+El total es casi cosmético —100 millones o 1.000 son equivalentes si el reparto
+es el mismo— pero 100 millones deja la recompensa diaria legible en todos los
+escenarios: 274 tokens/día con 100 jugadores, 27 con mil, 2,7 con diez mil.
+Con 21 millones, a diez mil jugadores ganarías media unidad al día y se siente
+a nada.
 
----
-
-## Decisiones que faltan, y son del dueño
-
-- **Suministro total.** Los cálculos usan 100 millones con un 40% a
-  recompensas. Falta decidir el otro 60%: liquidez, equipo, reserva.
-- **Duración del primer periodo.** Dos años es un punto de partida.
-- **Precio de salida**, si se vende.
+**Los tokens del equipo sin bloquear son la señal de alarma número uno.** Da
+igual la intención: nadie te conoce y lo único comprobable es si se pueden
+mover.
 
 ---
 
-## Arquitectura: dónde vive el saldo
+## Arquitectura y riesgo
 
-**Las monedas siguen en Postgres. El token aparece solo al retirar.**
+**El saldo vive en Postgres. El token aparece solo al retirar.** Poner cada
+moneda on-chain sería lento y con comisión por pelea.
 
-Poner cada moneda on-chain sería lento, con comisión por pelea y una
-experiencia horrible para un juego de tres peleas al día.
+Eso concentra todo el riesgo en la retirada. Todo lo asegurado hasta ahora
+protege un número en una base de datos; en cuanto ese número sea convertible,
+un fallo deja de ser un bruto con trampas y pasa a ser dinero robado.
 
-Pero esto concentra todo el riesgo en un punto: **la retirada**. Todo lo que
-se ha asegurado hasta ahora protege un número en una base de datos. En cuanto
-ese número se pueda convertir en dinero real, un fallo deja de ser un bruto
-con trampas y pasa a ser dinero robado.
+Medidas mínimas antes de que exista la retirada:
 
-### La clave del tesoro
-
-Alguien tiene que firmar los envíos, y esa clave privada controla el
-suministro entero. Vivirá en un secreto de Supabase y aun así será el objetivo
-más goloso del sistema.
-
-Medidas mínimas antes de que exista:
-
-- Límite de retirada por jugador y día, comprobado en servidor.
+- Límite por jugador y día, comprobado en servidor.
+- Tope global diario: si algo se rompe, que se rompa acotado.
 - Cada retirada anotada en `admin_log` con su firma de transacción.
-- La firma de la transacción guardada con índice único: **sin eso, alguien
-  reclama la misma retirada diez veces.** Ya está escrito en `BACKEND.md` para
-  la compra de plazas y aplica igual aquí.
-- Un tope global diario: si algo se rompe, que se rompa acotado.
+- **La firma guardada con índice único.** Sin eso, alguien reclama la misma
+  retirada diez veces. Ya está escrito en `BACKEND.md` para las plazas.
+- La clave del tesoro en un secreto de Supabase, y aun así será el objetivo
+  más goloso del sistema.
 
 ---
 
 ## Antes de mainnet
 
-**Devnet primero, sin excepción.** Es la fase 2 del roadmap. Tokens sin valor,
-transacciones gratis, todo funciona igual. Estrenar los frenos en la autopista
-no es una opción cuando hay dinero de otros.
+**Devnet primero, sin excepción.** Tokens sin valor, transacciones gratis, y
+ahí se construye la retirada entera y se ataca como se ha atacado todo lo
+demás (ver `prueba-hostil.ts`).
 
-**Y una que no es técnica:** un token que la gente compra y que reparte
-recompensas puede considerarse un producto financiero regulado, y eso cambia
-según el país. Conviene resolverlo antes de mainnet, no después, porque
-después es mucho más caro.
+**Y lo legal:** un token que se compra y reparte recompensas puede considerarse
+un producto financiero regulado, y depende del país. Se resuelve antes de
+mainnet, no después.
 
 ---
 
-## Qué hace falta instalar
+## Herramientas
 
-Nada de esto está en la máquina todavía:
-
-```
-solana      no instalado
-spl-token   no instalado
-anchor      no instalado
-cargo       no instalado
-```
-
-Para devnet basta con la CLI de Solana y `spl-token`. Anchor solo hace falta si
-se escribe un programa propio, y para un token SPL estándar no hace falta.
+Nada instalado todavía. Para devnet basta la CLI de Solana y `spl-token`;
+Anchor solo haría falta para un programa propio, y un token SPL estándar no lo
+necesita.

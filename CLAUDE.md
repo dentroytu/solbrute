@@ -201,11 +201,23 @@ Comprobado con 5.000 combates por nivel simulados.
 
 ### Sobre la economía del token
 
-Ver `TOKEN.md` para el modelo completo. En corto: el juego emite **+95 monedas
-netas por jugador y día**, así que a 1:1 y sin límite serían 34,6 millones de
-tokens al año con mil jugadores. El modelo elegido es **reserva fija con
-reparto diario**: la emisión es exacta, no depende de cuánta gente juegue, y
-meter bots te diluye a ti mismo.
+Ver `TOKEN.md` para el modelo completo. En corto: **el token es la moneda del
+juego**, con reserva fija y reparto diario. Lo que se gasta dentro y la
+comisión de retirada vuelven a la reserva, así que la única salida real es lo
+que se retira.
+
+Dos datos que conviene no olvidar:
+
+- **Que la gente gaste importa el doble que la comisión.** Del 30% al 70% de
+  gasto, la reserva pasa de 6 a 15 años; del 5% al 20% de comisión, solo gana
+  uno. Por eso **los sumideros no son contenido extra: son la mitad de la
+  economía**, y hoy solo existe uno (las armas que se rompen).
+- **Se vende contenido, no rentabilidad.** Si los números se ajustan para que
+  una compra se recupere jugando, el juego necesita crecer sin parar o
+  revienta. Es lo que hundió a Axie y a StepN.
+
+El reparto diario tiene además una propiedad que sale gratis: más jugadores es
+menos por cabeza, así que meter cuentas falsas te diluye a ti mismo.
 
 Cuidado también con esto: si más brutos = más peleas = más recompensas, comprar
 plazas se vuelve pay-to-earn y el juego se convierte en granja. **La recompensa
