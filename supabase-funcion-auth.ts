@@ -43,16 +43,26 @@
    Ver BACKEND.md.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Las reglas del combate se cargan del MISMO fichero que usa el navegador ──
-   No hay una copia de las fórmulas aquí dentro: si la hubiera, acabaría
-   divergiendo de la del juego y el servidor diría que perdiste mientras la
-   pantalla dice que ganaste.
+/* ── Las reglas del combate ────────────────────────────────────────────────
+   brute-combate.js va COMO SEGUNDO FICHERO de esta función: en el editor de
+   Supabase, "Add File" → nombre exacto brute-combate.js → pegar el mismo
+   fichero que hay en el repositorio, sin tocar una coma.
 
-   Deno se queda con la copia del momento del despliegue. Por eso cada petición
-   de combate trae la versión del navegador y se compara: si no coinciden, se
-   rechaza la pelea en vez de arbitrarla con reglas distintas. Cuando toques
-   brute-combate.js, sube su VERSION y vuelve a desplegar esta función. */
-import "https://dentroytu.github.io/solbrute/brute-combate.js";
+   El primer intento fue importarlo por URL desde la web publicada, para que
+   hubiera una sola copia de verdad. No se puede: el empaquetador de Supabase
+   no descarga dominios externos al desplegar ("Cannot import from
+   dentroytu.github.io:443").
+
+   Así que hay dos copias del fichero y no hay forma de evitarlo. Lo que sí hay
+   es una red: cada petición de combate trae la VERSION del navegador y aquí se
+   compara con la de esta copia. Si no coinciden, la pelea se rechaza en vez de
+   arbitrarse con reglas distintas — que sería el servidor diciendo que perdiste
+   mientras la pantalla dice que ganaste.
+
+   AL TOCAR EL EQUILIBRIO: sube VERSION en brute-combate.js, publica la web, y
+   vuelve a pegar el fichero aquí. Si se te olvida lo segundo, nadie podrá
+   pelear y el aviso lo dirá — que es justo lo que se busca. */
+import "./brute-combate.js";
 const C = (globalThis as any).BruteCombate;
 
 /* Dominios desde los que se acepta un login. El mensaje firmado lleva dentro

@@ -1,15 +1,22 @@
 /* ══════════════════════════════════════════════════════════════════════════
    SolBrute · reglas del combate y del equilibrio
    ══════════════════════════════════════════════════════════════════════════
-   Fuente única de las fórmulas. Lo usan DOS entornos:
+   Fuente de las fórmulas. Lo usan DOS entornos:
 
      · el navegador     <script src="brute-combate.js">
-     · la Edge Function import "https://dentroytu.github.io/solbrute/brute-combate.js"
+     · la Edge Function segundo fichero, con import "./brute-combate.js"
 
    Por eso el fichero no lleva `import` ni `export`: sin ellos vale a la vez
    como script clásico (que es lo que necesita abrirse con doble clic sobre
    file://) y como módulo ES (que es lo que exige Deno). Se expone en
    globalThis, que existe en los dos sitios.
+
+   ── Hay que copiarlo a mano, y por eso existe VERSION ─────────────────────
+   Lo suyo sería que la función lo importara de la web publicada y hubiera una
+   sola copia. No se puede: el empaquetador de Supabase no descarga dominios
+   externos al desplegar. Así que este fichero vive duplicado en la función, y
+   la única defensa contra que las dos copias se separen es la comprobación de
+   versión de abajo.
 
    ── Por qué esto no puede estar duplicado ─────────────────────────────────
    El servidor calcula el combate y el navegador lo reproduce. Si las dos
@@ -26,11 +33,11 @@
 (function(){
   "use strict";
 
-  /* Súbela cuando cambies CUALQUIER fórmula o constante de este fichero. Y
-     acuérdate de volver a desplegar la Edge Function: Deno se queda con la
-     copia del momento del despliegue, así que si solo actualizas la web, el
-     servidor sigue con las reglas viejas. La comprobación de versión está
-     justo para que eso se note en vez de pasar en silencio. */
+  /* Súbela cuando cambies CUALQUIER fórmula o constante de este fichero, y
+     vuelve a pegar el fichero en la Edge Function. Si solo actualizas la web,
+     el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
+     saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
+     mejor que arbitrar partidas con dos reglamentos distintos. */
   const VERSION = 1;
 
   /* ═══════════ equilibrio ═══════════
