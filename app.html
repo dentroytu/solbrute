@@ -691,7 +691,7 @@
 
   /* ═══════════ estado ═══════════ */
   const NAMES = ["Vurkas","Torvald","Maximus","Drusa","Kaelo","Brennus","Sabina","Orlok","Crixus","Vardo","Nerva","Thrax","Galba","Rufa","Sceva","Murro","Balba","Priscus","Verus","Calpa"];
-  let balance = 120, brutes = [], nextId = 1, pool = [], active = null;
+  let balance = 0, brutes = [], nextId = 1, pool = [], active = null;
   let addr = null, loaded = false;
 
   /* ══════════════════════════════════════════════════════════════
@@ -775,7 +775,7 @@
     let d = null;
     try{ d = raw ? JSON.parse(raw) : null; }catch(e){ d = null; }
     if(!d){
-      brutes = []; balance = 120; nextId = 1;
+      brutes = []; balance = 0; nextId = 1;
       await saveMe(utcDay());
     }else{
       brutes = Array.isArray(d.brutes) ? d.brutes : [];
@@ -868,7 +868,7 @@
       { id:nextId++, name:"Drusa", lv:6, xp:80, hpMax:57, str:3, agi:5, spd:4, w:9, l:8, fights:2, rerolls:REROLLS_DAY, pool:null,
         look:{ sex:1, skin:1, hair:1, hairC:5, cloth:2, clothC:2, face:3, eyeC:0, tat:0, tatC:0 } }
     ];
-    balance = 120;
+    balance = 0;
   }
 
   /* ═══════════ combate determinista ═══════════ */
@@ -1184,15 +1184,36 @@
   /* ═══════════ forja con creador ═══════════ */
   let look = null, stats = null, pendingPrice = 0;
 
-  function openForge(price){
+  async function openForge(price){
     pendingPrice = price;
     look = { sex:0, skin:1, hair:3, hairC:2, cloth:1, clothC:0, face:0, eyeC:0, tat:0, tatC:0 };
-    stats = rollStats();
+    /* Los atributos los sortea el SERVIDOR. Antes los tiraba el navegador y
+       los mandaba, así que se podía forjar un bruto de nivel 1 con 10/10/10
+       cambiando un número en la consola. */
+    stats = { str:"…", agi:"…", spd:"…", hpMax:"…" };
     el("nm").value = "";
     /* limpia el aviso de "nombre cogido" de un intento anterior */
     el("nmHint").textContent = t("name_hint");
     el("nmHint").classList.remove("hint-error");
     buildCreator(); renderForge(); show("scForge");
+    await nuevaTirada();
+  }
+
+  /* Pide una tirada nueva y la pinta. Mientras llega, el botón se bloquea:
+     si no, pulsándolo deprisa se podrían encadenar tiradas y quedarse con la
+     mejor sin que el servidor se entere de cuál se está enseñando. */
+  async function nuevaTirada(){
+    const b = el("btnReroll");
+    if(b) b.disabled = true;
+    el("btnForge").disabled = true;
+    try{
+      stats = await SolBruteDB.tirar();
+    }catch(e){
+      console.warn("[SolBrute] tirada:", e.clase || "?", e.message);
+      stats = { str:"—", agi:"—", spd:"—", hpMax:"—" };
+    }
+    if(b) b.disabled = false;
+    renderForge();
   }
   function renderForge(){
     el("fPortrait").innerHTML = bust(look);
@@ -1201,7 +1222,7 @@
     el("rollStats").innerHTML = statRows(stats);
     const nm = el("nm").value.trim();
     el("fName").textContent = nm || t("unnamed");
-    el("btnForge").disabled = nm.length < 2;
+    el("btnForge").disabled = nm.length < 2 || typeof stats.str !== "number";
     syncCreator();
   }
   function optRow(box, list, key){
@@ -1233,7 +1254,7 @@
       b.classList.toggle("on", look[b.dataset.k] === +b.dataset.i));
   }
   el("nm").addEventListener("input", renderForge);
-  el("btnReroll").onclick = () => { stats = rollStats(); renderForge(); };
+  el("btnReroll").onclick = nuevaTirada;
   el("btnLookRandom").onclick = () => {
     look = randomLook();
     optRow("oHair", O(look.sex===0?"hairM":"hairF"), "hair");
@@ -1243,6 +1264,8 @@
     const nm = el("nm").value.trim();
     if(nm.length < 2 || brutes.length >= MAX_BRUTES || pendingPrice > balance) return;
 
+    /* Los atributos van solo para que el objeto local esté completo mientras
+       llega la respuesta: el servidor los sustituye por su propia tirada. */
     const nuevo = { id:nextId++, name:nm, lv:1, xp:0, hpMax:stats.hpMax, str:stats.str, agi:stats.agi,
                     spd:stats.spd, w:0, l:0, fights:FIGHTS_DAY, rerolls:REROLLS_DAY, pool:null, dia:utcDay(), look:{ ...look } };
 

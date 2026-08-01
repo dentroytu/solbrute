@@ -217,8 +217,15 @@
        Las LECTURAS sí van directas (rivales, clasificación, tu ludus): son
        públicas y así no se paga el rodeo por la función. */
 
-    /* Forja un bruto. El servidor comprueba el tope de 3 y que el nombre esté
-       libre — no el navegador, que puede mentir. */
+    /* Pide una tirada de atributos. La hace el servidor y la recuerda; forjar
+       usará esa, no la que enseñe la pantalla. Volver a tirar la sustituye. */
+    async tirar(){
+      const d = await pedirAuth({ accion: "tirar", token: token() });
+      return d.roll;
+    },
+
+    /* Forja un bruto. El servidor comprueba el tope de 3, el precio de la
+       plaza, que el nombre esté libre y usa SU tirada de atributos. */
     async crear(addr, bruto, dia){
       /* Devuelve también el saldo: el precio de la plaza lo cobra el servidor,
          así que es él quien sabe cuánto te queda. */

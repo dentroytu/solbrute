@@ -85,7 +85,12 @@ const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
    valida el servidor no puede depender de lo que diga el navegador. */
 const MAX_BRUTOS = 3;
 const PRECIO_PLAZA = [0, 50, 150];   // la primera gratis; las otras cuestan
-const MONEDAS_INICIO = 120;
+/* Se empieza a cero: las monedas van a ser un token de Solana con valor real,
+   y regalar saldo al darse de alta sería regalar dinero a cada wallet nueva —
+   que es la forma más rápida de que alguien cree mil cuentas.
+   El primer bruto es gratis, así que se puede jugar desde el minuto uno; la
+   segunda plaza hay que ganársela peleando. */
+const MONEDAS_INICIO = 0;
 const STAT_MAX = 10, HP_MAX = 300, NIVEL_MAX = 100;
 
 /* El navegador llama desde otro origen, así que sin esto el navegador ni
@@ -318,9 +323,31 @@ Deno.serve(async (req) => {
   const dueno = await duenoDe(cuerpo.token);
   if (!dueno) return responder({ error: "sesión no válida o caducada" }, 401);
 
+  /* ══════════ la tirada de atributos ══════════
+     La hace el servidor y la guarda pegada a la sesión. Volver a tirar la
+     sustituye; forjar usa ESTA y la borra. Si la eligiera el navegador,
+     elegiría 10/10/10 — que es exactamente lo que se podía hacer antes. */
+  if (accion === "tirar") {
+    const roll = C.rollStats();
+    await db("/sessions?token=eq." + encodeURIComponent(cuerpo.token), {
+      method: "PATCH", body: JSON.stringify({ roll }),
+    });
+    return responder({ roll });
+  }
+
   if (accion === "forjar") {
     const bruto = sanearBruto(cuerpo.bruto || {});
     if (bruto.name.length < 2) return responder({ error: "nombre demasiado corto" }, 400);
+
+    /* Los atributos NO salen de lo que mandó el navegador: salen de la última
+       tirada que hizo el servidor para esta sesión. */
+    const ses = await db("/sessions?token=eq." + encodeURIComponent(cuerpo.token) + "&select=roll");
+    const roll = ses && ses[0] && ses[0].roll;
+    if (!roll) return responder({ error: "no hay tirada; abre la forja primero", clase: "sin_tirada" }, 409);
+    bruto.str = roll.str; bruto.agi = roll.agi; bruto.spd = roll.spd; bruto.hp_max = roll.hpMax;
+    /* Un bruto recién forjado es siempre de nivel 1 y sin historial, diga lo
+       que diga el cliente. */
+    bruto.level = 1; bruto.xp = 0; bruto.wins = 0; bruto.losses = 0;
 
     /* El tope de brutos se comprueba AQUÍ. Si solo lo mirara el navegador,
        bastaría con abrir la consola para tener veinte. */
@@ -343,6 +370,12 @@ Deno.serve(async (req) => {
       });
       /* Se cobra DESPUÉS de que el bruto exista: si el nombre estuviera pillado
          y se cobrara antes, pagarías por una plaza que no llegó a crearse. */
+      /* Se gasta la tirada: sin esto, el mismo sorteo valdría para los tres
+         brutos y bastaría con tirar hasta sacar uno bueno y forjar tres. */
+      await db("/sessions?token=eq." + encodeURIComponent(cuerpo.token), {
+        method: "PATCH", body: JSON.stringify({ roll: null }),
+      }).catch(() => {});
+
       const restante = saldo - precio;
       if (precio > 0) {
         await db("/players?address=eq." + encodeURIComponent(dueno), {
