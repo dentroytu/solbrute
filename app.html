@@ -1406,12 +1406,18 @@
 
       await entrar(sesion);
     }catch(e){
+      /* Los errores vienen de dos sitios y cada uno marca el suyo: la wallet
+         usa `causa`, el cliente de base de datos usa `clase`. Si solo se mira
+         uno, un rechazo del servidor sale como "no llego a la wallet", que
+         manda a la persona a mirar donde no es. */
+      const motivo = e.causa || e.clase;
       const porCausa = { rechazado:"g_rejected", "no-instalada":"g_notinstalled",
-                         "sin-firma":"g_nosign", auth:"g_authfail", red:"g_fail" };
-      avisoPuerta(porCausa[e.causa] || "g_fail", "err");
-      /* El motivo exacto del rechazo va a consola, no a pantalla: al usuario le
-         sirve saber que no entró; al atacante, saber POR QUÉ falló le ayuda. */
-      console.warn("[SolBrute] puerta:", e.causa || "?", e.message);
+                         "sin-firma":"g_nosign", auth:"g_authfail",
+                         sesion:"g_authfail", red:"g_fail" };
+      avisoPuerta(porCausa[motivo] || "g_fail", "err");
+      /* El detalle exacto va a consola, no a pantalla: al usuario le basta con
+         saber que no entró; al atacante, saber POR QUÉ falló le ayuda. */
+      console.warn("[SolBrute] puerta:", motivo || "?", e.message);
     }finally{
       b.disabled = false;
     }
