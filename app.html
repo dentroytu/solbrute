@@ -138,6 +138,13 @@
   .opp-stats{ display:flex; gap:12px; margin-top:5px; font-size:10.5px; color:var(--muted); flex-wrap:wrap; }
   /* ── clasificación ── */
   /* ── armería ── */
+  .salas{ display:flex; gap:8px; flex-wrap:wrap; }
+  /* Selector de bruto de la armería: con un solo bruto no hace falta enseñarlo. */
+  .arm-quien{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .arm-quien button{ font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 13px;
+                     border-radius:8px; cursor:pointer; border:1px solid var(--line);
+                     background:var(--surface); color:var(--muted); }
+  .arm-quien button.on{ border-color:var(--bronze); color:var(--bronze-light); background:var(--surface-hi); }
   .arm-lista{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; }
   .arm{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:15px 17px;
         display:flex; flex-direction:column; gap:9px; }
@@ -333,7 +340,10 @@
   <section class="screen" id="scRoster">
     <div class="page-head">
       <div><h1 data-i18n="ludus_h1">Your ludus</h1><p id="slotInfo"></p></div>
-      <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
+      <nav class="salas">
+        <button class="btn btn-ghost btn-sm" id="btnArm" data-i18n="arm_open">⚔ Armoury</button>
+        <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
+      </nav>
     </div>
     <div class="roster" id="roster"></div>
   </section>
@@ -343,6 +353,7 @@
     <div class="page-head">
       <div><h1 data-i18n="arm_h1">The armoury</h1><p id="armSub"></p></div>
     </div>
+    <div class="arm-quien" id="armQuien"></div>
     <p class="match-note" data-i18n="arm_note">Weapons don't make you stronger: they change how you fight. Each one wins about half its matchups — even bare fists. And they break, so carrying one is a choice you make again and again.</p>
     <div class="arm-lista" id="armLista"></div>
   </section>
@@ -571,6 +582,7 @@
       g_authfail:"El servidor no ha dado por buena la firma. Vuelve a intentarlo.",
       g_fail:"No he podido conectar con la wallet.",
       g_notinstalled:"Esa wallet no está en este navegador.",
+      arm_sin_brutos:"Todavía no tienes ningún bruto. Fórjalo primero en la forja.",
       arm_h1:"La armería", arm_open:"⚔ Armería",
       arm_note:"Las armas no te hacen más fuerte: cambian cómo peleas. Cada una gana la mitad de sus enfrentamientos — los puños incluidos. Y se rompen, así que llevar una es una decisión que tomas una y otra vez.",
       arm_para:"Armería de", arm_puesta:"Equipada", arm_equipar:"Equipar", arm_comprar:"Comprar",
@@ -645,6 +657,7 @@
       g_authfail:"The server didn't accept the signature. Try again.",
       g_fail:"Couldn't reach the wallet.",
       g_notinstalled:"That wallet isn't in this browser.",
+      arm_sin_brutos:"You have no brutes yet. Forge one first.",
       arm_h1:"The armoury", arm_open:"⚔ Armoury",
       arm_note:"Weapons don't make you stronger: they change how you fight. Each one wins about half its matchups — bare fists included. And they break, so carrying one is a choice you make again and again.",
       arm_para:"Armoury for", arm_puesta:"Equipped", arm_equipar:"Equip", arm_comprar:"Buy",
@@ -719,6 +732,7 @@
       g_authfail:"Le serveur n'a pas accepté la signature. Réessaie.",
       g_fail:"Impossible de joindre le wallet.",
       g_notinstalled:"Ce wallet n'est pas dans ce navigateur.",
+      arm_sin_brutos:"Tu n'as encore aucune brute. Forge-en une d'abord.",
       arm_h1:"L'armurerie", arm_open:"⚔ Armurerie",
       arm_note:"Les armes ne te rendent pas plus fort : elles changent ta façon de combattre. Chacune gagne environ la moitié de ses duels — poings nus compris. Et elles cassent, donc en porter une est un choix qui se répète.",
       arm_para:"Armurerie de", arm_puesta:"Équipée", arm_equipar:"Équiper", arm_comprar:"Acheter",
@@ -1036,14 +1050,32 @@
      El precio, el saldo y qué armas tienes viven allí, así que tocar esta
      pantalla desde la consola no consigue nada. */
   function openArmeria(id){
-    active = brutes.find(b => b.id === id);
-    if(!active) return;
+    /* Entrando desde la barra de salas no viene bruto: se coge el primero y se
+       puede cambiar arriba. Antes solo se llegaba desde la ficha de un bruto, y
+       con el ludus vacío la sala no existía para el jugador. */
+    active = (id === undefined) ? brutes[0] : brutes.find(b => b.id === id);
     show("scArmeria");
     renderArmeria();
   }
 
   function renderArmeria(){
-    if(!active) return;
+    /* Sin brutos no hay nada que equipar, y decirlo es mejor que una sala vacía. */
+    if(!active){
+      el("armSub").textContent = "";
+      el("armQuien").innerHTML = "";
+      el("armLista").innerHTML = `<p class="match-note">${t("arm_sin_brutos")}</p>`;
+      return;
+    }
+
+    /* Con un solo bruto el selector sobra: sería una pestaña sin alternativa. */
+    el("armQuien").innerHTML = brutes.length > 1
+      ? brutes.map(b => `<button class="${b.id === active.id ? "on" : ""}" data-b="${b.id}">${b.name}</button>`).join("")
+      : "";
+    el("armQuien").querySelectorAll("button").forEach(b => b.onclick = () => {
+      active = brutes.find(x => x.id === +b.dataset.b);
+      renderArmeria();
+    });
+
     el("armSub").textContent = `${t("arm_para")} ${active.name} · ${t("lvl")} ${active.lv}`;
     const mias = active.armas || [];
     const puesta = active.arma || "ninguna";
@@ -1566,6 +1598,7 @@
     show("scGate");
   };
   el("btnRank").onclick = openRank;
+  el("btnArm").onclick = () => openArmeria();
   el("btnRankRefresh").onclick = async () => {
     const b = el("btnRankRefresh");
     b.disabled = true;
