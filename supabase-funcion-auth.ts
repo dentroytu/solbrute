@@ -83,6 +83,13 @@ const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 /* Reglas del juego. Están aquí además de en app.html a propósito: lo que
    valida el servidor no puede depender de lo que diga el navegador. */
+/* Direcciones con acceso al panel. Van en un secreto de Supabase
+   (ADMIN_WALLETS, separadas por comas) y no en el código: este repositorio es
+   público, y ahí dentro la wallet del dueño quedaría a la vista de cualquiera.
+   Añadir un administrador es editar el secreto, sin desplegar nada. */
+const ADMINS = (Deno.env.get("ADMIN_WALLETS") || "")
+  .split(",").map((x) => x.trim()).filter(Boolean);
+
 const MAX_BRUTOS = 3;
 const PRECIO_PLAZA = [0, 50, 150];   // la primera gratis; las otras cuestan
 /* Se empieza a cero: las monedas van a ser un token de Solana con valor real,
@@ -502,6 +509,23 @@ Deno.serve(async (req) => {
       method: "PATCH", body: JSON.stringify({ coins: monedas, last_seen: new Date().toISOString() }),
     });
 
+    /* Se guarda la pelea. Sale casi gratis —el resultado ya está calculado— y
+       es lo que permite el historial, el panel, y sobre todo saber cuántas
+       monedas se emiten al día.
+       El snapshot del rival es imprescindible: sube de nivel después, y sin
+       congelarlo la pelea dejaría de poder reproducirse. */
+    await db("/fights", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        seed, a_brute: fila.id, a_owner: dueno,
+        b_brute: foe.rid || null, b_name: String(foe.name || "?").slice(0, 32),
+        b_bot: !!foe.bot, b_snapshot: foe,
+        winner: fight.winner, turns: fight.turns, log: fight.log,
+        coins: premio.coins, xp: premio.xp,
+      }),
+    }).catch((e) => console.warn("no pude guardar la pelea: " + e.message));
+
     /* Se devuelve semilla + registro: el navegador puede recalcular la pelea
        con las mismas reglas y comprobar que cuadra. Eso es la promesa de
        "combate verificable" de la landing, y el ensayo de lo que hará la
@@ -514,6 +538,28 @@ Deno.serve(async (req) => {
       ganancia: premio.ganancia,
       bruto: mio, fights_left: peleas - 1, balance: monedas,
     });
+  }
+
+  /* ══════════ panel de administración ══════════
+     El control va AQUÍ, no en la página. Un panel que solo esconde botones a
+     quien no es admin no protege nada: cualquiera puede llamar a estas rutas
+     directamente con curl, como se hizo durante todas las pruebas de hoy. */
+  if (accion === "admin_resumen" || accion === "admin_jugadores") {
+    if (!ADMINS.includes(dueno)) {
+      /* Mismo mensaje que una sesión inválida, y sin decir que la ruta existe:
+         a quien no es admin no hay por qué confirmarle que hay un panel. */
+      return responder({ error: "sesión no válida o caducada" }, 401);
+    }
+
+    if (accion === "admin_resumen") {
+      const r = await db("/rpc/admin_resumen", { method: "POST", body: "{}" });
+      return responder({ resumen: r });
+    }
+
+    /* Jugadores con sus brutos, para la pestaña de gestión. */
+    const jugadores = await db("/players?select=address,coins,slots,created_at,last_seen&order=last_seen.desc&limit=200");
+    const brutos = await db("/brutes?select=id,owner,name,level,xp,wins,losses,fights_left,created_at&order=level.desc&limit=500");
+    return responder({ jugadores, brutos });
   }
 
   return responder({ error: "acción desconocida" }, 400);

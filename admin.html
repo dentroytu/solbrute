@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolBrute — Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0a07'/%3E%3Cpath d='M8 23 L16 6 L24 23 Z' fill='%23c98a3a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#0c0a07; --surface:#1c1710; --surface-hi:#251e14; --line:#3a2e1c;
+    --blood:#b3312c; --blood-bright:#e0453f; --bronze:#c98a3a; --bronze-light:#e5ab5c;
+    --torch:#ff9d42; --text:#efe7d8; --muted:#a8998a; --sol-teal:#14f195;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:radial-gradient(ellipse 900px 400px at 50% -10%, #2c2013 0%, transparent 55%), var(--bg-deep);
+    color:var(--text); font-family:'Space Grotesk',sans-serif; line-height:1.55; padding:0 20px 60px;
+  }
+  h1,h2,h3{ font-family:'Cinzel',serif; }
+  .wrap{ max-width:1080px; margin:0 auto; }
+
+  header{ display:flex; align-items:center; justify-content:space-between;
+          padding:20px 0; border-bottom:1px solid var(--line); margin-bottom:28px; flex-wrap:wrap; gap:12px; }
+  .logo{ font-family:'Cinzel',serif; font-weight:800; font-size:19px; letter-spacing:1.5px; color:var(--bronze-light); }
+  .logo span{ color:var(--blood-bright); }
+  .tag-admin{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--torch);
+              border:1px solid rgba(255,157,66,.35); background:rgba(255,157,66,.08);
+              padding:3px 9px; border-radius:20px; margin-left:10px; vertical-align:3px; }
+  .quien{ font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+
+  .btn{ font-family:inherit; font-weight:700; font-size:14px; padding:12px 22px; border-radius:10px;
+        cursor:pointer; border:1px solid var(--blood-bright); background:var(--blood); color:#fff3f0; }
+  .btn:hover{ filter:brightness(1.1); }
+  .btn:disabled{ opacity:.5; cursor:default; }
+  .btn-ghost{ background:transparent; color:var(--bronze-light); border-color:var(--line); }
+
+  .puerta{ text-align:center; padding:70px 0; }
+  .puerta h1{ font-size:26px; margin-bottom:10px; }
+  .puerta p{ color:var(--muted); font-size:14px; max-width:440px; margin:0 auto 24px; }
+  .aviso{ margin-top:16px; font-size:13px; min-height:20px; color:var(--muted); }
+  .aviso.err{ color:var(--blood-bright); font-weight:600; }
+
+  .panel{ display:none; }
+  .panel.on{ display:block; }
+
+  .tarjetas{ display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:14px; margin-bottom:30px; }
+  .tarjeta{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+  .tarjeta .lbl{ font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+  .tarjeta .num{ font-family:'Cinzel',serif; font-weight:800; font-size:27px; color:var(--bronze-light);
+                 font-variant-numeric:tabular-nums; line-height:1.15; }
+  .tarjeta.dinero .num{ color:var(--sol-teal); }
+  .tarjeta .sub{ font-size:11px; color:var(--muted); margin-top:3px; }
+
+  h2{ font-size:16px; color:var(--bronze-light); margin:0 0 12px; letter-spacing:.04em; }
+  .bloque{ background:var(--surface); border:1px solid var(--line); border-radius:14px;
+           padding:18px 20px; margin-bottom:24px; }
+  .nota{ font-size:12px; color:var(--muted); margin-bottom:14px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+  th{ text-align:left; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+      color:var(--muted); font-weight:600; padding:0 10px 8px 0; border-bottom:1px solid var(--line); }
+  td{ padding:8px 10px 8px 0; border-bottom:1px solid rgba(58,46,28,.45); }
+  tr:last-child td{ border-bottom:none; }
+  .num-cel{ text-align:right; }
+  .dir{ font-size:11.5px; color:var(--muted); }
+  .scroll{ max-height:420px; overflow-y:auto; }
+
+  /* barras: sin librerías, un div con un ancho */
+  .barra-fila{ display:flex; align-items:center; gap:10px; margin-bottom:6px; font-size:12px; }
+  .barra-fila .et{ width:92px; flex-shrink:0; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .barra-fila .pista{ flex:1; background:var(--surface-hi); border-radius:4px; height:16px; overflow:hidden; }
+  .barra-fila .relleno{ height:100%; background:var(--bronze); border-radius:4px; }
+  .barra-fila.dinero .relleno{ background:var(--sol-teal); }
+  .barra-fila .val{ width:74px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums; }
+
+  .vacio{ color:var(--muted); font-size:13px; padding:8px 0; }
+  footer{ margin-top:36px; padding-top:18px; border-top:1px solid var(--line);
+          font-size:11.5px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div><span class="logo">SOL<span>BRUTE</span></span><span class="tag-admin">Admin</span></div>
+    <div class="quien"><span id="quien"></span> <button class="btn btn-ghost" id="btnSalir" style="display:none;padding:6px 12px;font-size:12px">Salir</button></div>
+  </header>
+
+  <!-- ═══ puerta ═══ -->
+  <section class="puerta" id="scPuerta">
+    <h1>Panel de administración</h1>
+    <p>Entra firmando con tu wallet. El servidor comprueba si tu dirección está en la lista de administradores — esta página no decide nada.</p>
+    <button class="btn" id="btnEntrar">Conectar y firmar</button>
+    <p class="aviso" id="aviso"></p>
+  </section>
+
+  <!-- ═══ panel ═══ -->
+  <section class="panel" id="scPanel">
+
+    <div class="tarjetas" id="tarjetas"></div>
+
+    <div class="bloque">
+      <h2>Monedas emitidas por día</h2>
+      <p class="nota">El número que avisa de que la economía se ha roto, mucho antes de que se note en el precio. Si sube sin que suba el número de jugadores, algo está imprimiendo dinero.</p>
+      <div id="porDia"></div>
+    </div>
+
+    <div class="bloque">
+      <h2>Brutos por nivel</h2>
+      <p class="nota">Si casi todos se amontonan en los primeros niveles, la curva de experiencia está demasiado dura. Si se reparten hasta arriba, demasiado blanda.</p>
+      <div id="porNivel"></div>
+    </div>
+
+    <div class="bloque">
+      <h2>Brutos</h2>
+      <div class="scroll"><table id="tablaBrutos"></table></div>
+    </div>
+
+    <div class="bloque">
+      <h2>Jugadores</h2>
+      <div class="scroll"><table id="tablaJugadores"></table></div>
+    </div>
+
+    <footer>
+      Los datos salen de la Edge Function, que comprueba tu dirección antes de responder.
+      Esta página no tiene permisos propios: sin una sesión de administrador no obtiene nada.
+    </footer>
+  </section>
+
+</div>
+
+<script src="wallet-solana.js"></script>
+<script src="supabase-cliente.js"></script>
+<script>
+(function(){
+  "use strict";
+  const el = id => document.getElementById(id);
+  const n = x => (x === null || x === undefined) ? "—" : Number(x).toLocaleString("es-ES");
+
+  function aviso(txt, err){
+    el("aviso").textContent = txt || "";
+    el("aviso").className = "aviso" + (err ? " err" : "");
+  }
+
+  /* ═══════════ entrar ═══════════ */
+  /* Mismo baile que el juego: nonce del servidor → firmar → verificar. La
+     diferencia es que el servidor mira además si la dirección está en su lista
+     de administradores. Aquí no se comprueba nada: una comprobación en el
+     navegador la esquiva cualquiera abriendo la consola. */
+  async function entrar(){
+    const b = el("btnEntrar");
+    b.disabled = true;
+    try{
+      const w = SolBruteWallet.detectar();
+      const cual = w.phantom.instalada ? "phantom" : (w.solflare.instalada ? "solflare" : null);
+      if(!cual) throw Object.assign(new Error("sin wallet"), { causa:"no-instalada" });
+
+      let sesion = await SolBruteWallet.conectar(cual);
+
+      if(!(SolBruteDB.sesionActiva() && SolBruteDB.direccionSesion() === sesion.direccion)){
+        aviso("Pidiendo un código de un solo uso…");
+        const nonce = await SolBruteDB.pedirNonce(sesion.direccion);
+        aviso("Firma el mensaje en tu wallet…");
+        const mensaje = SolBruteWallet.mensajeInicio({
+          dominio: location.host || "solbrute",
+          direccion: sesion.direccion,
+          uri: location.origin + location.pathname,
+          nonce, fecha: new Date().toISOString()
+        });
+        const firma = await SolBruteWallet.firmar(sesion, mensaje);
+        aviso("Comprobando la firma…");
+        await SolBruteDB.verificarFirma(sesion.direccion, mensaje, firma);
+      }
+
+      aviso("Cargando…");
+      await cargar(sesion.direccion);
+    }catch(e){
+      const porCausa = {
+        "no-instalada": "No hay ninguna wallet en este navegador.",
+        rechazado: "Has cancelado. No se ha enviado nada.",
+        "sin-firma": "Esta wallet no sabe firmar mensajes.",
+        red: "No llego al servidor."
+      };
+      /* Si el servidor dice 401 puede ser sesión mala O que no eres admin: él
+         responde lo mismo a propósito, para no confirmarle a un desconocido
+         que este panel existe. */
+      aviso(porCausa[e.causa || e.clase] || "No has podido entrar. Si tu dirección no está en la lista de administradores, esto es lo que verás.", true);
+      console.warn("[admin]", e.causa || e.clase || "?", e.message);
+    }finally{
+      b.disabled = false;
+    }
+  }
+
+  async function cargar(dir){
+    const resumen = await SolBruteDB.adminResumen();
+    const { jugadores, brutos } = await SolBruteDB.adminJugadores();
+
+    el("scPuerta").style.display = "none";
+    el("scPanel").classList.add("on");
+    el("quien").textContent = dir.slice(0,4) + "…" + dir.slice(-4);
+    el("btnSalir").style.display = "";
+
+    pintarResumen(resumen);
+    pintarBarras("porDia", (resumen.por_dia || []).slice().reverse().map(d => ({
+      et: d.dia, val: d.monedas, extra: d.peleas + " peleas"
+    })), true);
+    pintarBarras("porNivel", (resumen.por_nivel || []).map(x => ({
+      et: "Nivel " + x.level, val: x.n, extra: ""
+    })), false);
+    pintarBrutos(brutos);
+    pintarJugadores(jugadores);
+  }
+
+  function pintarResumen(r){
+    const t = [
+      { lbl:"Jugadores",        num:n(r.jugadores),         sub:n(r.jugadores_activos) + " activos (7 días)" },
+      { lbl:"Brutos",           num:n(r.brutos) },
+      { lbl:"Peleas hoy",       num:n(r.peleas_hoy),        sub:n(r.peleas_total) + " en total" },
+      { lbl:"Monedas hoy",      num:n(r.monedas_hoy),       sub:n(r.monedas_7d) + " en 7 días", dinero:true },
+      { lbl:"Monedas en juego", num:n(r.monedas_en_juego),  sub:"suma de todos los saldos", dinero:true },
+    ];
+    el("tarjetas").innerHTML = t.map(x => `
+      <div class="tarjeta${x.dinero ? " dinero" : ""}">
+        <div class="lbl">${x.lbl}</div>
+        <div class="num">${x.num}</div>
+        ${x.sub ? `<div class="sub">${x.sub}</div>` : ""}
+      </div>`).join("");
+  }
+
+  /* Barras a mano: un div con un ancho en porcentaje. Añadir una librería de
+     gráficas por esto rompería el "sin dependencias" del proyecto entero. */
+  function pintarBarras(destino, filas, dinero){
+    if(!filas.length){ el(destino).innerHTML = `<p class="vacio">Todavía no hay datos.</p>`; return; }
+    const max = Math.max(...filas.map(f => Number(f.val) || 0), 1);
+    el(destino).innerHTML = filas.map(f => `
+      <div class="barra-fila${dinero ? " dinero" : ""}">
+        <span class="et">${f.et}</span>
+        <span class="pista"><span class="relleno" style="width:${Math.max(2, (Number(f.val)||0)/max*100)}%"></span></span>
+        <span class="val">${n(f.val)}</span>
+        ${f.extra ? `<span class="dir">${f.extra}</span>` : ""}
+      </div>`).join("");
+  }
+
+  function pintarBrutos(b){
+    if(!b || !b.length){ el("tablaBrutos").innerHTML = `<tr><td class="vacio">Ningún bruto forjado todavía.</td></tr>`; return; }
+    el("tablaBrutos").innerHTML =
+      `<tr><th>Nombre</th><th>Nv.</th><th>XP</th><th>V</th><th>D</th><th>Peleas</th><th>Dueño</th></tr>` +
+      b.map(x => `<tr>
+        <td>${escapar(x.name)}</td>
+        <td class="num-cel">${x.level}</td>
+        <td class="num-cel">${n(x.xp)}</td>
+        <td class="num-cel">${n(x.wins)}</td>
+        <td class="num-cel">${n(x.losses)}</td>
+        <td class="num-cel">${x.fights_left}</td>
+        <td class="dir">${x.owner.slice(0,4)}…${x.owner.slice(-4)}</td>
+      </tr>`).join("");
+  }
+
+  function pintarJugadores(j){
+    if(!j || !j.length){ el("tablaJugadores").innerHTML = `<tr><td class="vacio">Ningún jugador todavía.</td></tr>`; return; }
+    el("tablaJugadores").innerHTML =
+      `<tr><th>Dirección</th><th>Monedas</th><th>Plazas</th><th>Alta</th><th>Última vez</th></tr>` +
+      j.map(x => `<tr>
+        <td class="dir">${x.address.slice(0,6)}…${x.address.slice(-6)}</td>
+        <td class="num-cel">${n(x.coins)}</td>
+        <td class="num-cel">${x.slots}</td>
+        <td class="dir">${fecha(x.created_at)}</td>
+        <td class="dir">${fecha(x.last_seen)}</td>
+      </tr>`).join("");
+  }
+
+  const fecha = f => f ? new Date(f).toLocaleDateString("es-ES", { day:"2-digit", month:"2-digit", year:"2-digit" }) : "—";
+  /* Los nombres los eligen los jugadores: van escapados sí o sí. */
+  const escapar = t => String(t).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+  el("btnEntrar").onclick = entrar;
+  el("btnSalir").onclick = () => { SolBruteDB.cerrarSesion(); location.reload(); };
+})();
+</script>
+</body>
+</html>

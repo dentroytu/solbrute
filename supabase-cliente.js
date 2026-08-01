@@ -248,6 +248,18 @@
       await pedirAuth({ accion: "vaciar", token: token() });
     },
 
+    /* ═══════════ panel de administración ═══════════
+       Quién es administrador lo decide el SERVIDOR, comparando la dirección de
+       la sesión con una lista suya. Aquí no hay ninguna comprobación porque
+       cualquiera podría saltársela: si no eres admin, estas dos responden lo
+       mismo que una sesión caducada. */
+    async adminResumen(){
+      return (await pedirAuth({ accion: "admin_resumen", token: token() })).resumen;
+    },
+    async adminJugadores(){
+      return await pedirAuth({ accion: "admin_jugadores", token: token() });
+    },
+
     /* Pide una pelea. El servidor elige la semilla, calcula el combate y
        aplica monedas y experiencia; aquí solo llega el registro para animarlo.
 
