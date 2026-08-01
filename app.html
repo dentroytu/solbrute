@@ -1449,7 +1449,21 @@
     document.querySelectorAll("#scForge .opt, #scForge .sw-btn").forEach(b =>
       b.classList.toggle("on", look[b.dataset.k] === +b.dataset.i));
   }
-  el("nm").addEventListener("input", renderForge);
+  /* El servidor filtra el nombre con lista blanca, así que si escribes
+     "<img src=x>" acabas llamándote "img srcx". Como el nombre es permanente,
+     que cambie en silencio es feo: se aplica el mismo filtro aquí para que
+     veas exactamente lo que vas a tener. */
+  const filtrarNombre = v => String(v).replace(/[^\p{L}\p{N} .'\-]/gu, "").replace(/\s+/g, " ");
+  el("nm").addEventListener("input", () => {
+    const limpio = filtrarNombre(el("nm").value);
+    if(limpio !== el("nm").value){
+      const pos = el("nm").selectionStart;
+      el("nm").value = limpio;
+      /* Sin esto, el cursor salta al final en cuanto se filtra un carácter. */
+      try{ el("nm").setSelectionRange(pos - 1, pos - 1); }catch(e){}
+    }
+    renderForge();
+  });
   el("btnReroll").onclick = nuevaTirada;
   el("btnLookRandom").onclick = () => {
     look = randomLook();

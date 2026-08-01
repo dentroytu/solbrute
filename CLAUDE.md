@@ -26,6 +26,9 @@ experiencia y sube de nivel.
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
 | `supabase-02-rerolls.sql` | Añade `rerolls_left` y `pool` a `brutes` | Aplicado |
 | `servidor-local.js` | Servidor de desarrollo, sin caché. No lo necesita el juego | Herramienta |
+| `prueba-hostil.ts` | Ataca la función con un cliente reescrito. 18 ataques | Herramienta |
+| `prueba-banco.ts` | Base de datos simulada para el banco de ataque | Herramienta |
+| `supabase-10-permisos.sql` | Cierra funciones que quedaron ejecutables por `public` | Aplicado |
 | `BACKEND.md` | Esquema y contrato de API | Paso 1 hecho a medias |
 | `EMPEZAR.md` | Guía de arranque para novato | — |
 
@@ -643,6 +646,39 @@ dos lados.
       dibujan desde `brute-render.js`. (La nota de "bustos con casco" en el hero
       ya era falsa cuando se escribió: el arte estaba portado, lo que quedaba era
       la copia duplicada del código.)
+
+## Seguridad: qué se comprobó y cómo
+
+**No se puede impedir que un jugador edite el JavaScript de su navegador.** Es
+su ordenador. La defensa no es evitarlo: es que hacerlo no le sirva de nada.
+Y editar el cliente es MENOS peligroso que llamar a la API directamente con
+`curl`, que es como se ha probado todo aquí.
+
+`prueba-hostil.ts` corre la Edge Function real contra una base simulada
+(`prueba-banco.ts`) y la ataca con un cliente reescrito: subirse el nivel,
+regalarse peleas, monedas y armas, inventarse la lista de rivales, elegir la
+semilla, saltarse el precio de la plaza, tocar el bruto de otro y colarse en
+las rutas de admin. **18 ataques, ninguno funciona.**
+
+**Si añades una ruta a la función, añádele aquí su ataque antes de
+desplegarla.** Esto aguanta porque se prueba, no porque el código sea bonito.
+
+### Lo que se encontró en la revisión y por qué apareció
+
+| Agujero | Causa |
+|---|---|
+| Ponerse nivel 100 y 10/10/10 por `guardar` | a esa ruta se le fueron quitando campos uno a uno según daban problemas; nunca se preguntó qué debía quedar. La respuesta era: nada |
+| Aspecto sin validar → pantalla en blanco ajena | el renderizador lanza con un `look` fuera de rango, y el aspecto se dibuja en la lista de rivales de otros |
+| Nombre sin filtrar → XSS almacenado | el nombre se pinta en pantallas ajenas y el token de sesión vive en `localStorage` |
+| `limpiar_nonces` y `limpiar_sesiones` abiertas | la trampa del `revoke` a `public`, por segunda vez |
+| Errores 500 mudos | `accion` no validada como texto y los ids sin comprobar |
+
+**El patrón que se repite:** cada vez que un dato viaja del navegador al
+servidor hay que preguntarse *qué pasa si viene envenenado*, y cada vez que un
+dato viaja del servidor a la pantalla de OTRO jugador hay que preguntarse *qué
+pasa si lo escribió un atacante*.
+
+---
 
 ## Verificación rápida antes de dar algo por bueno
 
