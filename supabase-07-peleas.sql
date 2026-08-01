@@ -105,4 +105,8 @@ returns json language sql security definer as $$
   );
 $$;
 
+-- Ver el aviso de supabase-08-admin.sql: revocar solo a anon y authenticated
+-- no basta, porque en Postgres las funciones nacen ejecutables por PUBLIC.
+revoke execute on function admin_resumen() from public;
 revoke execute on function admin_resumen() from anon, authenticated;
+grant  execute on function admin_resumen() to service_role;

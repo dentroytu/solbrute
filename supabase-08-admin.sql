@@ -75,4 +75,17 @@ returns json language sql security definer as $$
   );
 $$;
 
+-- ── OJO CON ESTO ──────────────────────────────────────────────────────────
+-- En Postgres, una función recién creada es ejecutable por PUBLIC. Revocarla
+-- solo a anon y authenticated NO sirve: el permiso de PUBLIC sigue ahí y
+-- cualquiera con la clave pública puede llamarla.
+--
+-- Se comprobó: con el revoke a anon/authenticated, un POST a
+-- /rest/v1/rpc/admin_resumen con la clave anon devolvía 200 y las
+-- estadísticas completas del juego.
+--
+-- Y hay que repetirlo cada vez que se haga "create or replace" de la función,
+-- porque recrearla vuelve a conceder el permiso por defecto.
+revoke execute on function admin_resumen() from public;
 revoke execute on function admin_resumen() from anon, authenticated;
+grant  execute on function admin_resumen() to service_role;
