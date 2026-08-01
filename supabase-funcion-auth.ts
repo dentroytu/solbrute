@@ -544,7 +544,7 @@ Deno.serve(async (req) => {
      El control va AQUÍ, no en la página. Un panel que solo esconde botones a
      quien no es admin no protege nada: cualquiera puede llamar a estas rutas
      directamente con curl, como se hizo durante todas las pruebas de hoy. */
-  if (accion === "admin_resumen" || accion === "admin_jugadores") {
+  if (accion.startsWith("admin_")) {
     if (!ADMINS.includes(dueno)) {
       /* Mismo mensaje que una sesión inválida, y sin decir que la ruta existe:
          a quien no es admin no hay por qué confirmarle que hay un panel. */
@@ -556,10 +556,104 @@ Deno.serve(async (req) => {
       return responder({ resumen: r });
     }
 
-    /* Jugadores con sus brutos, para la pestaña de gestión. */
-    const jugadores = await db("/players?select=address,coins,slots,created_at,last_seen&order=last_seen.desc&limit=200");
-    const brutos = await db("/brutes?select=id,owner,name,level,xp,wins,losses,fights_left,created_at&order=level.desc&limit=500");
-    return responder({ jugadores, brutos });
+    if (accion === "admin_jugadores") {
+      const jugadores = await db("/players?select=address,coins,slots,created_at,last_seen&order=last_seen.desc&limit=200");
+      const brutos = await db("/brutes?select=id,owner,name,level,xp,hp_max,str,agi,spd,wins,losses,fights_left,created_at&order=level.desc&limit=500");
+      return responder({ jugadores, brutos });
+    }
+
+    /* ── Registro de auditoría ──
+       Toda modificación deja rastro con el antes y el después. Sin el antes,
+       el registro solo dice que algo cambió, no de qué a qué. */
+    const anotar = (acc: string, objetivo: string, antes: unknown, despues: unknown) =>
+      db("/admin_log", {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ admin: dueno, accion: acc, objetivo: String(objetivo),
+                               antes: antes ?? null, despues: despues ?? null }),
+      }).catch((e) => console.warn("admin_log: " + e.message));
+
+    /* ── editar un bruto ──
+       Los valores se recortan al mismo rango legal que usa el juego. Un
+       administrador está para arreglar cosas, no para crear un bruto con
+       fuerza 500 que rompa el equilibrio de todos los demás. */
+    if (accion === "admin_editar_bruto") {
+      const id = String(cuerpo.id || "");
+      const antes = (await db("/brutes?id=eq." + encodeURIComponent(id) + "&select=*"))?.[0];
+      if (!antes) return responder({ error: "ese bruto no existe" }, 404);
+
+      const c = cuerpo.campos || {};
+      const campos: Record<string, unknown> = {};
+      if (c.name !== undefined)   campos.name = String(c.name).trim().slice(0, 16);
+      if (c.level !== undefined)  campos.level = entre(c.level, 1, NIVEL_MAX, antes.level);
+      if (c.xp !== undefined)     campos.xp = entre(c.xp, 0, 1e6, antes.xp);
+      if (c.hp_max !== undefined) campos.hp_max = entre(c.hp_max, 1, HP_MAX, antes.hp_max);
+      if (c.str !== undefined)    campos.str = entre(c.str, 1, STAT_MAX, antes.str);
+      if (c.agi !== undefined)    campos.agi = entre(c.agi, 1, STAT_MAX, antes.agi);
+      if (c.spd !== undefined)    campos.spd = entre(c.spd, 1, STAT_MAX, antes.spd);
+      if (c.wins !== undefined)   campos.wins = entre(c.wins, 0, 1e6, antes.wins);
+      if (c.losses !== undefined) campos.losses = entre(c.losses, 0, 1e6, antes.losses);
+      if (c.fights_left !== undefined) campos.fights_left = entre(c.fights_left, 0, 9, antes.fights_left);
+      if (!Object.keys(campos).length) return responder({ error: "nada que cambiar" }, 400);
+
+      try {
+        await db("/brutes?id=eq." + encodeURIComponent(id), { method: "PATCH", body: JSON.stringify(campos) });
+      } catch (e) {
+        if (String((e as Error).message).includes("23505"))
+          return responder({ error: "ese nombre ya lo lleva otro bruto", clase: "duplicado" }, 409);
+        throw e;
+      }
+      await anotar("editar_bruto", id, antes, campos);
+      return responder({ ok: true });
+    }
+
+    /* ── editar un jugador ── */
+    if (accion === "admin_editar_jugador") {
+      const dir = String(cuerpo.address || "");
+      const antes = (await db("/players?address=eq." + encodeURIComponent(dir) + "&select=*"))?.[0];
+      if (!antes) return responder({ error: "ese jugador no existe" }, 404);
+
+      const c = cuerpo.campos || {};
+      const campos: Record<string, unknown> = {};
+      if (c.coins !== undefined) campos.coins = entre(c.coins, 0, 1e9, antes.coins);
+      if (c.slots !== undefined) campos.slots = entre(c.slots, 1, MAX_BRUTOS, antes.slots);
+      if (!Object.keys(campos).length) return responder({ error: "nada que cambiar" }, 400);
+
+      await db("/players?address=eq." + encodeURIComponent(dir), { method: "PATCH", body: JSON.stringify(campos) });
+      await anotar("editar_jugador", dir, antes, campos);
+      return responder({ ok: true });
+    }
+
+    /* ── borrar un bruto ── */
+    if (accion === "admin_borrar_bruto") {
+      const id = String(cuerpo.id || "");
+      const antes = (await db("/brutes?id=eq." + encodeURIComponent(id) + "&select=*"))?.[0];
+      if (!antes) return responder({ error: "ese bruto no existe" }, 404);
+      await db("/brutes?id=eq." + encodeURIComponent(id), { method: "DELETE" });
+      await anotar("borrar_bruto", id, antes, null);
+      return responder({ ok: true });
+    }
+
+    /* ── borrar un jugador ──
+       Se lleva por delante sus brutos (la clave foránea es on delete cascade) y
+       sus peleas. Por eso se anota cuántas cosas caen: el registro tiene que
+       poder explicar después por qué desapareció todo eso. */
+    if (accion === "admin_borrar_jugador") {
+      const dir = String(cuerpo.address || "");
+      if (ADMINS.includes(dir)) {
+        return responder({ error: "no se puede borrar a un administrador desde aquí" }, 403);
+      }
+      const antes = (await db("/players?address=eq." + encodeURIComponent(dir) + "&select=*"))?.[0];
+      if (!antes) return responder({ error: "ese jugador no existe" }, 404);
+      const suyos = await db("/brutes?owner=eq." + encodeURIComponent(dir) + "&select=id,name");
+
+      await db("/sessions?address=eq." + encodeURIComponent(dir), { method: "DELETE" }).catch(() => {});
+      await db("/players?address=eq." + encodeURIComponent(dir), { method: "DELETE" });
+      await anotar("borrar_jugador", dir, { ...antes, brutos: suyos }, null);
+      return responder({ ok: true, brutos_borrados: (suyos || []).length });
+    }
+
+    return responder({ error: "acción de admin desconocida" }, 400);
   }
 
   return responder({ error: "acción desconocida" }, 400);

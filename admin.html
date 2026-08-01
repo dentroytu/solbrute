@@ -77,6 +77,29 @@
   .barra-fila .val{ width:74px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums; }
 
   .vacio{ color:var(--muted); font-size:13px; padding:8px 0; }
+
+  /* ── edición ── */
+  .acciones{ display:flex; gap:6px; justify-content:flex-end; }
+  .mini{ font-family:inherit; font-size:11px; font-weight:700; padding:4px 9px; border-radius:6px;
+         cursor:pointer; border:1px solid var(--line); background:var(--surface-hi); color:var(--bronze-light); }
+  .mini:hover{ border-color:var(--bronze); }
+  .mini.peligro{ color:var(--blood-bright); border-color:rgba(224,69,63,.35); }
+  .mini.peligro:hover{ border-color:var(--blood-bright); background:rgba(179,49,44,.15); }
+  .mini:disabled{ opacity:.4; cursor:default; }
+  td input{ width:62px; font-family:inherit; font-size:12.5px; padding:4px 6px; border-radius:5px;
+            border:1px solid var(--line); background:var(--bg-deep); color:var(--text);
+            font-variant-numeric:tabular-nums; }
+  td input.txt{ width:110px; }
+  td input:focus{ outline:none; border-color:var(--bronze); }
+  tr.editando{ background:rgba(201,138,58,.07); }
+
+  .barra-msg{ position:fixed; left:50%; transform:translateX(-50%); bottom:24px;
+              background:var(--surface-hi); border:1px solid var(--line); border-radius:10px;
+              padding:11px 18px; font-size:13px; box-shadow:0 6px 24px rgba(0,0,0,.5);
+              opacity:0; pointer-events:none; transition:opacity .2s ease; z-index:50; }
+  .barra-msg.ver{ opacity:1; }
+  .barra-msg.err{ border-color:var(--blood-bright); color:var(--blood-bright); }
+  .barra-msg.ok{ border-color:rgba(20,241,149,.4); color:var(--sol-teal); }
   footer{ margin-top:36px; padding-top:18px; border-top:1px solid var(--line);
           font-size:11.5px; color:var(--muted); }
 </style>
@@ -124,6 +147,12 @@
       <div class="scroll"><table id="tablaJugadores"></table></div>
     </div>
 
+    <div class="bloque">
+      <h2>Registro de administración</h2>
+      <p class="nota">Todo lo que se cambia desde este panel queda anotado con el antes y el después. No está para vigilarte: está para que puedas demostrar qué pasó si algún día alguien pregunta por un saldo.</p>
+      <div class="scroll"><table id="tablaRegistro"></table></div>
+    </div>
+
     <footer>
       Los datos salen de la Edge Function, que comprueba tu dirección antes de responder.
       Esta página no tiene permisos propios: sin una sesión de administrador no obtiene nada.
@@ -132,6 +161,8 @@
 
 </div>
 
+<div class="barra-msg" id="msg"></div>
+
 <script src="wallet-solana.js"></script>
 <script src="supabase-cliente.js"></script>
 <script>
@@ -139,6 +170,9 @@
   "use strict";
   const el = id => document.getElementById(id);
   const n = x => (x === null || x === undefined) ? "—" : Number(x).toLocaleString("es-ES");
+
+  let editando = null;                  // "b<id>" o "j<direccion>"
+  const datos = { brutos: [], jugadores: [], dir: null };
 
   function aviso(txt, err){
     el("aviso").textContent = txt || "";
@@ -195,15 +229,23 @@
   }
 
   async function cargar(dir){
-    const resumen = await SolBruteDB.adminResumen();
-    const { jugadores, brutos } = await SolBruteDB.adminJugadores();
-
+    datos.dir = dir;
     el("scPuerta").style.display = "none";
     el("scPanel").classList.add("on");
     el("quien").textContent = dir.slice(0,4) + "…" + dir.slice(-4);
     el("btnSalir").style.display = "";
+    await recargar();
+  }
+
+  /* Tras cada cambio se recarga todo del servidor en vez de tocar la tabla a
+     mano: así lo que ves es lo que hay guardado, no lo que creemos que quedó. */
+  async function recargar(){
+    const resumen = await SolBruteDB.adminResumen();
+    const { jugadores, brutos } = await SolBruteDB.adminJugadores();
+    datos.brutos = brutos || [];
 
     pintarResumen(resumen);
+    pintarRegistro(resumen.registro);
     pintarBarras("porDia", (resumen.por_dia || []).slice().reverse().map(d => ({
       et: d.dia, val: d.monedas, extra: d.peleas + " peleas"
     })), true);
@@ -244,32 +286,180 @@
       </div>`).join("");
   }
 
+  /* ═══════════ tablas editables ═══════════
+     Cada fila alterna entre lectura y edición. Los cambios los valida el
+     servidor: aquí solo se recogen los números. Un límite puesto en este input
+     lo salta cualquiera con la consola, así que los de verdad están allí. */
+
+  const CAMPOS_BRUTO = [
+    { k:"name",        tipo:"txt" },
+    { k:"level",       tipo:"num" },
+    { k:"xp",          tipo:"num" },
+    { k:"hp_max",      tipo:"num" },
+    { k:"str",         tipo:"num" },
+    { k:"agi",         tipo:"num" },
+    { k:"spd",         tipo:"num" },
+    { k:"wins",        tipo:"num" },
+    { k:"losses",      tipo:"num" },
+    { k:"fights_left", tipo:"num" },
+  ];
+
   function pintarBrutos(b){
-    if(!b || !b.length){ el("tablaBrutos").innerHTML = `<tr><td class="vacio">Ningún bruto forjado todavía.</td></tr>`; return; }
-    el("tablaBrutos").innerHTML =
-      `<tr><th>Nombre</th><th>Nv.</th><th>XP</th><th>V</th><th>D</th><th>Peleas</th><th>Dueño</th></tr>` +
-      b.map(x => `<tr>
+    datos.brutos = b || [];
+    const t = el("tablaBrutos");
+    if(!datos.brutos.length){ t.innerHTML = `<tr><td class="vacio">Ningún bruto forjado todavía.</td></tr>`; return; }
+    t.innerHTML =
+      `<tr><th>Nombre</th><th>Nv.</th><th>XP</th><th>Vida</th><th>Fue</th><th>Agi</th><th>Vel</th>
+           <th>V</th><th>D</th><th>Peleas</th><th>Dueño</th><th></th></tr>` +
+      datos.brutos.map(x => filaBruto(x)).join("");
+    t.querySelectorAll("[data-editar]").forEach(btn => btn.onclick = () => editarFila(btn.dataset.editar));
+    t.querySelectorAll("[data-guardar]").forEach(btn => btn.onclick = () => guardarBruto(btn.dataset.guardar));
+    t.querySelectorAll("[data-cancelar]").forEach(btn => btn.onclick = () => { editando = null; pintarBrutos(datos.brutos); });
+    t.querySelectorAll("[data-borrar]").forEach(btn => btn.onclick = () => borrarBruto(btn.dataset.borrar));
+  }
+
+  function filaBruto(x){
+    const enEdicion = editando === "b" + x.id;
+    if(!enEdicion){
+      return `<tr>
         <td>${escapar(x.name)}</td>
-        <td class="num-cel">${x.level}</td>
-        <td class="num-cel">${n(x.xp)}</td>
-        <td class="num-cel">${n(x.wins)}</td>
-        <td class="num-cel">${n(x.losses)}</td>
+        <td class="num-cel">${x.level}</td><td class="num-cel">${n(x.xp)}</td>
+        <td class="num-cel">${x.hp_max}</td><td class="num-cel">${x.str}</td>
+        <td class="num-cel">${x.agi}</td><td class="num-cel">${x.spd}</td>
+        <td class="num-cel">${n(x.wins)}</td><td class="num-cel">${n(x.losses)}</td>
         <td class="num-cel">${x.fights_left}</td>
         <td class="dir">${x.owner.slice(0,4)}…${x.owner.slice(-4)}</td>
-      </tr>`).join("");
+        <td><div class="acciones">
+          <button class="mini" data-editar="b${x.id}">Editar</button>
+          <button class="mini peligro" data-borrar="${x.id}">Borrar</button>
+        </div></td></tr>`;
+    }
+    const inp = c => `<input id="e_${c.k}" class="${c.tipo === "txt" ? "txt" : ""}"
+        ${c.tipo === "num" ? 'type="number"' : 'maxlength="16"'} value="${escapar(x[c.k])}">`;
+    return `<tr class="editando">
+      ${CAMPOS_BRUTO.map(c => `<td>${inp(c)}</td>`).join("")}
+      <td class="dir">${x.owner.slice(0,4)}…${x.owner.slice(-4)}</td>
+      <td><div class="acciones">
+        <button class="mini" data-guardar="${x.id}">Guardar</button>
+        <button class="mini" data-cancelar="1">Cancelar</button>
+      </div></td></tr>`;
+  }
+
+  async function guardarBruto(id){
+    const campos = {};
+    CAMPOS_BRUTO.forEach(c => {
+      const e = el("e_" + c.k);
+      if(e) campos[c.k] = c.tipo === "num" ? Number(e.value) : e.value;
+    });
+    try{
+      await SolBruteDB.adminEditarBruto(id, campos);
+      msg("Bruto actualizado", "ok");
+      editando = null;
+      await recargar();
+    }catch(e){ msg(e.message || "no se pudo guardar", "err"); }
+  }
+
+  async function borrarBruto(id){
+    const b = datos.brutos.find(x => String(x.id) === String(id));
+    if(!confirm(`¿Borrar el bruto "${b ? b.name : id}"?\n\nSe pierde su historial de peleas. No se puede deshacer.`)) return;
+    try{
+      await SolBruteDB.adminBorrarBruto(id);
+      msg("Bruto borrado", "ok");
+      await recargar();
+    }catch(e){ msg(e.message || "no se pudo borrar", "err"); }
   }
 
   function pintarJugadores(j){
-    if(!j || !j.length){ el("tablaJugadores").innerHTML = `<tr><td class="vacio">Ningún jugador todavía.</td></tr>`; return; }
-    el("tablaJugadores").innerHTML =
-      `<tr><th>Dirección</th><th>Monedas</th><th>Plazas</th><th>Alta</th><th>Última vez</th></tr>` +
-      j.map(x => `<tr>
-        <td class="dir">${x.address.slice(0,6)}…${x.address.slice(-6)}</td>
-        <td class="num-cel">${n(x.coins)}</td>
-        <td class="num-cel">${x.slots}</td>
-        <td class="dir">${fecha(x.created_at)}</td>
-        <td class="dir">${fecha(x.last_seen)}</td>
+    datos.jugadores = j || [];
+    const t = el("tablaJugadores");
+    if(!datos.jugadores.length){ t.innerHTML = `<tr><td class="vacio">Ningún jugador todavía.</td></tr>`; return; }
+    t.innerHTML =
+      `<tr><th>Dirección</th><th>Monedas</th><th>Plazas</th><th>Brutos</th><th>Alta</th><th>Última vez</th><th></th></tr>` +
+      datos.jugadores.map(x => filaJugador(x)).join("");
+    t.querySelectorAll("[data-editarj]").forEach(btn => btn.onclick = () => editarFila(btn.dataset.editarj));
+    t.querySelectorAll("[data-guardarj]").forEach(btn => btn.onclick = () => guardarJugador(btn.dataset.guardarj));
+    t.querySelectorAll("[data-cancelarj]").forEach(btn => btn.onclick = () => { editando = null; pintarJugadores(datos.jugadores); });
+    t.querySelectorAll("[data-borrarj]").forEach(btn => btn.onclick = () => borrarJugador(btn.dataset.borrarj));
+  }
+
+  function filaJugador(x){
+    const suyos = datos.brutos.filter(b => b.owner === x.address).length;
+    const corta = x.address.slice(0,6) + "…" + x.address.slice(-6);
+    if(editando !== "j" + x.address){
+      return `<tr>
+        <td class="dir" title="${escapar(x.address)}">${corta}</td>
+        <td class="num-cel">${n(x.coins)}</td><td class="num-cel">${x.slots}</td>
+        <td class="num-cel">${suyos}</td>
+        <td class="dir">${fecha(x.created_at)}</td><td class="dir">${fecha(x.last_seen)}</td>
+        <td><div class="acciones">
+          <button class="mini" data-editarj="j${x.address}">Editar</button>
+          <button class="mini peligro" data-borrarj="${escapar(x.address)}">Borrar</button>
+        </div></td></tr>`;
+    }
+    return `<tr class="editando">
+      <td class="dir">${corta}</td>
+      <td><input id="e_coins" type="number" value="${x.coins}"></td>
+      <td><input id="e_slots" type="number" value="${x.slots}"></td>
+      <td class="num-cel">${suyos}</td>
+      <td class="dir">${fecha(x.created_at)}</td><td class="dir">${fecha(x.last_seen)}</td>
+      <td><div class="acciones">
+        <button class="mini" data-guardarj="${escapar(x.address)}">Guardar</button>
+        <button class="mini" data-cancelarj="1">Cancelar</button>
+      </div></td></tr>`;
+  }
+
+  async function guardarJugador(dir){
+    try{
+      await SolBruteDB.adminEditarJugador(dir, {
+        coins: Number(el("e_coins").value), slots: Number(el("e_slots").value)
+      });
+      msg("Jugador actualizado", "ok");
+      editando = null;
+      await recargar();
+    }catch(e){ msg(e.message || "no se pudo guardar", "err"); }
+  }
+
+  async function borrarJugador(dir){
+    const suyos = datos.brutos.filter(b => b.owner === dir).length;
+    if(!confirm(`¿Borrar al jugador ${dir.slice(0,6)}…${dir.slice(-6)}?\n\n` +
+                `Se borran también sus ${suyos} bruto(s) y todas sus peleas. No se puede deshacer.`)) return;
+    try{
+      const r = await SolBruteDB.adminBorrarJugador(dir);
+      msg(`Jugador borrado (${r.brutos_borrados} brutos)`, "ok");
+      await recargar();
+    }catch(e){ msg(e.message || "no se pudo borrar", "err"); }
+  }
+
+  function editarFila(clave){ editando = clave; pintarBrutos(datos.brutos); pintarJugadores(datos.jugadores); }
+
+  function pintarRegistro(r){
+    const t = el("tablaRegistro");
+    if(!r || !r.length){ t.innerHTML = `<tr><td class="vacio">Todavía no se ha cambiado nada desde el panel.</td></tr>`; return; }
+    t.innerHTML = `<tr><th>Cuándo</th><th>Quién</th><th>Qué</th><th>Sobre</th><th>Cambio</th></tr>` +
+      r.map(x => `<tr>
+        <td class="dir">${new Date(x.created_at).toLocaleString("es-ES")}</td>
+        <td class="dir">${x.admin.slice(0,4)}…${x.admin.slice(-4)}</td>
+        <td>${escapar(x.accion)}</td>
+        <td class="dir">${escapar(String(x.objetivo).slice(0,14))}</td>
+        <td class="dir">${escapar(resumirCambio(x))}</td>
       </tr>`).join("");
+  }
+
+  /* Del antes y el después solo interesa lo que cambió de verdad. */
+  function resumirCambio(x){
+    if(!x.despues) return "borrado";
+    return Object.keys(x.despues)
+      .filter(k => !x.antes || String(x.antes[k]) !== String(x.despues[k]))
+      .map(k => `${k}: ${x.antes ? x.antes[k] : "?"} → ${x.despues[k]}`)
+      .join(", ") || "sin cambios";
+  }
+
+  function msg(txt, tipo){
+    const e = el("msg");
+    e.textContent = txt;
+    e.className = "barra-msg ver " + (tipo || "");
+    clearTimeout(msg._t);
+    msg._t = setTimeout(() => { e.className = "barra-msg " + (tipo || ""); }, 3200);
   }
 
   const fecha = f => f ? new Date(f).toLocaleDateString("es-ES", { day:"2-digit", month:"2-digit", year:"2-digit" }) : "—";

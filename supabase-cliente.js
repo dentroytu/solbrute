@@ -259,6 +259,18 @@
     async adminJugadores(){
       return await pedirAuth({ accion: "admin_jugadores", token: token() });
     },
+    async adminEditarBruto(id, campos){
+      return await pedirAuth({ accion: "admin_editar_bruto", token: token(), id, campos });
+    },
+    async adminEditarJugador(address, campos){
+      return await pedirAuth({ accion: "admin_editar_jugador", token: token(), address, campos });
+    },
+    async adminBorrarBruto(id){
+      return await pedirAuth({ accion: "admin_borrar_bruto", token: token(), id });
+    },
+    async adminBorrarJugador(address){
+      return await pedirAuth({ accion: "admin_borrar_jugador", token: token(), address });
+    },
 
     /* Pide una pelea. El servidor elige la semilla, calcula el combate y
        aplica monedas y experiencia; aquí solo llega el registro para animarlo.
