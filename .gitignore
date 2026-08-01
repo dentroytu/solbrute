@@ -1,5 +1,25 @@
 # Ajustes locales de Claude Code: son de tu máquina, no del proyecto
 .claude/settings.local.json
 
+# ══════════════════════════════════════════════════════════════════════════
+# CLAVES. Nunca, jamás, en el repositorio.
+# ══════════════════════════════════════════════════════════════════════════
+# Este repositorio es PÚBLICO. Un fichero de clave de Solana aquí dentro es
+# el suministro entero del token en manos de cualquiera que lo mire, y hay
+# bots rastreando GitHub justo para eso — en minutos, no en días.
+#
+# Y una clave publicada no se arregla borrándola: queda en el historial de git
+# para siempre. Lo único que vale es mover los fondos y quemar la clave.
+*.json.key
+*keypair*.json
+*wallet*.json
+id.json
+tesoro*.json
+treasury*.json
+*.pem
+*.key
+.env
+.env.*
+
 # Basura del sistema
 .DS_Store
