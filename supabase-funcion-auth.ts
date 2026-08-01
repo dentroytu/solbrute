@@ -493,6 +493,9 @@ Deno.serve(async (req) => {
     return responder({
       seed, log: fight.log, winner: fight.winner, timeout: fight.timeout, turns: fight.turns,
       coins: premio.coins, xp: premio.xp, subio: premio.subio,
+      /* QUÉ tocó al subir: "str" | "agi" | "spd" | "hp". Sin esto el cartel
+         del juego no puede decirlo y acaba enseñando siempre vida. */
+      ganancia: premio.ganancia,
       bruto: mio, fights_left: peleas - 1, balance: monedas,
     });
   }
