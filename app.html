@@ -141,15 +141,25 @@
   .salas{ display:flex; gap:8px; flex-wrap:wrap; }
   /* Selector de bruto de la armería: con un solo bruto no hace falta enseñarlo. */
   .arm-quien{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
-  .arm-quien button{ font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 13px;
+  .arm-quien{ align-items:center; }
+  .arm-quien-lbl{ font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .arm-quien button{ font-family:inherit; font-size:12.5px; font-weight:700; padding:6px 13px;
                      border-radius:8px; cursor:pointer; border:1px solid var(--line);
-                     background:var(--surface); color:var(--muted); }
+                     background:var(--surface); color:var(--muted); display:flex; flex-direction:column;
+                     align-items:flex-start; gap:1px; line-height:1.25; }
   .arm-quien button.on{ border-color:var(--bronze); color:var(--bronze-light); background:var(--surface-hi); }
+  .arm-quien .q-arma{ font-size:9.5px; font-weight:600; opacity:.7; letter-spacing:.03em; }
   .arm-lista{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; }
   .arm{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:15px 17px;
         display:flex; flex-direction:column; gap:9px; }
   .arm.puesta{ border-color:var(--sol-teal); background:linear-gradient(180deg,#16241d,var(--surface)); }
-  .arm-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .arm-top{ display:flex; align-items:center; gap:10px; }
+  .arm-top .arm-precio{ margin-left:auto; }
+  .arm-icono{ width:44px; height:44px; flex-shrink:0; border-radius:10px;
+              border:1px solid var(--line); background:linear-gradient(180deg,#2a2013,#161006);
+              display:flex; align-items:center; justify-content:center; padding:3px; }
+  .arm-icono svg{ width:100%; height:100%; display:block; }
+  .arm.puesta .arm-icono{ border-color:rgba(20,241,149,.4); }
   .arm-nom{ font-family:'Cinzel',serif; font-weight:800; font-size:16px; color:var(--bronze-light); }
   .arm-precio{ font-size:12.5px; color:var(--sol-teal); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .arm-como{ font-size:12.5px; color:var(--muted); line-height:1.45; }
@@ -523,7 +533,7 @@
   const { OL, SKIN, HAIRC, CLOTHC, INK, EYEC, HAIRS, CLOTHS, FACES, TATS, HD, OUT, IN, PB,
           shade, torsoPath, HEADP,
           drawBody, drawTat, drawCloth, drawFace, drawHair,
-          bust, spriteProfile } = window.BruteRender;
+          bust, spriteProfile, iconoArma } = window.BruteRender;
 
   /* Reglas del combate y del equilibrio — ver brute-combate.js.
      El servidor carga ESE MISMO fichero, así que aquí no hay ninguna fórmula:
@@ -1067,16 +1077,19 @@
       return;
     }
 
-    /* Con un solo bruto el selector sobra: sería una pestaña sin alternativa. */
-    el("armQuien").innerHTML = brutes.length > 1
-      ? brutes.map(b => `<button class="${b.id === active.id ? "on" : ""}" data-b="${b.id}">${b.name}</button>`).join("")
-      : "";
+    /* El selector se enseña SIEMPRE, aunque solo haya un bruto. Ocultarlo
+       parecía limpio y dejaba una duda peor: a quién le estás comprando. Las
+       armas son de un bruto concreto, no del jugador, y eso tiene que verse. */
+    el("armQuien").innerHTML =
+      `<span class="arm-quien-lbl">${t("arm_para")}</span>` +
+      brutes.map(b => `<button class="${b.id === active.id ? "on" : ""}" data-b="${b.id}">
+          <span class="q-arma">${(O("armas")[b.arma || "ninguna"] || "")}</span>${b.name}</button>`).join("");
     el("armQuien").querySelectorAll("button").forEach(b => b.onclick = () => {
       active = brutes.find(x => x.id === +b.dataset.b);
       renderArmeria();
     });
 
-    el("armSub").textContent = `${t("arm_para")} ${active.name} · ${t("lvl")} ${active.lv}`;
+    el("armSub").textContent = `${active.name} · ${t("lvl")} ${active.lv}`;
     const mias = active.armas || [];
     const puesta = active.arma || "ninguna";
     const nombres = O("armas"), comos = O("como");
@@ -1101,6 +1114,7 @@
 
       return `<div class="arm${llevo ? " puesta" : ""}">
         <div class="arm-top">
+          <span class="arm-icono">${iconoArma(id)}</span>
           <span class="arm-nom">${nombres[id]}</span>
           ${id === "ninguna" ? "" : `<span class="arm-precio">${w.precio} $BRUTE</span>`}
         </div>

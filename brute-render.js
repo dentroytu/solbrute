@@ -260,6 +260,63 @@
     </svg>`;
   }
 
+  /* ═══════════ iconos de las armas ═══════════
+     Para la armería: el arma sola, sin bruto que la sujete. Mismo registro que
+     el resto —contorno grueso, detalle fino, bronce— para que no parezcan de
+     otro juego. viewBox de 64×64 y sin colores fuera de la paleta.
+
+     Están aquí y no en app.html porque el arte vive en un solo fichero: es la
+     regla que se puso el día que los retratos estaban duplicados. */
+  function iconoArma(id){
+    const M = "#c98a3a", MD = "#a3762f", ML = "#e5ab5c", MAD = "#6b4f2a";
+    const cuerpos = {
+      /* Puños: nudillos de frente. Un puño de perfil se leía como un borrón a
+         44 píxeles; de frente los cuatro dedos dan una silueta reconocible. */
+      ninguna: `
+        <path d="M16 26 Q16 20 22 20 L42 20 Q48 20 48 26 L48 44 Q48 50 42 50 L22 50 Q16 50 16 44 Z"
+              fill="#d4a97c" stroke="${OL}" stroke-width="3.4" stroke-linejoin="round"/>
+        <path d="M23 21 L23 34 M31 21 L31 34 M39 21 L39 34"
+              stroke="${OL}" stroke-width="2.6" opacity=".8" stroke-linecap="round"/>
+        <path d="M16 36 L48 36" stroke="${OL}" stroke-width="2.6" opacity=".7"/>
+        <path d="M48 30 Q56 30 56 37 Q56 44 48 43" fill="#c69267" stroke="${OL}" stroke-width="3.2" stroke-linejoin="round"/>`,
+      /* Daga: en diagonal. La diferencia con el mandoble no puede ser el
+         tamaño —el SVG escala al marco— así que tiene que ser el eje. */
+      daga: `
+        <path d="M20 48 L44 22" stroke="${OL}" stroke-width="10" stroke-linecap="round"/>
+        <path d="M21 47 L43 24" stroke="${ML}" stroke-width="5.5" stroke-linecap="round"/>
+        <path d="M22 46 L42 25" stroke="#fff" stroke-width="1.6" opacity=".4" stroke-linecap="round"/>
+        <path d="M12 46 L26 58" stroke="${OL}" stroke-width="7" stroke-linecap="round"/>
+        <path d="M13 46 L25 57" stroke="${MD}" stroke-width="4" stroke-linecap="round"/>
+        <path d="M16 52 L11 57" stroke="${OL}" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="10" cy="58" r="4" fill="${M}" stroke="${OL}" stroke-width="2.4"/>`,
+      /* Mandoble: vertical y ancho, llenando el marco. Guarda larguísima y
+         pomo gordo — la silueta de "espadón a dos manos". */
+      mandoble: `
+        <path d="M32 44 L32 4 L38 12 L38 44 Z" fill="${ML}" stroke="${OL}" stroke-width="3.4" stroke-linejoin="round"/>
+        <path d="M32 44 L32 4 L26 12 L26 44 Z" fill="${M}" stroke="${OL}" stroke-width="3.4" stroke-linejoin="round"/>
+        <path d="M32 40 L32 10" stroke="#fff" stroke-width="2" opacity=".35" stroke-linecap="round"/>
+        <path d="M12 46 L52 46" stroke="${OL}" stroke-width="9" stroke-linecap="round"/>
+        <path d="M13 46 L51 46" stroke="${MD}" stroke-width="5" stroke-linecap="round"/>
+        <path d="M32 48 L32 56" stroke="${OL}" stroke-width="8" stroke-linecap="round"/>
+        <circle cx="32" cy="58" r="5" fill="${M}" stroke="${OL}" stroke-width="2.8"/>`,
+      lanza: `
+        <path d="M32 60 L32 26" stroke="${OL}" stroke-width="8" stroke-linecap="round"/>
+        <path d="M32 59 L32 27" stroke="${MAD}" stroke-width="4.5" stroke-linecap="round"/>
+        <path d="M32 30 L23 20 L32 4 L41 20 Z" fill="${ML}" stroke="${OL}" stroke-width="3.4" stroke-linejoin="round"/>
+        <path d="M32 26 L32 8" stroke="#fff" stroke-width="1.8" opacity=".45" stroke-linecap="round"/>
+        <path d="M25 31 L39 31" stroke="${OL}" stroke-width="4.5" stroke-linecap="round"/>`,
+      escudo: `
+        <circle cx="32" cy="32" r="23" fill="#4a3a22" stroke="${OL}" stroke-width="3.6"/>
+        <circle cx="32" cy="32" r="23" fill="none" stroke="${M}" stroke-width="2.6"/>
+        <circle cx="32" cy="32" r="15" fill="none" stroke="${M}" stroke-width="1.8" opacity=".65"/>
+        <circle cx="32" cy="32" r="6.5" fill="${M}" stroke="${OL}" stroke-width="2.6"/>
+        <path d="M32 9 L32 18 M32 46 L32 55 M9 32 L18 32 M46 32 L55 32"
+              stroke="${M}" stroke-width="2.4" opacity=".55" stroke-linecap="round"/>`,
+    };
+    const cuerpo = cuerpos[id] !== undefined ? cuerpos[id] : cuerpos.ninguna;
+    return `<svg viewBox="0 0 64 64" aria-hidden="true">${cuerpo}</svg>`;
+  }
+
   /* ═══════════ sprite de perfil: mismas capas, vista lateral ═══════════ */
   /* mira a la derecha; se espeja con scale(-1,1) para el rival */
   const PB = {   /* geometría de perfil por sexo */
@@ -460,6 +517,6 @@
     OL, SKIN, HAIRC, CLOTHC, INK, EYEC, HAIRS, CLOTHS, FACES, TATS, HD, OUT, IN, PB,
     shade, torsoPath, HEADP,
     drawBody, drawTat, drawCloth, drawFace, drawHair,
-    bust, spriteProfile
+    bust, spriteProfile, iconoArma
   };
 })();
