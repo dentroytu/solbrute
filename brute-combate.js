@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 3;
+  const VERSION = 4;
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -47,16 +47,21 @@
      El tope de 10 no se toca sin recalibrar daño y esquiva. */
   const STAT_INI = 1, STAT_VAR = 4;    // atributos de partida: 1..4
   const HP_INI = 40, HP_VAR = 11;      // vida de partida:      40..50
-  const HP_NIVEL = 3;                  // vida que suma cada nivel
+  const HP_NIVEL = 5;                  // vida del nivel que toca vida
   const STAT_MAX = 10;
   const TOPE_TURNOS = 40;              // sin él, dos brutos muy esquivos no acabarían
 
   /* Subir de nivel NO garantiza un atributo: sale 4 de cada 10 veces. Es lo
      que los hace escasos de verdad.
 
-     La vida por nivel NO se toca (sigue en 3): subir de nivel tiene que dar
-     siempre algo, y un bruto de nivel 20 conserva sus 102 de vida de siempre.
-     Lo único que se ha vuelto escaso son los atributos: de 8,8 de media a 5,0.
+     Cada nivel da UNA sola cosa, nunca las dos. Nunca un nivel vacío.
+
+     Los atributos son escasos a propósito: al nivel 20, 5,0 de media donde
+     antes había 8,8. La vida no: sigue llegando a 102 al nivel 20, solo que a
+     trompicones en vez de a goteo.
+
+     Este hueco de "una cosa por nivel" es donde entrarán las armas y las
+     mascotas: una tercera cosa que puede tocarte, sin rehacer la progresión.
 
      Cuidado si alguien intenta "compensar" el atributo que no toca con vida
      extra: se probó y los combates pasaron de 7 turnos a 19, porque la vida
@@ -173,12 +178,19 @@
     if(bruto.xp >= need){
       bruto.xp -= need;
       bruto.lv++;
-      bruto.hpMax += HP_NIVEL;
       subio = true;
-      /* El atributo no está garantizado. Se devuelve QUÉ tocó para que la
-         pantalla lo diga: un nivel que solo da vida y no lo explica parece un
-         nivel que no dio nada. */
-      ganancia = (Math.random() < PROB_ATRIBUTO) ? (subirAtributo(bruto) || "hp") : "hp";
+
+      /* Una cosa y solo una. Se devuelve CUÁL para que la pantalla lo diga: un
+         nivel que no explica qué dio parece un nivel que no dio nada. */
+      if(Math.random() < PROB_ATRIBUTO){
+        ganancia = subirAtributo(bruto);
+        /* Con los tres atributos al tope no queda nada que subir: se cae a
+           vida en vez de dejar el nivel vacío. */
+        if(!ganancia){ bruto.hpMax += HP_NIVEL; ganancia = "hp"; }
+      }else{
+        bruto.hpMax += HP_NIVEL;
+        ganancia = "hp";
+      }
     }
     return { coins, xp, subio, ganancia };
   }

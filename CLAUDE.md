@@ -129,8 +129,9 @@ arena → resultado → ludus.
   pudiera elegir los stats, todos harían el mismo bruto óptimo.
 - Volver a tirar atributos es gratis **antes** de forjar. Después solo suben
   ganando.
-- Subir de nivel cuesta `round(80 × nivel^1.5)` XP y da +3 de vida y, **solo 4
-  de cada 10 veces**, +1 a un atributo (`PROB_ATRIBUTO`).
+- Subir de nivel cuesta `round(80 × nivel^1.5)` XP y da **una sola cosa**: 4 de
+  cada 10 veces un atributo (`PROB_ATRIBUTO`), y si no, `HP_NIVEL` de vida.
+  Nunca un nivel vacío.
 - El perdedor se lleva un tercio de las monedas, no cero: castigar la derrota
   con nada hace que la gente deje de pelear cuando va perdiendo.
 - **Un cambio de lista de rivales al día por bruto** (`REROLLS_DAY`). Ver
@@ -157,14 +158,31 @@ la ficha, distinta fuerza real.
 **Los atributos son escasos a propósito.** Un bruto de nivel 20 tiene 5,0 de
 media por atributo; con la regla anterior tenía 8,8.
 
-**La vida por nivel no se tocó** (`HP_NIVEL` sigue en 3): subir de nivel tiene
-que dar siempre algo, y un bruto de nivel 20 conserva sus 102 de vida de
-siempre. Lo escaso son los atributos, no la vida.
+**Lo escaso son los atributos, no la vida.** Al nivel 20 un bruto sigue teniendo
+sus 102 de vida de siempre; lo que baja es el músculo, de 8,8 de media a 5,0.
+La vida llega a trompicones (`HP_NIVEL` = 5 cuando toca) en vez de a goteo.
 
-Cuidado si alguien intenta compensar el atributo que no toca con vida **extra**:
-se probó y los combates pasaron de 7 turnos a 19, porque la vida crecía y el
-daño no. Con el reparto actual van de 7 a 10 turnos al nivel 20 y ninguno llega
-al tope de 40.
+**Una cosa por nivel, no dos.** Es una decisión de forma, no de números: A y B
+daban exactamente los mismos atributos, vida y duración. Se eligió esta porque
+es el hueco donde entrarán armas y mascotas — una tercera cosa que puede
+tocarte, sin rehacer la progresión.
+
+Si los tres atributos están al tope, el nivel cae a vida en vez de quedarse
+vacío.
+
+Cuidado si alguien da vida **además** del atributo: se probó y los combates
+pasaron de 7 turnos a 19, porque la vida crecía y el daño no.
+
+Simulado con 8.000 combates por nivel:
+
+| Nivel | Atributos | Vida | Turnos (mediana / p95) |
+|---|---|---|---|
+| 1 | 2,5 | 45 | 6 / 10 |
+| 10 | 3,7 | 72 | 8 / 13 |
+| 20 | 5,0 | 102 | 10 / 15 |
+| 30 | 6,4 | 132 | 11 / 16 |
+
+Ninguno llega al tope de 40 turnos.
 
 El 60% de niveles que hoy solo dan vida es el hueco donde entrarán las armas y
 las mascotas cuando existan.
