@@ -799,7 +799,7 @@
         for(const b of brutes){
           if(b.rid) continue;
           try{
-            b.rid = await SolBruteDB.crear(addr, b, b.dia || hoy);
+            b.rid = (await SolBruteDB.crear(addr, b, b.dia || hoy)).id;
           }catch(e){
             /* La forja avisa antes de llegar aquí, así que esto solo lo alcanzan
                los brutos de la barra de maqueta. Ese se queda sin sincronizar,
@@ -808,7 +808,7 @@
             console.warn('[SolBrute] "' + b.name + '" ya existe en el juego; ese no se sube.');
           }
         }
-        await SolBruteDB.guardarTodo(balance, brutes);
+        await SolBruteDB.guardarTodo(brutes);
         return;
       }catch(e){
         /* Un nombre repetido aquí no debería pasar: la forja lo comprueba antes
@@ -1253,7 +1253,10 @@
       const boton = el("btnForge");
       boton.disabled = true;
       try{
-        nuevo.rid = await SolBruteDB.crear(addr, nuevo, nuevo.dia);
+        const r = await SolBruteDB.crear(addr, nuevo, nuevo.dia);
+        nuevo.rid = r.id;
+        /* El precio lo cobra el servidor; aquí solo se refleja lo que dice. */
+        if(typeof r.balance === "number") balance = r.balance;
       }catch(e){
         boton.disabled = false;
         if(e.clase === "duplicado"){
@@ -1271,7 +1274,6 @@
       boton.disabled = false;
     }
 
-    balance -= pendingPrice;
     brutes.push(nuevo);
     el("balNum").textContent = balance;
     saveMe();

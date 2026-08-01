@@ -84,6 +84,8 @@ const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 /* Reglas del juego. Están aquí además de en app.html a propósito: lo que
    valida el servidor no puede depender de lo que diga el navegador. */
 const MAX_BRUTOS = 3;
+const PRECIO_PLAZA = [0, 50, 150];   // la primera gratis; las otras cuestan
+const MONEDAS_INICIO = 120;
 const STAT_MAX = 10, HP_MAX = 300, NIVEL_MAX = 100;
 
 /* El navegador llama desde otro origen, así que sin esto el navegador ni
@@ -287,11 +289,20 @@ Deno.serve(async (req) => {
 
     await db("/sessions?expires_at=lt." + new Date().toISOString(), { method: "DELETE" }).catch(() => {});
 
-    await db("/players", {
-      method: "POST",
-      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-      body: JSON.stringify({ address, last_seen: new Date().toISOString() }),
-    }).catch(() => {});
+    /* Alta del jugador. Ojo con el upsert: si mandara coins siempre, cada
+       login te devolvería al saldo inicial. Solo se crean los que no existen. */
+    const yaEsta = await db("/players?address=eq." + encodeURIComponent(address) + "&select=address");
+    if (!yaEsta || !yaEsta.length) {
+      await db("/players", {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ address, coins: MONEDAS_INICIO, last_seen: new Date().toISOString() }),
+      }).catch(() => {});
+    } else {
+      await db("/players?address=eq." + encodeURIComponent(address), {
+        method: "PATCH", body: JSON.stringify({ last_seen: new Date().toISOString() }),
+      }).catch(() => {});
+    }
 
     const token = nuevoToken();
     const caduca = new Date(Date.now() + VIDA_SESION_H * 3600e3).toISOString();
@@ -314,7 +325,15 @@ Deno.serve(async (req) => {
     /* El tope de brutos se comprueba AQUÍ. Si solo lo mirara el navegador,
        bastaría con abrir la consola para tener veinte. */
     const mios = await db("/brutes?owner=eq." + encodeURIComponent(dueno) + "&select=id");
-    if ((mios || []).length >= MAX_BRUTOS) return responder({ error: "ya tienes el máximo de brutos" }, 403);
+    const cuantos = (mios || []).length;
+    if (cuantos >= MAX_BRUTOS) return responder({ error: "ya tienes el máximo de brutos" }, 403);
+
+    /* El precio de la plaza también lo cobra el servidor. Si lo descontara el
+       navegador, la plaza sería gratis para quien abriera la consola. */
+    const precio = PRECIO_PLAZA[cuantos] || 0;
+    const jugador = await db("/players?address=eq." + encodeURIComponent(dueno) + "&select=coins");
+    const saldo = Number((jugador && jugador[0] && jugador[0].coins) || 0);
+    if (saldo < precio) return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
 
     try {
       const fila = await db("/brutes", {
@@ -322,7 +341,15 @@ Deno.serve(async (req) => {
         headers: { Prefer: "return=representation" },
         body: JSON.stringify({ ...bruto, owner: dueno }),
       });
-      return responder({ id: fila[0].id });
+      /* Se cobra DESPUÉS de que el bruto exista: si el nombre estuviera pillado
+         y se cobrara antes, pagarías por una plaza que no llegó a crearse. */
+      const restante = saldo - precio;
+      if (precio > 0) {
+        await db("/players?address=eq." + encodeURIComponent(dueno), {
+          method: "PATCH", body: JSON.stringify({ coins: restante }),
+        });
+      }
+      return responder({ id: fila[0].id, balance: restante, precio });
     } catch (e) {
       const texto = (e as Error).message;
       if (texto.includes("23505")) return responder({ error: "nombre ocupado", clase: "duplicado" }, 409);
@@ -331,12 +358,14 @@ Deno.serve(async (req) => {
   }
 
   if (accion === "guardar") {
-    if (typeof cuerpo.balance === "number") {
-      await db("/players?address=eq." + encodeURIComponent(dueno), {
-        method: "PATCH",
-        body: JSON.stringify({ coins: entre(cuerpo.balance, 0, 1e9, 0), last_seen: new Date().toISOString() }),
-      });
-    }
+    /* El saldo YA NO se acepta del navegador. Las monedas solo cambian por dos
+       vías, y las dos las decide el servidor: la recompensa de una pelea y el
+       precio de una plaza. Antes se aceptaba recortado a mil millones, que es
+       como decir "puedes robar, pero no demasiado". */
+    await db("/players?address=eq." + encodeURIComponent(dueno), {
+      method: "PATCH", body: JSON.stringify({ last_seen: new Date().toISOString() }),
+    }).catch(() => {});
+
     for (const b of (cuerpo.brutos || [])) {
       if (!b || !b.rid) continue;
       /* El filtro lleva owner además de id: aunque el navegador mande el id de

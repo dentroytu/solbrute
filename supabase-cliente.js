@@ -220,15 +220,18 @@
     /* Forja un bruto. El servidor comprueba el tope de 3 y que el nombre esté
        libre — no el navegador, que puede mentir. */
     async crear(addr, bruto, dia){
-      const d = await pedirAuth({ accion: "forjar", token: token(),
-                                  bruto: { ...bruto, dia: bruto.dia || dia } });
-      return d.id;
+      /* Devuelve también el saldo: el precio de la plaza lo cobra el servidor,
+         así que es él quien sabe cuánto te queda. */
+      return await pedirAuth({ accion: "forjar", token: token(),
+                               bruto: { ...bruto, dia: bruto.dia || dia } });
     },
 
     /* Guarda monedas y brutos de una vez. Antes era una petición por bruto;
        ahora va todo junto porque cada una cuesta un viaje a la función. */
-    async guardarTodo(balance, brutos){
-      await pedirAuth({ accion: "guardar", token: token(), balance,
+    /* Sin saldo: las monedas solo las mueve el servidor, al pelear y al cobrar
+       una plaza. Mandarlo desde aquí sería dejar que el jugador se lo fije. */
+    async guardarTodo(brutos){
+      await pedirAuth({ accion: "guardar", token: token(),
                         brutos: (brutos || []).filter(b => b.rid) });
     },
 
