@@ -152,6 +152,9 @@
 
     sesionActiva: () => !!sesion,
     direccionSesion: () => sesion && sesion.address,
+    /* Solo para decidir si se enseña la barra de maqueta. No protege nada: las
+       rutas de admin comprueban la lista en el servidor. */
+    esAdmin: () => !!(sesion && sesion.admin),
 
     /* Paso 1: el servidor reserva un número de un solo uso.
        Que lo dé ÉL es lo que convierte la firma en una prueba: un nonce que se
@@ -166,7 +169,8 @@
        viejo— responde 401 y aquí se lanza un error con el motivo. */
     async verificarFirma(address, message, signature){
       const d = await pedirAuth({ accion: "verify", address, message, signature });
-      sesion = { token: d.token, address, exp: Math.floor(Date.now()/1000) + (d.expires_in || 86400) };
+      sesion = { token: d.token, address, admin: !!d.admin,
+                 exp: Math.floor(Date.now()/1000) + (d.expires_in || 86400) };
       try{ localStorage.setItem(KEY_SESION, JSON.stringify(sesion)); }catch(e){}
       return sesion;
     },
@@ -270,6 +274,14 @@
     },
     async adminBorrarJugador(address){
       return await pedirAuth({ accion: "admin_borrar_jugador", token: token(), address });
+    },
+
+    /* Pide la lista de rivales. La arma el servidor y la recuerda; `reroll`
+       gasta el cambio del día. Antes la construía el navegador y la mandaba,
+       así que se podía pelear contra un rival inventado de 1 punto de vida. */
+    async arena(bruteRid, reroll){
+      return await pedirAuth({ accion: "arena", token: token(), bruteId: bruteRid,
+                               reroll: !!reroll, version: window.BruteCombate.VERSION });
     },
 
     /* Pide una pelea. El servidor elige la semilla, calcula el combate y

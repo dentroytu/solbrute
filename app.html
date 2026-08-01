@@ -458,12 +458,17 @@
   </section>
 </main>
 
-<div class="devbar">
+<!-- Barra de maqueta. Nace OCULTA y solo la muestra entrar() si el servidor
+     dice que esta dirección es administradora.
+     Ojo: esconderla no protege nada. Los botones que quedan solo llaman a
+     rutas que el servidor autoriza igualmente a cualquiera (vaciar tu propio
+     ludus). Los que sí importaban —recargar peleas y darse monedas— dejaron de
+     funcionar cuando el servidor tomó el control de esos números, no cuando se
+     ocultó el botón. -->
+<div class="devbar" id="devbar" style="display:none">
   <span data-i18n="mock">Mock</span>
   <button id="devReset" data-i18n="dev_reset">Reset</button>
   <button id="devEmpty" data-i18n="dev_empty">Empty ludus</button>
-  <button id="devRefill" data-i18n="dev_refill">Refill fights</button>
-  <button id="devCoins" data-i18n="dev_coins">+500 $BRUTE</button>
 </div>
 
 <script src="brute-render.js"></script>
@@ -826,15 +831,6 @@
     await STORE.set(KEY_ME, payload);
   }
 
-  async function fetchRivals(mineLv){
-    if(nube){
-      /* 60 y no 5: hay que traer material de sobra para que barajar sirva. */
-      try{ return await SolBruteDB.rivales(addr, mineLv, LEVEL_SPREAD, 60); }
-      catch(e){ console.warn("[SolBrute] no pude buscar rivales:", e.message); return []; }
-    }
-    return [];
-  }
-
   function pintarEstado(){
     const e = el("persist");
     if(!e) return;
@@ -936,53 +932,35 @@
   }
 
   /* ═══════════ emparejamiento ═══════════ */
-  async function buildPool(mine){
-    const out = [];
-    /* 1 · jugadores reales del registro compartido, nivel parecido */
-    /* Se piden más candidatos de los que caben y se barajan: con varios
-       jugadores en ese rango de nivel, cada recarga enseña una lista distinta.
-       Si solo se pidieran OPP_COUNT, Postgres devolvería siempre los mismos. */
-    const real = barajar((await fetchRivals(mine.lv))
-      .filter(b => Math.abs(b.lv - mine.lv) <= LEVEL_SPREAD));
-    real.slice(0, OPP_COUNT).forEach(b => out.push({ ...b, id:"p"+out.length, bot:false }));
-    /* 2 · mis otros brutos, si encajan de nivel */
-    if(out.length < OPP_COUNT)
-      brutes.filter(b => b.id !== mine.id && Math.abs(b.lv - mine.lv) <= LEVEL_SPREAD)
-            .slice(0,1).forEach(b => out.push({ ...b, bot:false }));
-    /* 3 · relleno de la casa */
-    const usados = new Set(out.map(o => o.name));
-    while(out.length < OPP_COUNT){
-      const lv = Math.max(1, mine.lv + (ri(LEVEL_SPREAD*2+1) - LEVEL_SPREAD));
-      const st = botStats(lv);
-      /* Sin esto salen dos "Galba" en la misma lista y canta que son inventados. */
-      const libres = NAMES.filter(n => !usados.has(n));
-      const nombre = libres.length ? libres[ri(libres.length)] : NAMES[ri(NAMES.length)];
-      usados.add(nombre);
-      out.push({ id:"o"+out.length, name:nombre, lv,
-        hpMax: st.hpMax, str: st.str, agi: st.agi, spd: st.spd,
-        w: ri(lv*3), l: ri(lv*2), look: randomLook(), bot:true });
-    }
-    return barajar(out);
-  }
+  /* buildPool y fetchRivals se han ido: la lista de rivales la arma el
+     servidor en la ruta "arena". Mientras vivieron aquí, el navegador decidía
+     contra quién peleaba — y eso era inventarse rivales de 1 punto de vida. */
+
   async function openMatch(id){
     active = brutes.find(b => b.id === id);
     if(!active || active.fights <= 0) return;
     show("scMatch");
 
-    /* Si este bruto ya tiene lista del día, se le devuelve LA MISMA.
-       Regenerarla al entrar dejaría el límite de cambios en decoración:
-       bastaría con salir al ludus y volver para tener rivales nuevos gratis. */
-    if(Array.isArray(active.pool) && active.pool.length){
-      pool = active.pool;
-      renderMatch();
-      return;
-    }
-
     el("oppList").innerHTML = `<p class="match-note">${t("loading")}</p>`;
-    pool = await buildPool(active);
-    active.pool = pool;
-    renderMatch();
-    saveMe();
+    await pedirLista(false);
+  }
+
+  /* La lista la arma el SERVIDOR y la recuerda. Antes la construía este
+     navegador y la mandaba, así que se podía pelear contra un rival inventado
+     de 1 punto de vida — probado, funcionaba. */
+  async function pedirLista(reroll){
+    try{
+      const r = await SolBruteDB.arena(active.rid, reroll);
+      pool = r.pool || [];
+      active.pool = pool;
+      active.fights = r.fights_left;
+      active.rerolls = r.rerolls_left;
+      renderMatch();
+    }catch(e){
+      const porClase = { version:"f_version", sin_cambios:"reroll_none", sesion:"g_authfail" };
+      el("oppList").innerHTML = `<p class="match-note">${t(porClase[e.clase] || "f_error")}</p>`;
+      console.warn("[SolBrute] arena:", e.clase || "?", e.message);
+    }
   }
   /* ═══════════ clasificación ═══════════ */
   let rank = [];
@@ -1366,6 +1344,9 @@
     el("balNum").textContent = balance;
     pintarEstado();
     avisoPuerta("");
+    /* La barra de maqueta, solo para administradores. Quién lo es lo dice el
+       servidor al verificar la firma; aquí solo se obedece. */
+    el("devbar").style.display = SolBruteDB.esAdmin() ? "" : "none";
     show("scRoster");
   }
 
@@ -1450,19 +1431,19 @@
     const b = el("btnRefresh");
     b.disabled = true;
     el("oppList").innerHTML = `<p class="match-note">${t("loading")}</p>`;
-    active.rerolls--;
-    pool = await buildPool(active);
-    active.pool = pool;
-    renderMatch();
-    await saveMe();
+    /* El descuento del cambio lo lleva el servidor: si lo llevara el navegador,
+       bastaría con no restarlo. */
+    await pedirLista(true);
+    b.disabled = false;
   };
   /* La barra de maqueta escribe en la base de datos como todo lo demás, así que
      vaciar el ludus tiene que borrar las filas — si no, vuelven al recargar. */
   const vaciarNube = async () => { if(nube){ try{ await SolBruteDB.borrarTodos(); }catch(e){} } };
   el("devReset").onclick  = async () => { await vaciarNube(); seedData(); await saveMe(); el("balNum").textContent = balance; show("scRoster"); };
   el("devEmpty").onclick  = async () => { await vaciarNube(); brutes = []; await saveMe(); show("scRoster"); };
-  el("devRefill").onclick = async () => { brutes.forEach(b => { b.fights = FIGHTS_DAY; b.rerolls = REROLLS_DAY; b.pool = null; }); await saveMe(); renderRoster(); };
-  el("devCoins").onclick  = async () => { balance += 500; await saveMe(); el("balNum").textContent = balance; renderRoster(); };
+  /* "Recargar peleas" y "+500 $BRUTE" se han quitado: desde que el servidor
+     lleva las peleas del día y las monedas, esos botones no hacían nada — y
+     mientras hicieron algo, eran el agujero por el que se imprimía dinero. */
 
   /* ═══════════ idioma ═══════════ */
   function applyLang(l){

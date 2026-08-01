@@ -320,7 +320,11 @@ Deno.serve(async (req) => {
     const caduca = new Date(Date.now() + VIDA_SESION_H * 3600e3).toISOString();
     await db("/sessions", { method: "POST", body: JSON.stringify({ token, address, expires_at: caduca }) });
 
-    return responder({ token, address, expires_in: VIDA_SESION_H * 3600 });
+    /* El juego usa esto para enseñar la barra de maqueta solo a un admin. Es
+       un adorno: las rutas de administración comprueban la lista otra vez, y
+       ninguna acción con valor depende de este campo. */
+    return responder({ token, address, expires_in: VIDA_SESION_H * 3600,
+                       admin: ADMINS.includes(address) });
   }
 
   /* ══════════ rutas de escritura ══════════ */
@@ -409,13 +413,25 @@ Deno.serve(async (req) => {
     for (const b of (cuerpo.brutos || [])) {
       if (!b || !b.rid) continue;
 
-      /* El NOMBRE no se toca. Es "público y permanente" según el propio juego,
-         y aceptarlo aquí dejaría renombrar el bruto a voluntad — incluso para
-         hacerse pasar por otro. Además, si el nombre nuevo estuviera pillado,
-         Postgres lanzaría y esta función respondería un 500 sin explicar nada.
-         Se pone una vez al forjar y ahí se queda. */
+      /* Lo que el navegador NO puede fijar, y por qué:
+
+         · name          es "público y permanente"; aceptarlo dejaba renombrar
+                         el bruto e incluso hacerse pasar por otro.
+         · fights_left   son las peleas del día. Se comprobó: mandándolo se
+                         encadenaban 12 peleas en un día en vez de 3, o sea
+                         monedas infinitas.
+         · rerolls_left  mismo caso, el cambio de lista del día.
+         · pool          la lista de rivales. Se comprobó: mandándola se peleaba
+                         contra un rival de 1 punto de vida inventado por el
+                         propio cliente. Ahora la arma el servidor en /arena.
+
+         Lo que queda aquí es cosmético; lo que vale lo decide el servidor. */
       const campos = sanearBruto(b) as Record<string, unknown>;
       delete campos.name;
+      delete campos.fights_left;
+      delete campos.rerolls_left;
+      delete campos.fights_day;
+      delete campos.pool;
 
       /* El filtro lleva owner además de id: aunque el navegador mande el id de
          un bruto ajeno, la fila no casa y no se toca nada. */
@@ -437,6 +453,65 @@ Deno.serve(async (req) => {
   if (accion === "vaciar") {
     await db("/brutes?owner=eq." + encodeURIComponent(dueno), { method: "DELETE" });
     return responder({ ok: true });
+  }
+
+  /* ══════════ la lista de rivales ══════════
+     La arma el SERVIDOR. Antes la construía el navegador y la mandaba en
+     "guardar", así que bastaba con enviar un rival de 1 punto de vida para
+     ganar siempre — probado, funcionaba.
+
+     Con `reroll` se gasta el cambio del día. Sin él, si ya hay lista guardada
+     se devuelve la misma: entrar y salir de la arena no puede regalar rivales
+     nuevos, que es lo que haría del límite una decoración. */
+  if (accion === "arena") {
+    if (cuerpo.version !== C.VERSION) {
+      return responder({ error: "reglas desactualizadas", clase: "version" }, 409);
+    }
+    const filas = await db("/brutes?id=eq." + encodeURIComponent(String(cuerpo.bruteId)) +
+                           "&owner=eq." + encodeURIComponent(dueno) + "&select=*");
+    const fila = filas && filas[0];
+    if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
+
+    /* Recarga diaria, aquí y no en el navegador: puede mentir sobre qué día es. */
+    const hoy = new Date().toISOString().slice(0, 10);
+    let peleas = fila.fights_left, cambios = fila.rerolls_left, pool = fila.pool;
+    if (fila.fights_day !== hoy) { peleas = C.FIGHTS_DAY; cambios = C.REROLLS_DAY; pool = null; }
+
+    const quiereOtra = !!cuerpo.reroll;
+    if (quiereOtra && cambios <= 0) {
+      return responder({ error: "ya has cambiado la lista hoy", clase: "sin_cambios" }, 403);
+    }
+
+    if (!Array.isArray(pool) || !pool.length || quiereOtra) {
+      /* 1 · jugadores reales de nivel parecido. Se piden 60 y se barajan: sin
+         traer material de sobra, Postgres devolvería siempre los mismos. */
+      const reales = await db("/brutes?owner=neq." + encodeURIComponent(dueno) +
+        "&level=gte." + Math.max(1, fila.level - C.LEVEL_SPREAD) +
+        "&level=lte." + (fila.level + C.LEVEL_SPREAD) +
+        "&select=id,owner,name,level,hp_max,str,agi,spd,wins,losses,look&limit=60");
+
+      const lista = C.barajar((reales || []).map((f: Record<string, unknown>) => ({
+        rid: f.id, name: f.name, lv: f.level, hpMax: f.hp_max,
+        str: f.str, agi: f.agi, spd: f.spd, w: f.wins, l: f.losses,
+        look: f.look, bot: false,
+      }))).slice(0, C.OPP_COUNT);
+
+      /* 2 · relleno de la casa, con la misma curva que un jugador. */
+      const usados = new Set(lista.map((x: Record<string, unknown>) => x.name));
+      while (lista.length < C.OPP_COUNT) {
+        const lv = Math.max(1, fila.level + (Math.floor(Math.random() * (C.LEVEL_SPREAD * 2 + 1)) - C.LEVEL_SPREAD));
+        lista.push(C.nuevoBot(lv, usados));
+      }
+      pool = C.barajar(lista);
+      if (quiereOtra) cambios--;
+    }
+
+    await db("/brutes?id=eq." + fila.id + "&owner=eq." + encodeURIComponent(dueno), {
+      method: "PATCH",
+      body: JSON.stringify({ pool, fights_left: peleas, rerolls_left: cambios, fights_day: hoy }),
+    });
+
+    return responder({ pool, fights_left: peleas, rerolls_left: cambios });
   }
 
   /* ══════════ el combate ══════════

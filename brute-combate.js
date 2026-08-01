@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 4;
+  const VERSION = 5;
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -72,6 +72,22 @@
      que hoy solo da vida será donde caiga el botín. */
   const PROB_ATRIBUTO = 0.40;
 
+  /* Emparejamiento. Están aquí y no en app.html porque ahora la lista de
+     rivales la arma el SERVIDOR: si viviera solo en el navegador, el servidor
+     no podría construirla. */
+  const OPP_COUNT = 5, LEVEL_SPREAD = 1, FIGHTS_DAY = 3, REROLLS_DAY = 1;
+
+  /* Nombres de los brutos de la casa. */
+  const NAMES = ["Vurkas","Torvald","Maximus","Drusa","Kaelo","Brennus","Sabina",
+                 "Orlok","Crixus","Vardo","Nerva","Thrax","Galba","Rufa","Sceva",
+                 "Murro","Balba","Priscus","Verus","Calpa"];
+
+  /* Cuántas opciones tiene cada capa del aspecto. Los dibujos viven en
+     brute-render.js, pero el SERVIDOR también necesita sortear aspectos para
+     los brutos de la casa y no puede cargar el renderizador. Si añades una
+     opción de arte, actualiza el número de aquí. */
+  const LOOK_N = { sex:2, skin:6, hair:6, hairC:8, cloth:5, clothC:6, face:4, eyeC:8, tat:5, tatC:4 };
+
   const ri = n => Math.floor(Math.random() * n);
 
   /* Curva empinada: el primer nivel llega en dos peleas —engancha— y a partir
@@ -103,6 +119,34 @@
     for(let i = 0; i < lv - 1; i++) subirAtributo(st);
     st.hpMax += (lv - 1) * HP_NIVEL;
     return st;
+  }
+
+  function randomLook(){
+    const sex = ri(LOOK_N.sex);
+    return { sex, skin:ri(LOOK_N.skin), hair:ri(LOOK_N.hair), hairC:ri(LOOK_N.hairC),
+             cloth:ri(LOOK_N.cloth), clothC:ri(LOOK_N.clothC), face:ri(LOOK_N.face),
+             eyeC:ri(LOOK_N.eyeC), tat:ri(LOOK_N.tat), tatC:ri(LOOK_N.tatC) };
+  }
+
+  /* Fisher-Yates. El sort(() => Math.random() - .5) que había antes está
+     sesgado y su comparador es inconsistente. */
+  function barajar(a){
+    for(let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  /* Un bruto de la casa de nivel `lv`, listo para pelear. */
+  function nuevoBot(lv, nombresUsados){
+    const st = botStats(lv);
+    /* Dos "Galba" en la misma lista delatan que son inventados. */
+    const libres = NAMES.filter(n => !nombresUsados.has(n));
+    const nombre = (libres.length ? libres : NAMES)[ri(libres.length || NAMES.length)];
+    nombresUsados.add(nombre);
+    return { name: nombre, lv, hpMax: st.hpMax, str: st.str, agi: st.agi, spd: st.spd,
+             w: ri(lv * 3), l: ri(lv * 2), look: randomLook(), bot: true };
   }
 
   /* ═══════════ azar reproducible ═══════════ */
@@ -198,6 +242,8 @@
   globalThis.BruteCombate = {
     VERSION,
     STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS, PROB_ATRIBUTO,
+    OPP_COUNT, LEVEL_SPREAD, FIGHTS_DAY, REROLLS_DAY, NAMES, LOOK_N,
+    randomLook, barajar, nuevoBot,
     ri, xpNeed, rollStats, subirAtributo, botStats,
     mulberry32, simulate, recompensa, aplicar
   };
