@@ -401,12 +401,28 @@ Deno.serve(async (req) => {
 
     for (const b of (cuerpo.brutos || [])) {
       if (!b || !b.rid) continue;
+
+      /* El NOMBRE no se toca. Es "público y permanente" según el propio juego,
+         y aceptarlo aquí dejaría renombrar el bruto a voluntad — incluso para
+         hacerse pasar por otro. Además, si el nombre nuevo estuviera pillado,
+         Postgres lanzaría y esta función respondería un 500 sin explicar nada.
+         Se pone una vez al forjar y ahí se queda. */
+      const campos = sanearBruto(b) as Record<string, unknown>;
+      delete campos.name;
+
       /* El filtro lleva owner además de id: aunque el navegador mande el id de
          un bruto ajeno, la fila no casa y no se toca nada. */
-      await db("/brutes?id=eq." + encodeURIComponent(String(b.rid)) + "&owner=eq." + encodeURIComponent(dueno), {
-        method: "PATCH",
-        body: JSON.stringify(sanearBruto(b)),
-      });
+      try {
+        await db("/brutes?id=eq." + encodeURIComponent(String(b.rid)) + "&owner=eq." + encodeURIComponent(dueno), {
+          method: "PATCH",
+          body: JSON.stringify(campos),
+        });
+      } catch (e) {
+        /* Un bruto que no se pueda guardar no debe tumbar el resto del guardado
+           ni devolver un 500 mudo. */
+        console.warn("guardar: bruto " + b.rid + " → " + (e as Error).message);
+        return responder({ error: "no pude guardar un bruto", clase: "guardado" }, 409);
+      }
     }
     return responder({ ok: true });
   }
