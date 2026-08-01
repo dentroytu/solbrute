@@ -452,6 +452,13 @@ no habrá migración.
 impone `brutes_name_key`. La forja lo comprueba **antes** de cobrar la plaza y
 avisa con `name_taken`.
 
+**Y permanentes:** la ruta `guardar` quita el nombre del PATCH. Aceptarlo dejaba
+renombrar el bruto a voluntad —incluido ponerse el de otro— y, si el nuevo
+estaba pillado, el índice único hacía que la función respondiera un 500 mudo.
+El síntoma era que nadie podía pelear, porque al fallar el guardado la lista de
+rivales no llegaba a escribirse: un error que hablaba de rivales y cuya causa
+era el nombre.
+
 ### Lo que todavía no es seguro
 
 **El navegador ya no escribe**, pero sigue calculando el combate. La función
