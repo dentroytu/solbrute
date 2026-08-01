@@ -20,6 +20,7 @@ experiencia y sube de nivel.
 | `supabase-06-tirada.sql` | `sessions.roll`: la tirada de atributos la guarda el servidor | Aplicado |
 | `supabase-07-peleas.sql` | Tabla `fights` y resumen para el panel | Aplicado |
 | `supabase-08-admin.sql` | Tabla `admin_log` (auditoría) | Aplicado |
+| `supabase-09-armas.sql` | `brutes.arma` y `brutes.armas` | Aplicado |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -470,6 +471,78 @@ que avisa de que la economía se ha roto antes de que se note en el precio.
 
 ---
 
+## Las salas del ludus
+
+El vocabulario es romano y las pantallas son **sitios**, no menús. Un ludus de
+verdad tenía sus dependencias, y eso le da al juego sensación de lugar.
+
+| Sala | Qué se hace | Estado |
+|---|---|---|
+| La forja | crear brutos | hecha |
+| La armería | comprar y equipar armas | hecha |
+| La arena | pelear | hecha |
+| La clasificación | ver quién manda | hecha |
+| **El vivarium** | comprar mascotas | pendiente |
+
+`vivarium` era el recinto donde se guardaban las fieras de la arena. El nombre
+está elegido; el contenido no existe.
+
+---
+
+## Armas
+
+**Son alternativas, no mejoras, y está medido.** Enfrentando las cinco opciones
+todas contra todas con brutos idénticos, ninguna se despega:
+
+| | Puños | Daga | Mandoble | Lanza | Escudo |
+|---|---|---|---|---|---|
+| **media de victorias** | 49,9% | 51,3% | 48,0% | 50,2% | 49,9% |
+
+Sale un piedra-papel-tijera: el escudo gana al mandoble, el mandoble a la daga,
+la daga a los puños, los puños al mandoble.
+
+### Cómo se llegó ahí, porque no fue directo
+
+El primer intento tenía al mandoble ganando el **85%** y a la daga el **12%**.
+El multiplicador de daño domina todo y el crítico no compensa: subir el crítico
+un 10% vale un +8% de daño, y bajar el daño un 28% no se arregla con eso.
+
+Hizo falta un lever de verdad: **golpes por turno**, y que cada golpe se
+esquive por separado. Así "rápida y floja" significa algo — la daga sufre
+contra rivales ágiles y luce contra los lentos.
+
+### Lo que de verdad las equilibra: que se pierden
+
+- `perder` — probabilidad **por turno** de que se te caiga y pelees el resto del
+  combate a puño limpio.
+- `fragil` — probabilidad **por combate** de que se rompa para siempre.
+
+Sin estas dos, los puños ganaban el 44%; con ellas, el 50%. **Un arma que se te
+puede caer no es una ventaja fiable**, y eso es lo que permite venderlas sin que
+comprar equivalga a ganar.
+
+Y la más fuerte es la que más se rompe: el mandoble dura ~11 combates y la daga
+~33. El poder cuesta mantenerlo, que es un sumidero de token sin inflar a nadie.
+
+### Las armas no dan más monedas, y no hubo que tocar nada
+
+La recompensa es `12 + turnos`, así que **ganar rápido paga menos**. Medido: un
+bruto con mandoble gana más peleas y cobra **menos** al día que el mismo bruto a
+puño limpio (38,8 frente a 41,2). Lo que sí sube los ingresos es el nivel, y eso
+se juega.
+
+### Precios
+
+Puestos para que el **coste por combate** sea parecido en todas (~3 monedas,
+sobre las ~40 que se ganan al día): como están equilibradas, lo único que cambia
+entre ellas es cuánto duran. Son un primer número — el panel dirá si sobran o
+faltan. Si nadie compra, están caras; si todos llevan la misma, baratas.
+
+**Si tocas estos números, vuelve a medir.** La simulación son cincuenta líneas y
+está en el historial del repositorio.
+
+---
+
 ## Clasificación
 
 Pantalla `scRank`, ordenada por nivel → XP → victorias.
@@ -548,6 +621,23 @@ dos lados.
 - [ ] Quitar la barra de maqueta de `app.html` antes de publicar
 - [x] ~~Historial de combates por bruto~~ — las peleas se guardan en `fights`.
       Falta la pantalla que lo enseñe al jugador.
+- [ ] **Mascotas (el vivarium)** — decidido el nombre y el enfoque, no el
+      contenido. Idea de partida: la mascota tiene **vida propia y muere en
+      combate**, y morir la pierde para siempre. Eso le da el mismo equilibrio
+      que a las armas: ayuda de verdad mientras vive, y llevarla es una decisión
+      que se repite. Candidatas: perro de guerra (muerde poco, frágil), lobo
+      (pega y esquiva, poca vida), oso (mucha vida, lento, encaja golpes por ti).
+      **Antes de construirlas hay que simular la duración del combate**: dos
+      contra dos alarga las peleas, y ya se vio lo rápido que eso se descontrola.
+- [ ] **Torneos semanales** — anotado, sin construir. Lo que hay que decidir:
+      · ¿Te apuntas o entran todos? Apuntarse da menos gente y más intención.
+      · Cuadro de 8 o 16, eliminatorias. El servidor puede resolverlas de golpe,
+        y como guarda semilla y registro, cada combate se puede reproducir.
+      · **El premio es lo delicado.** Si reparte muchas monedas, las peleas
+        diarias sobran y el torneo se come el juego. Si reparte pocas, nadie va.
+        Instinto: prestigio y un arma rara, no un montón de monedas.
+      · Las peleas del torneo **no deberían gastar las 3 diarias**, o la gente
+        tendría que elegir entre torneo y jugar.
 - [ ] Arte de personajes con ilustrador (capas en PNG sobre el sistema actual)
 - [x] ~~Portar el renderizador por capas a la landing~~ — hecho: las dos páginas
       dibujan desde `brute-render.js`. (La nota de "bustos con casco" en el hero
