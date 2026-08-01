@@ -312,13 +312,19 @@
       <path d="M56 ${g.hipY} L72 98 L68 118" fill="none" stroke="${s}" stroke-width="${g.legW-4}" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M68 118 L78 120" stroke="${OL}" stroke-width="12" stroke-linecap="round"/>`;
 
-    /* ── brazo del escudo (detrás) ── */
+    /* ── brazo de atrás ──
+       El escudo solo aparece si el bruto lo lleva equipado. Antes lo llevaba
+       todo el mundo, lo cual era bonito y mentía: ahora el equipo que ves es
+       el que de verdad afecta al combate. */
+    const llevaEscudo = (b.arma === "escudo");
     const shieldArm = `
       <path d="M46 54 L34 62 L36 74" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M46 54 L34 62 L36 74" fill="none" stroke="${sh}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="32" cy="64" r="14" fill="#4a3a22" stroke="${OL}" stroke-width="3"/>
-      <circle cx="32" cy="64" r="14" fill="none" stroke="${m}" stroke-width="2.4"/>
-      <circle cx="32" cy="64" r="4" fill="${m}" stroke="${OL}" stroke-width="1.6"/>`;
+      ${llevaEscudo ? `
+        <circle cx="32" cy="64" r="15" fill="#4a3a22" stroke="${OL}" stroke-width="3"/>
+        <circle cx="32" cy="64" r="15" fill="none" stroke="${m}" stroke-width="2.6"/>
+        <circle cx="32" cy="64" r="9" fill="none" stroke="${m}" stroke-width="1.6" opacity=".7"/>
+        <circle cx="32" cy="64" r="4" fill="${m}" stroke="${OL}" stroke-width="1.6"/>` : ""}`;
 
     /* ── torso desnudo (piel) ── */
     const bust = g.chest ? `<path d="M65 56 Q71 60 65 64" fill="${s}" stroke="${OL}" stroke-width="2.2" stroke-linejoin="round"/>` : "";
@@ -364,15 +370,38 @@
     if(tatKind === "cicatriz")
       tatFace = `<path d="M62 15 L64 30" stroke="${ink}" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`;
 
-    /* ── brazo del arma (delante) ── */
+    /* ── brazo del arma (delante) ──
+       Lo que empuña sale de b.arma, así que en la arena se ve con qué peleas.
+       Cada una tiene silueta propia: la daga corta, el mandoble ancho y largo,
+       la lanza una asta con punta. El escudo va en el otro brazo y por eso se
+       dibuja más abajo, no aquí. */
+    const armaId = b.arma || "ninguna";
+    const filos = {
+      /* hoja larga y estrecha, la de siempre */
+      ninguna: "",
+      daga: `
+        <path d="M84 26 L84 10" stroke="${OL}" stroke-width="6" stroke-linecap="round"/>
+        <path d="M84 24 L84 12" stroke="${lim}" stroke-width="3" stroke-linecap="round"/>
+        <path d="M79 26 L89 26" stroke="${OL}" stroke-width="5" stroke-linecap="round"/>
+        <path d="M80 26 L88 26" stroke="${dkm}" stroke-width="2.6" stroke-linecap="round"/>`,
+      mandoble: `
+        <path d="M84 28 L84 -14" stroke="${OL}" stroke-width="11" stroke-linecap="round"/>
+        <path d="M84 25 L84 -11" stroke="${lim}" stroke-width="7" stroke-linecap="round"/>
+        <path d="M84 25 L84 -11" stroke="#fff" stroke-width="2" opacity=".35" stroke-linecap="round"/>
+        <path d="M74 28 L94 28" stroke="${OL}" stroke-width="8" stroke-linecap="round"/>
+        <path d="M75 28 L93 28" stroke="${dkm}" stroke-width="4.5" stroke-linecap="round"/>`,
+      lanza: `
+        <path d="M84 34 L84 -18" stroke="${OL}" stroke-width="6.5" stroke-linecap="round"/>
+        <path d="M84 33 L84 -16" stroke="#6b4f2a" stroke-width="4" stroke-linecap="round"/>
+        <path d="M84 -8 L79 -16 L84 -26 L89 -16 Z" fill="${lim}" stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"/>`,
+      /* con escudo, la mano del arma va vacía: el escudo es lo que se lleva */
+      escudo: "",
+    };
     const weaponArm = `
       <path d="M62 52 L78 40 L84 24" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M62 52 L78 40 L84 24" fill="none" stroke="${s}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
       ${tatBody}
-      <path d="M84 26 L84 -2" stroke="${OL}" stroke-width="7" stroke-linecap="round"/>
-      <path d="M84 24 L84 0" stroke="${lim}" stroke-width="4" stroke-linecap="round"/>
-      <path d="M77 26 L91 26" stroke="${OL}" stroke-width="6.5" stroke-linecap="round"/>
-      <path d="M78 26 L90 26" stroke="${dkm}" stroke-width="3.5" stroke-linecap="round"/>`;
+      ${filos[armaId] !== undefined ? filos[armaId] : filos.ninguna}`;
 
     /* ── hombrera ── */
     const pauldron = `

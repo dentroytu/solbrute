@@ -432,6 +432,10 @@ Deno.serve(async (req) => {
       delete campos.rerolls_left;
       delete campos.fights_day;
       delete campos.pool;
+      /* El arma y el inventario los lleva el servidor: se ganan subiendo de
+         nivel, se rompen solos, y se cambian por la ruta "equipar". */
+      delete campos.arma;
+      delete campos.armas;
 
       /* El filtro lleva owner además de id: aunque el navegador mande el id de
          un bruto ajeno, la fila no casa y no se toca nada. */
@@ -453,6 +457,26 @@ Deno.serve(async (req) => {
   if (accion === "vaciar") {
     await db("/brutes?owner=eq." + encodeURIComponent(dueno), { method: "DELETE" });
     return responder({ ok: true });
+  }
+
+  /* ══════════ equipar un arma ══════════
+     Solo se puede llevar lo que se tiene, y eso lo comprueba el servidor
+     contra su propia lista: mandar "mandoble" sin tenerlo no hace nada. */
+  if (accion === "equipar") {
+    const filas = await db("/brutes?id=eq." + encodeURIComponent(String(cuerpo.bruteId)) +
+                           "&owner=eq." + encodeURIComponent(dueno) + "&select=id,arma,armas");
+    const fila = filas && filas[0];
+    if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
+
+    const quiere = String(cuerpo.arma || "ninguna");
+    const tiene: string[] = Array.isArray(fila.armas) ? fila.armas : [];
+    if (quiere !== "ninguna" && !tiene.includes(quiere)) {
+      return responder({ error: "no tienes esa arma", clase: "sin_arma" }, 403);
+    }
+    await db("/brutes?id=eq." + fila.id + "&owner=eq." + encodeURIComponent(dueno), {
+      method: "PATCH", body: JSON.stringify({ arma: quiere }),
+    });
+    return responder({ arma: quiere });
   }
 
   /* ══════════ la lista de rivales ══════════
@@ -488,12 +512,12 @@ Deno.serve(async (req) => {
       const reales = await db("/brutes?owner=neq." + encodeURIComponent(dueno) +
         "&level=gte." + Math.max(1, fila.level - C.LEVEL_SPREAD) +
         "&level=lte." + (fila.level + C.LEVEL_SPREAD) +
-        "&select=id,owner,name,level,hp_max,str,agi,spd,wins,losses,look&limit=60");
+        "&select=id,owner,name,level,hp_max,str,agi,spd,wins,losses,look,arma&limit=60");
 
       const lista = C.barajar((reales || []).map((f: Record<string, unknown>) => ({
         rid: f.id, name: f.name, lv: f.level, hpMax: f.hp_max,
         str: f.str, agi: f.agi, spd: f.spd, w: f.wins, l: f.losses,
-        look: f.look, bot: false,
+        look: f.look, arma: f.arma || "ninguna", bot: false,
       }))).slice(0, C.OPP_COUNT);
 
       /* 2 · relleno de la casa, con la misma curva que un jugador. */
@@ -558,6 +582,7 @@ Deno.serve(async (req) => {
     const mio = {
       name: fila.name, lv: fila.level, xp: fila.xp, hpMax: fila.hp_max,
       str: fila.str, agi: fila.agi, spd: fila.spd, w: fila.wins, l: fila.losses,
+      arma: fila.arma || "ninguna", armas: fila.armas || [],
     };
 
     /* La semilla la genera el SERVIDOR. Si la eligiera el cliente, elegiría su
@@ -566,6 +591,29 @@ Deno.serve(async (req) => {
     const fight = C.simulate(mio, foe, seed);
     const gano = fight.winner === "A";
     const premio = C.aplicar(mio, fight, gano);
+
+    /* ── el arma ──
+       Romperla lo decide el SERVIDOR. Si lo decidiera el navegador, nadie
+       rompería nunca nada. Se comprueba después del combate: la que se te cayó
+       a media pelea la recuperas, la que se rompe no vuelve. */
+    let armaAhora = mio.arma;
+    let inventario: string[] = Array.isArray(mio.armas) ? mio.armas.slice() : [];
+    let rota = "";
+    if (armaAhora !== "ninguna" && C.seRompe(armaAhora)) {
+      rota = armaAhora;
+      inventario = inventario.filter((x) => x !== armaAhora);
+      armaAhora = "ninguna";
+    }
+
+    /* Un arma nueva puede ser lo que toque al subir de nivel. */
+    let armaNueva = "";
+    if (typeof premio.ganancia === "string" && premio.ganancia.startsWith("arma:")) {
+      armaNueva = premio.ganancia.slice(5);
+      if (!inventario.includes(armaNueva)) inventario.push(armaNueva);
+      /* Si peleabas a puño limpio, se equipa sola: si no, el jugador gana algo
+         que no ve por ningún lado. */
+      if (armaAhora === "ninguna") armaAhora = armaNueva;
+    }
 
     /* Monedas: se leen de la base y se suman aquí. El navegador no interviene. */
     const jug = await db("/players?address=eq." + encodeURIComponent(dueno) + "&select=coins");
@@ -578,6 +626,7 @@ Deno.serve(async (req) => {
         str: mio.str, agi: mio.agi, spd: mio.spd,
         wins: mio.w, losses: mio.l,
         fights_left: peleas - 1, fights_day: hoy, pool,
+        arma: armaAhora, armas: inventario,
       }),
     });
     await db("/players?address=eq." + encodeURIComponent(dueno), {
@@ -608,6 +657,7 @@ Deno.serve(async (req) => {
     return responder({
       seed, log: fight.log, winner: fight.winner, timeout: fight.timeout, turns: fight.turns,
       coins: premio.coins, xp: premio.xp, subio: premio.subio,
+      arma: armaAhora, armas: inventario, arma_rota: rota, arma_nueva: armaNueva,
       /* QUÉ tocó al subir: "str" | "agi" | "spd" | "hp". Sin esto el cartel
          del juego no puede decirlo y acaba enseñando siempre vida. */
       ganancia: premio.ganancia,

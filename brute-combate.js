@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 5;
+  const VERSION = 6;
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -70,7 +70,13 @@
 
      Cuando existan armas y mascotas, este es el hueco donde entran: el 60%
      que hoy solo da vida será donde caiga el botín. */
-  const PROB_ATRIBUTO = 0.40;
+  const PROB_ATRIBUTO = 0.35;
+  /* La tercera cosa que puede tocarte al subir: un arma. Es la más rara de
+     las tres a propósito — un arma que cae cada dos niveles no es un hallazgo,
+     es un trámite. Con un 8%, la primera llega hacia el nivel 13.
+     Esa escasez es también lo que le da sentido a la tienda: quien no quiera
+     esperar, compra. */
+  const PROB_ARMA = 0.08;
 
   /* Emparejamiento. Están aquí y no en app.html porque ahora la lista de
      rivales la arma el SERVIDOR: si viviera solo en el navegador, el servidor
@@ -149,6 +155,42 @@
              w: ri(lv * 3), l: ri(lv * 2), look: randomLook(), bot: true };
   }
 
+  /* ═══════════ armas ═══════════
+     Son ALTERNATIVAS, no mejoras. Está medido: enfrentando todas contra todas
+     con brutos idénticos, las cinco opciones quedan entre el 48% y el 51% de
+     victorias — los puños incluidos. Si alguna se despega, deja de ser una
+     alternativa y el juego se vuelve pagar-para-ganar.
+
+     Lo que las equilibra son las dos formas de perderlas:
+
+       perder  probabilidad POR TURNO de que se te caiga y pelees el resto del
+               combate a puño limpio.
+       fragil  probabilidad POR COMBATE de que se rompa para siempre.
+
+     Y no es un adorno: sin ellas los puños ganaban el 44% y con ellas el 50%.
+     Un arma que se te puede caer no es una ventaja fiable, y por eso comprarla
+     no equivale a ganar. Además, la más fuerte es la que más se rompe, así que
+     el poder cuesta mantenerlo.
+
+     Las armas NO dan más monedas ni más XP. La recompensa es `12 + turnos`, o
+     sea que ganar rápido paga menos: llevar arma sube tus victorias y baja tus
+     ingresos por pelea. Lo que sí sube los ingresos es el nivel, y eso se juega.
+
+     Si tocas estos números, vuelve a medir. La simulación está en el historial
+     del proyecto y son cincuenta líneas. */
+  const ARMAS = {
+    ninguna:  { id:"ninguna",  nombre:"Puños",    golpes:1, dmg:1.00, crit:0.00, esq:0.00, ini:0,  def:1.00, perder:0,     fragil:0    },
+    daga:     { id:"daga",     nombre:"Daga",     golpes:2, dmg:0.46, crit:0.05, esq:0.02, ini:2,  def:1.00, perder:0.015, fragil:0.03 },
+    mandoble: { id:"mandoble", nombre:"Mandoble", golpes:1, dmg:1.29, crit:0.00, esq:-0.05,ini:-2, def:1.12, perder:0.055, fragil:0.09 },
+    lanza:    { id:"lanza",    nombre:"Lanza",    golpes:1, dmg:1.03, crit:0.02, esq:0.00, ini:1,  def:1.06, perder:0.035, fragil:0.06 },
+    escudo:   { id:"escudo",   nombre:"Escudo",   golpes:1, dmg:0.74, crit:0.00, esq:0.01, ini:-1, def:0.72, perder:0.025, fragil:0.05 },
+  };
+  const PUNOS = ARMAS.ninguna;
+  /* Las que pueden tocar o comprarse. Los puños no son un arma, son no llevar. */
+  const ARMAS_REALES = ["daga","mandoble","lanza","escudo"];
+
+  const arma = id => ARMAS[id] || PUNOS;
+
   /* ═══════════ azar reproducible ═══════════ */
   /* mulberry32: misma semilla, mismo combate, siempre. Es lo que permite que
      el servidor mande semilla + registro y cualquiera pueda recalcular la
@@ -168,8 +210,13 @@
      promesa de combate verificable. */
   function simulate(a, b, seed){
     const rnd = mulberry32(seed);
-    const F = { A:{ ...a, hp:a.hpMax, side:"A" }, B:{ ...b, hp:b.hpMax, side:"B" } };
-    const first = F.A.spd > F.B.spd ? "A" : F.B.spd > F.A.spd ? "B" : (rnd() < .5 ? "A" : "B");
+    const F = {
+      A:{ ...a, hp:a.hpMax, side:"A", w:arma(a.arma), sinArma:false },
+      B:{ ...b, hp:b.hpMax, side:"B", w:arma(b.arma), sinArma:false },
+    };
+    /* La iniciativa la modifica el arma: el mandoble es lento, la daga rápida. */
+    const iniA = F.A.spd + F.A.w.ini, iniB = F.B.spd + F.B.w.ini;
+    const first = iniA > iniB ? "A" : iniB > iniA ? "B" : (rnd() < .5 ? "A" : "B");
     const order = first === "A" ? ["A","B"] : ["B","A"];
     const log = []; let turn = 0;
 
@@ -178,24 +225,50 @@
       for(const k of order){
         if(F.A.hp <= 0 || F.B.hp <= 0) break;
         const att = F[k], def = F[k === "A" ? "B" : "A"];
-        /* esquiva: 6% + agilidad × 1.9% */
-        if(rnd() < 0.06 + def.agi * 0.019){
-          log.push({ turn, type:"dodge", att:att.name, def:def.name, side:def.side });
+
+        /* ¿se le va el arma de las manos? El resto del combate, a puño limpio.
+           Es lo que impide que llevar arma sea una ventaja segura. */
+        if(!att.sinArma && att.w !== PUNOS && rnd() < att.w.perder){
+          log.push({ turn, type:"disarm", att:att.name, side:att.side, arma:att.w.nombre });
+          att.sinArma = true; att.w = PUNOS;
           continue;
         }
-        /* daño: (3 + fuerza × 1.45) × (0.8 a 1.2) */
-        let dmg = Math.round((3 + att.str * 1.45) * (0.8 + rnd() * 0.4)), type = "hit";
-        /* crítico: 5% + agilidad × 1.4%, multiplica por 1.9 */
-        if(rnd() < 0.05 + att.agi * 0.014){ dmg = Math.round(dmg * 1.9); type = "crit"; }
-        def.hp = Math.max(0, def.hp - dmg);
-        log.push({ turn, type, att:att.name, def:def.name, side:def.side, dmg, hp:def.hp, hpMax:def.hpMax });
-        if(def.hp <= 0){ log.push({ turn, type:"ko", def:def.name, side:def.side }); break; }
+
+        /* Cada golpe se esquiva por separado: por eso la daga, que pega dos
+           veces, sufre más contra un rival ágil. */
+        for(let g = 0; g < att.w.golpes; g++){
+          if(def.hp <= 0) break;
+          /* esquiva: 6% + agilidad × 1.9%, más lo que aporte su arma */
+          if(rnd() < 0.06 + def.agi * 0.019 + def.w.esq){
+            log.push({ turn, type:"dodge", att:att.name, def:def.name, side:def.side });
+            continue;
+          }
+          /* daño: (3 + fuerza × 1.45) × (0.8 a 1.2) × arma */
+          let dmg = Math.round((3 + att.str * 1.45) * (0.8 + rnd() * 0.4) * att.w.dmg), type = "hit";
+          /* crítico: 5% + agilidad × 1.4%, multiplica por 1.9 */
+          if(rnd() < 0.05 + att.agi * 0.014 + att.w.crit){ dmg = Math.round(dmg * 1.9); type = "crit"; }
+          /* lo que encaja el defensor depende de SU arma: el escudo protege */
+          dmg = Math.max(1, Math.round(dmg * def.w.def));
+          def.hp = Math.max(0, def.hp - dmg);
+          log.push({ turn, type, att:att.name, def:def.name, side:def.side, dmg, hp:def.hp, hpMax:def.hpMax });
+          if(def.hp <= 0){ log.push({ turn, type:"ko", def:def.name, side:def.side }); break; }
+        }
       }
     }
 
     const timeout = F.A.hp > 0 && F.B.hp > 0;
     const winner = F.A.hp <= 0 ? "B" : F.B.hp <= 0 ? "A" : (F.A.hp >= F.B.hp ? "A" : "B");
-    return { log, winner, timeout, turns: turn, seed };
+    /* Se devuelve si el arma aguantó: el servidor decide con esto si se rompe. */
+    return { log, winner, timeout, turns: turn, seed,
+             armaA: a.arma || "ninguna", perdioA: F.A.sinArma };
+  }
+
+  /* ¿Se rompe el arma tras este combate? Lo decide el servidor, nunca el
+     navegador: si no, nadie rompería nunca nada. */
+  function seRompe(idArma, rnd){
+    const w = arma(idArma);
+    if(w === PUNOS) return false;
+    return (rnd === undefined ? Math.random() : rnd) < w.fragil;
   }
 
   /* ═══════════ recompensa ═══════════ */
@@ -226,11 +299,21 @@
 
       /* Una cosa y solo una. Se devuelve CUÁL para que la pantalla lo diga: un
          nivel que no explica qué dio parece un nivel que no dio nada. */
-      if(Math.random() < PROB_ATRIBUTO){
+      const dado = Math.random();
+      if(dado < PROB_ATRIBUTO){
         ganancia = subirAtributo(bruto);
         /* Con los tres atributos al tope no queda nada que subir: se cae a
            vida en vez de dejar el nivel vacío. */
         if(!ganancia){ bruto.hpMax += HP_NIVEL; ganancia = "hp"; }
+      }else if(dado < PROB_ATRIBUTO + PROB_ARMA){
+        /* Un arma que aún no tengas. Si las tienes todas, vida. */
+        const tiene = bruto.armas || [];
+        const faltan = ARMAS_REALES.filter(x => !tiene.includes(x));
+        if(faltan.length){
+          ganancia = "arma:" + faltan[ri(faltan.length)];
+        }else{
+          bruto.hpMax += HP_NIVEL; ganancia = "hp";
+        }
       }else{
         bruto.hpMax += HP_NIVEL;
         ganancia = "hp";
@@ -241,8 +324,9 @@
 
   globalThis.BruteCombate = {
     VERSION,
-    STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS, PROB_ATRIBUTO,
+    STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS, PROB_ATRIBUTO, PROB_ARMA,
     OPP_COUNT, LEVEL_SPREAD, FIGHTS_DAY, REROLLS_DAY, NAMES, LOOK_N,
+    ARMAS, ARMAS_REALES, arma, seRompe,
     randomLook, barajar, nuevoBot,
     ri, xpNeed, rollStats, subirAtributo, botStats,
     mulberry32, simulate, recompensa, aplicar
