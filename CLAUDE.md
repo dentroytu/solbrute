@@ -129,7 +129,7 @@ arena → resultado → ludus.
   pudiera elegir los stats, todos harían el mismo bruto óptimo.
 - Volver a tirar atributos es gratis **antes** de forjar. Después solo suben
   ganando.
-- Subir de nivel cuesta `round(80 × nivel^1.5)` XP y da +2 de vida y, **solo 4
+- Subir de nivel cuesta `round(80 × nivel^1.5)` XP y da +3 de vida y, **solo 4
   de cada 10 veces**, +1 a un atributo (`PROB_ATRIBUTO`).
 - El perdedor se lleva un tercio de las monedas, no cero: castigar la derrota
   con nada hace que la gente deje de pelear cuando va perdiendo.
@@ -157,10 +157,14 @@ la ficha, distinta fuerza real.
 **Los atributos son escasos a propósito.** Un bruto de nivel 20 tiene 5,0 de
 media por atributo; con la regla anterior tenía 8,8.
 
-Cuidado al tocar esto: se probó compensar el atributo que no toca con vida
-extra y **los combates pasaron de 7 turnos a 19**, porque la vida crecía y el
-daño no. Por eso `HP_NIVEL` es 2 y no más. Con la regla actual las peleas van
-de 7 a 8 turnos de mediana y ninguna llega al tope de 40.
+**La vida por nivel no se tocó** (`HP_NIVEL` sigue en 3): subir de nivel tiene
+que dar siempre algo, y un bruto de nivel 20 conserva sus 102 de vida de
+siempre. Lo escaso son los atributos, no la vida.
+
+Cuidado si alguien intenta compensar el atributo que no toca con vida **extra**:
+se probó y los combates pasaron de 7 turnos a 19, porque la vida crecía y el
+daño no. Con el reparto actual van de 7 a 10 turnos al nivel 20 y ninguno llega
+al tope de 40.
 
 El 60% de niveles que hoy solo dan vida es el hueco donde entrarán las armas y
 las mascotas cuando existan.

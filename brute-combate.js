@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 2;
+  const VERSION = 3;
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -47,17 +47,21 @@
      El tope de 10 no se toca sin recalibrar daño y esquiva. */
   const STAT_INI = 1, STAT_VAR = 4;    // atributos de partida: 1..4
   const HP_INI = 40, HP_VAR = 11;      // vida de partida:      40..50
-  const HP_NIVEL = 2;                  // vida que suma cada nivel
+  const HP_NIVEL = 3;                  // vida que suma cada nivel
   const STAT_MAX = 10;
   const TOPE_TURNOS = 40;              // sin él, dos brutos muy esquivos no acabarían
 
   /* Subir de nivel NO garantiza un atributo: sale 4 de cada 10 veces. Es lo
      que los hace escasos de verdad.
 
-     El resto de veces solo das vida, y es a propósito que sea poca: probamos
-     compensar con vida extra y los combates pasaban de 7 turnos a 19, porque
-     la vida crecía y el daño no. Un bruto de nivel 20 pasa de 8,8 de media por
-     atributo a 5,0, y las peleas solo se alargan de 7 a 8 turnos.
+     La vida por nivel NO se toca (sigue en 3): subir de nivel tiene que dar
+     siempre algo, y un bruto de nivel 20 conserva sus 102 de vida de siempre.
+     Lo único que se ha vuelto escaso son los atributos: de 8,8 de media a 5,0.
+
+     Cuidado si alguien intenta "compensar" el atributo que no toca con vida
+     extra: se probó y los combates pasaron de 7 turnos a 19, porque la vida
+     crecía y el daño no. Con el reparto actual van de 7 a 10 turnos al nivel
+     20 y ninguno llega al tope de 40.
 
      Cuando existan armas y mascotas, este es el hueco donde entran: el 60%
      que hoy solo da vida será donde caiga el botín. */
