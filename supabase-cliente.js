@@ -113,7 +113,8 @@
     /* Y de vuelta, para que el modo local (sin base de datos) tampoco pierda
        el arma. La Edge Function ignora estos campos al escribir —el arma la
        decide ella en `comprar` y `equipar`— así que mandarlos no abre nada. */
-    arma: b.arma || "ninguna", armas: b.armas || []
+    arma: b.arma || "ninguna", armas: b.armas || [],
+    mascota: b.mascota || "ninguna"
   });
 
   const aBruto = (f, idLocal) => ({
@@ -130,7 +131,11 @@
        Engañaba porque la armería sí funcionaba: al comprar, la respuesta del
        servidor escribe `active.arma` a mano. O sea que el arma se veía hasta
        que recargabas la página, y entonces desaparecía sin motivo aparente. */
-    arma: f.arma || "ninguna", armas: f.armas || []
+    arma: f.arma || "ninguna", armas: f.armas || [],
+    /* Y la mascota, por lo mismo que el arma: si no viaja aquí, el bruto llega
+       sin bicho a la arena y nadie entiende por qué. Fue el fallo de `aBruto`
+       con la daga, y no hace falta repetirlo. */
+    mascota: f.mascota || "ninguna"
   });
 
   const token = () => (sesion ? sesion.token : "");
@@ -226,6 +231,7 @@
            {"daga":2,"mandoble":1}: solo las copias LIBRES. Lo que un bruto
            lleva puesto no está aquí — está en su `arma`. */
         bolsa: (jugador.armas && typeof jugador.armas === "object") ? jugador.armas : {},
+        bichos: (jugador.mascotas && typeof jugador.mascotas === "object") ? jugador.mascotas : {},
         brutos: (brutos || []).map((f, i) => aBruto(f, i + 1))
       };
     },
@@ -379,6 +385,16 @@
         "/fights?a_owner=eq." + encodeURIComponent(addr) +
         "&select=id,a_brute,b_name,b_bot,winner,turns,coins,xp,subio,nivel,ganancia,arma_rota,arma,created_at" +
         "&order=created_at.desc&limit=" + n, { method:"GET" });
+    },
+
+    /* ═══════════ el vivarium ═══════════
+       Igual que la armería: se compra a TU bolsa y desde ahí se equipa en el
+       bruto que quieras. El precio lo pone el servidor. */
+    async comprarMascota(mascota){
+      return await pedirAuth({ accion: "comprar_mascota", token: token(), mascota });
+    },
+    async equiparMascota(bruteRid, mascota){
+      return await pedirAuth({ accion: "equipar_mascota", token: token(), bruteId: bruteRid, mascota });
     },
 
     /* El historial va por la función, no por lectura directa como los rivales

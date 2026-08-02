@@ -476,6 +476,7 @@
       <nav class="salas">
         <button class="btn btn-ghost btn-sm" id="btnArm" data-i18n="arm_open">⚔️ Armoury</button>
         <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
+        <button class="btn btn-ghost btn-sm" id="btnViv" data-i18n="viv_open">🐺 Vivarium</button>
         <button class="btn btn-ghost btn-sm" id="btnTor" data-i18n="tor_open">🏛️ Tournaments</button>
         <button class="btn btn-ghost btn-sm" id="btnHist" data-i18n="hist_open">📜 History</button>
       </nav>
@@ -498,6 +499,16 @@
     <div class="arm-quien" id="armQuien"></div>
     <p class="match-note" data-i18n="arm_note">Weapons don't make you stronger: they change how you fight. Each one wins about half its matchups — even bare fists. And they break, so carrying one is a choice you make again and again.</p>
     <div class="arm-lista" id="armLista"></div>
+  </section>
+
+  <section class="screen" id="scVivarium">
+    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
+    <div class="page-head">
+      <div><h1 data-i18n="viv_h1">The vivarium</h1><p id="vivSub"></p></div>
+    </div>
+    <p class="match-note" data-i18n="viv_note">A pet does help you fight — unlike weapons, which are alternatives. But it slows you down, it dies for good when it runs out of health, and it never earns you more coins or XP. Someone without one still wins 43 fights out of 100.</p>
+    <div class="arm-quien" id="vivQuien"></div>
+    <div class="arm-lista" id="vivLista"></div>
   </section>
 
   <section class="screen" id="scRank">
@@ -680,7 +691,7 @@
   const { OL, SKIN, HAIRC, CLOTHC, INK, EYEC, HAIRS, CLOTHS, FACES, TATS, HD, OUT, IN, PB,
           shade, torsoPath, HEADP,
           drawBody, drawTat, drawCloth, drawFace, drawHair,
-          bust, spriteProfile, iconoArma } = window.BruteRender;
+          bust, spriteProfile, iconoArma, iconoMascota } = window.BruteRender;
 
   /* Reglas del combate y del equilibrio — ver brute-combate.js.
      El servidor carga ESE MISMO fichero, así que aquí no hay ninguna fórmula:
@@ -689,6 +700,7 @@
   const { STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX,
           ri, xpNeed, rollStats, subirAtributo, botStats,
           ARMAS, ARMAS_REALES, duracion,
+          MASCOTAS, MASCOTAS_REALES,
           simulate, aplicar } = window.BruteCombate;
 
   /* ═══════════ versión del juego ═══════════
@@ -778,6 +790,9 @@
       tor_inscritos:"Apuntados",
       tor_final:"Final", tor_semis:"Semifinales", tor_ronda:"Ronda", tor_descanso:"descansa",
       arm_guardar:"Guardar", arm_libres:"libres en tu bolsa",
+      viv_open:"🐺 Vivarium", viv_h1:"El vivarium",
+      viv_note:"Una mascota SÍ te ayuda a pelear, a diferencia de las armas, que son alternativas. Pero te hace ir más lento, muere para siempre cuando se le acaba la vida, y nunca te da más monedas ni más XP. Quien no lleva ninguna sigue ganando 43 de cada 100 combates.",
+      viv_para:"Para", viv_puesta:"Te acompaña", viv_vida:"Vida", viv_lento:"Iniciativa",
       ev_h2:"Últimas novedades", ev_gana:"venció a", ev_pierde:"cayó ante",
       ev_nivel:"subió al nivel", ev_rota:"perdió para siempre su", ev_con:"con",
       ev_un_bruto:"Un bruto", ev_ahora:"ahora mismo", ev_min:"min", ev_h:"h",
@@ -804,6 +819,8 @@
       reroll_none:"Ya has cambiado la lista hoy. Vuelve mañana para otra tanda de rivales.",
       rank_empty:"Todavía no hay ningún bruto forjado. El primero serás tú.",
       o:{
+        bichos: { ninguna:"Ninguna", perro:"Perro de guerra", lobo:"Lobo", oso:"Oso" },
+        viv_como: { ninguna:"Peleas solo. Vas a tu velocidad y no tienes nada que perder.", perro:"Muerde de vez en cuando y se pone delante. Equilibrado y el más barato.", lobo:"El que más muerde, pero apenas te cubre y aguanta poco. Ofensivo.", oso:"Casi no ataca: se come los golpes por ti y aguanta mucho." },
           armas:{ ninguna:"Puños", daga:"Daga", mandoble:"Mandoble", lanza:"Lanza", escudo:"Escudo" },
           como:{ ninguna:"Equilibrado y no se rompe nunca. No llevar nada es una opción de verdad.",
                daga:"Dos golpes rápidos y flojos. Cada uno se esquiva por separado, así que sufre contra rivales ágiles.",
@@ -882,6 +899,9 @@
       tor_inscritos:"Entered",
       tor_final:"Final", tor_semis:"Semi-finals", tor_ronda:"Round", tor_descanso:"bye",
       arm_guardar:"Stow", arm_libres:"free in your bag",
+      viv_open:"🐺 Vivarium", viv_h1:"The vivarium",
+      viv_note:"A pet does help you fight — unlike weapons, which are alternatives. But it slows you down, it dies for good when it runs out of health, and it never earns you more coins or XP. Someone without one still wins 43 fights out of 100.",
+      viv_para:"For", viv_puesta:"At your side", viv_vida:"Health", viv_lento:"Initiative",
       ev_h2:"Latest news", ev_gana:"beat", ev_pierde:"fell to",
       ev_nivel:"reached level", ev_rota:"lost for good their", ev_con:"with",
       ev_un_bruto:"A brute", ev_ahora:"just now", ev_min:"min", ev_h:"h",
@@ -908,6 +928,8 @@
       reroll_none:"You already swapped the list today. Come back tomorrow for a fresh set.",
       rank_empty:"No brute has been forged yet. You could be the first.",
       o:{
+        bichos: { ninguna:"None", perro:"War dog", lobo:"Wolf", oso:"Bear" },
+        viv_como: { ninguna:"You fight alone. Full speed, nothing to lose.", perro:"Bites now and then and steps in front. Balanced, and the cheapest.", lobo:"Bites hardest, but barely shields you and does not last. Offensive.", oso:"Hardly attacks: takes the hits for you and soaks a lot." },
           armas:{ ninguna:"Bare fists", daga:"Dagger", mandoble:"Greatsword", lanza:"Spear", escudo:"Shield" },
           como:{ ninguna:"Balanced, and never breaks. Carrying nothing is a real option.",
                daga:"Two quick, weak strikes. Each is dodged separately, so it struggles against nimble opponents.",
@@ -986,6 +1008,9 @@
       tor_inscritos:"Inscrits",
       tor_final:"Finale", tor_semis:"Demi-finales", tor_ronda:"Tour", tor_descanso:"exempt",
       arm_guardar:"Ranger", arm_libres:"libres dans votre sac",
+      viv_open:"🐺 Vivarium", viv_h1:"Le vivarium",
+      viv_note:"Un familier t'aide vraiment à combattre, contrairement aux armes, qui sont des alternatives. Mais il te ralentit, il meurt définitivement quand il n'a plus de vie, et il ne rapporte jamais plus de pièces ni d'XP. Sans familier on gagne encore 43 combats sur 100.",
+      viv_para:"Pour", viv_puesta:"À tes côtés", viv_vida:"Vie", viv_lento:"Initiative",
       ev_h2:"Dernières nouvelles", ev_gana:"a battu", ev_pierde:"est tombé face à",
       ev_nivel:"atteint le niveau", ev_rota:"a perdu à jamais son", ev_con:"avec",
       ev_un_bruto:"Un brute", ev_ahora:"à l'instant", ev_min:"min", ev_h:"h",
@@ -1012,6 +1037,8 @@
       reroll_none:"Tu as déjà changé la liste aujourd'hui. Reviens demain pour d'autres adversaires.",
       rank_empty:"Aucune brute forgée pour l'instant. Tu peux être le premier.",
       o:{
+        bichos: { ninguna:"Aucun", perro:"Chien de guerre", lobo:"Loup", oso:"Ours" },
+        viv_como: { ninguna:"Tu combats seul. Pleine vitesse, rien à perdre.", perro:"Mord de temps en temps et se met devant. Équilibré, et le moins cher.", lobo:"Celui qui mord le plus, mais te couvre à peine et tient peu. Offensif.", oso:"N\u2019attaque presque pas : encaisse les coups pour toi et tient longtemps." },
           armas:{ ninguna:"Poings nus", daga:"Dague", mandoble:"Espadon", lanza:"Lance", escudo:"Bouclier" },
           como:{ ninguna:"Équilibré, et ne casse jamais. Ne rien porter est une vraie option.",
                daga:"Deux coups rapides et faibles. Chacun s'esquive séparément : difficile contre les agiles.",
@@ -1048,6 +1075,8 @@
      LIBRES. Lo que un bruto lleva puesto NO está aquí, está en su `arma`.
      Dos sitios contando lo mismo es como acaban apareciendo armas duplicadas. */
   let bolsa = {};
+  /* Y la bolsa de mascotas, con el mismo formato: {"perro":2}. */
+  let bichos = {};
   let addr = null, loaded = false;
 
   /* ══════════════════════════════════════════════════════════════
@@ -1105,6 +1134,7 @@
         const d = await SolBruteDB.cargar(addr);
         balance = d.balance;
         bolsa   = d.bolsa || {};
+        bichos  = d.bichos || {};
         brutes  = d.brutos;
         nextId  = brutes.length + 1;
 
@@ -1132,7 +1162,7 @@
     let d = null;
     try{ d = raw ? JSON.parse(raw) : null; }catch(e){ d = null; }
     if(!d){
-      brutes = []; balance = 0; nextId = 1; bolsa = {};
+      brutes = []; balance = 0; nextId = 1; bolsa = {}; bichos = {};
       await saveMe(utcDay());
     }else{
       brutes = Array.isArray(d.brutes) ? d.brutes : [];
@@ -1556,6 +1586,106 @@
         </div>
       </div>`;
     }).join("");
+  }
+
+  /* ═══════════ el vivarium ═══════════
+     Calcado de la armería a propósito: misma bolsa del jugador, mismo selector
+     de bruto, mismos botones. Si el jugador ya sabe usar una, sabe usar la
+     otra.
+
+     La diferencia está en el texto, no en la mecánica: una mascota SÍ te hace
+     ganar más, y eso hay que decirlo donde se compra en vez de dejar que se
+     descubra. */
+  function openVivarium(id){
+    active = (id === undefined) ? brutes[0] : brutes.find(b => b.id === id);
+    show("scVivarium");
+    renderVivarium();
+  }
+
+  function renderVivarium(){
+    if(!active){
+      el("vivSub").textContent = "";
+      el("vivQuien").innerHTML = "";
+      el("vivLista").innerHTML = `<p class="match-note">${t("arm_sin_brutos")}</p>`;
+      return;
+    }
+    const nombres = O("bichos");
+    el("vivQuien").innerHTML =
+      `<span class="arm-quien-lbl">${t("viv_para")}</span>` +
+      brutes.map(b => `<button class="${b.id === active.id ? "on" : ""}" data-b="${b.id}">
+          <span class="q-arma">${esc(nombres[b.mascota || "ninguna"] || "")}</span>${esc(b.name)}</button>`).join("");
+    el("vivQuien").querySelectorAll("button").forEach(b => b.onclick = () => {
+      active = brutes.find(x => x.id === +b.dataset.b);
+      renderVivarium();
+    });
+
+    el("vivSub").textContent = `${active.name} · ${t("lvl")} ${active.lv}`;
+    const puesta = active.mascota || "ninguna";
+    const libres = id => Number(bichos[id] || 0);
+    const comos = O("viv_como");
+
+    const tarjeta = id => {
+      const m = MASCOTAS[id];
+      const llevo = puesta === id;
+      const n = libres(id);
+      let pie;
+      if(llevo){
+        pie = `<div class="arm-tengo">✓ ${t("viv_puesta")}</div>` +
+              (id === "ninguna" ? "" :
+               `<button class="btn btn-ghost btn-sm js-veq" data-m="ninguna">${t("arm_guardar")}</button>`);
+      }
+      else if(id === "ninguna" || n > 0)
+                     pie = `<button class="btn btn-ghost btn-sm js-veq" data-m="${id}">${t("arm_equipar")}</button>`;
+      else if(balance >= m.precio)
+                     pie = `<button class="btn btn-primary btn-sm js-vcom" data-m="${id}">${t("arm_comprar")} · ${m.precio}</button>`;
+      else           pie = `<div class="arm-tengo" style="color:var(--muted)">${t("arm_caro")} (${m.precio})</div>`;
+
+      if(id !== "ninguna" && !llevo && n > 0 && balance >= m.precio)
+        pie += `<button class="btn btn-ghost btn-sm js-vcom" data-m="${id}">+1 · ${m.precio}</button>`;
+
+      /* Se enseña lo que aguanta y lo que estorba. Los dos números importan y
+         el segundo es el que evita la sorpresa: llevarla te hace ir más lento. */
+      const datos = id === "ninguna" ? "" : `
+        <div class="arm-datos">
+          <span>${t("viv_vida")} <b>${m.hp}</b></span>
+          <span>${t("viv_lento")} <b>−${m.ini}</b></span>
+        </div>`;
+
+      return `<div class="arm${llevo ? " puesta" : ""}">
+        <div class="arm-top">
+          <span class="arm-icono">${id === "ninguna" ? "" : iconoMascota(id)}</span>
+          <span class="arm-nom">${nombres[id]}</span>
+          ${n > 0 ? `<span class="arm-n" title="${t("arm_libres")}">×${n}</span>` : ""}
+          ${id === "ninguna" ? "" : `<span class="arm-precio">${m.precio} $BRUTE</span>`}
+        </div>
+        <p class="arm-como">${comos[id]}</p>
+        ${datos}
+        <div class="arm-pie">${pie}</div>
+      </div>`;
+    };
+
+    el("vivLista").innerHTML = ["ninguna", ...MASCOTAS_REALES].map(tarjeta).join("");
+    el("vivLista").querySelectorAll(".js-veq").forEach(b => b.onclick = () => equiparBicho(b.dataset.m));
+    el("vivLista").querySelectorAll(".js-vcom").forEach(b => b.onclick = () => comprarBicho(b.dataset.m));
+  }
+
+  async function equiparBicho(id){
+    try{
+      const r = await SolBruteDB.equiparMascota(active.rid, id);
+      active.mascota = r.mascota;
+      bichos = r.bolsa || {};
+      renderVivarium();
+    }catch(e){ console.warn("[SolBrute] equipar mascota:", e.clase || "?", e.message); }
+  }
+
+  async function comprarBicho(id){
+    try{
+      const r = await SolBruteDB.comprarMascota(id);
+      bichos = r.bolsa || {};
+      balance = r.balance;
+      el("balNum").textContent = balance;
+      renderVivarium();
+    }catch(e){ console.warn("[SolBrute] comprar mascota:", e.clase || "?", e.message); }
   }
 
   /* ═══════════ torneos ═══════════
@@ -2229,6 +2359,7 @@
   };
   el("btnRank").onclick = openRank;
   el("btnArm").onclick = () => openArmeria();
+  el("btnViv").onclick = () => openVivarium();
   el("btnTor").onclick = openTorneos;
   el("btnTorVolver").onclick = openTorneos;
   el("btnHist").onclick = openHist;

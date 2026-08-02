@@ -844,6 +844,7 @@ async function manejar(req: Request): Promise<Response> {
       name: fila.name, lv: fila.level, xp: fila.xp, hpMax: fila.hp_max,
       str: fila.str, agi: fila.agi, spd: fila.spd, w: fila.wins, l: fila.losses,
       arma: fila.arma || "ninguna", armas: poseidas,
+      mascota: fila.mascota || "ninguna",
     };
 
     /* La semilla la genera el SERVIDOR. Si la eligiera el cliente, elegiría su
@@ -865,6 +866,19 @@ async function manejar(req: Request): Promise<Response> {
          cueste mantenerlo (~11 combates) y que las armas sigan siendo un
          sumidero en vez de una compra única. */
       armaAhora = "ninguna";
+    }
+
+    /* ── la mascota ──
+       Si `simulate()` dice que murio, se va PARA SIEMPRE: no vuelve a la bolsa
+       ni se cura entre combates. Lo decide el servidor por lo mismo que romper
+       un arma — si lo decidiera el navegador, no se moriria ninguna. */
+    let mascotaMuerta = "";
+    if (fight.murioA) {
+      mascotaMuerta = mio.mascota;
+      await db("/rpc/mascota_morir", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(fila.id) }),
+      }).catch((e) => console.warn("no pude matar la mascota: " + e.message));
     }
 
     /* Un arma nueva puede ser lo que toque al subir de nivel. */
@@ -947,6 +961,7 @@ async function manejar(req: Request): Promise<Response> {
            que el tablón solo habría podido decir "ganaste" y "perdiste". */
         subio: !!premio.subio, nivel: mio.lv, ganancia: premio.ganancia || null,
         arma_rota: rota || null, arma: mio.arma,
+        mascota_muerta: mascotaMuerta || null, mascota: mio.mascota,
       }),
     }).catch((e) => console.warn("no pude guardar la pelea: " + e.message));
 
@@ -962,6 +977,7 @@ async function manejar(req: Request): Promise<Response> {
          menos que otro por la misma pelea y parece que se le está robando. */
       puntos: premio.coins, tasa: tasaHoy,
       arma: armaAhora, bolsa, arma_rota: rota, arma_nueva: armaNueva,
+      mascota: mascotaMuerta ? "ninguna" : mio.mascota, mascota_muerta: mascotaMuerta,
       /* QUÉ tocó al subir: "str" | "agi" | "spd" | "hp". Sin esto el cartel
          del juego no puede decirlo y acaba enseñando siempre vida. */
       ganancia: premio.ganancia,
@@ -992,6 +1008,52 @@ async function manejar(req: Request): Promise<Response> {
       body: JSON.stringify({ p_address: dueno, p_limite: limite }),
     });
     return responder({ retiradas: filas || [] });
+  }
+
+  /* ══════════ el vivarium ══════════
+     Mismo patron que la armeria: se compra a TU bolsa y desde ahi la equipas
+     en el bruto que quieras. El precio sale de `brute-combate.js`, aqui en el
+     servidor, nunca del navegador. */
+  if (accion === "comprar_mascota") {
+    const id = String(cuerpo.mascota || "");
+    const m = C.MASCOTAS[id];
+    if (!m || id === "ninguna") return responder({ error: "esa mascota no existe" }, 400);
+    let r;
+    try {
+      r = await db("/rpc/mascota_comprar", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_id: id, p_precio: m.precio }),
+      });
+    } catch (e) {
+      const t = (e as Error).message;
+      if (t.includes("sin_saldo")) return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
+      if (t.includes("jugador desconocido")) return responder({ error: "sesion no valida" }, 401);
+      throw e;
+    }
+    reciclar(m.precio);
+    apuntar(dueno, "mascota", id, -m.precio, { precio: m.precio });
+    return responder({ mascota: id, bolsa: r.bolsa, balance: r.balance });
+  }
+
+  if (accion === "equipar_mascota") {
+    const bid = idEntero(cuerpo.bruteId);
+    if (!bid) return responder({ error: "identificador no valido" }, 400);
+    const quiere = String(cuerpo.mascota || "ninguna");
+    let r;
+    try {
+      r = await db("/rpc/mascota_equipar", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_id: quiere }),
+      });
+    } catch (e) {
+      const t = (e as Error).message;
+      if (t.includes("no es tuyo"))   return responder({ error: "ese bruto no es tuyo" }, 403);
+      if (t.includes("no tienes ningun")) return responder({ error: "no tienes esa mascota", clase: "sin_mascota" }, 403);
+      if (t.includes("desconocida"))  return responder({ error: "esa mascota no existe" }, 400);
+      if (t.includes("jugador desconocido")) return responder({ error: "sesion no valida" }, 401);
+      throw e;
+    }
+    return responder({ mascota: r.mascota, bolsa: r.bolsa });
   }
 
   /* ══════════ historial del jugador ══════════
