@@ -462,6 +462,21 @@
     else
       j.push(["ojo","!",`La casa se queda el <b>${pc}%</b>. De media cada jugador pierde ${(entrada*pc/100).toFixed(0)} monedas por torneo, y eso se nota y se comenta.`]);
 
+    /* ── el resto del podio ──
+       Regla que faltaba, y se noto usandolo: con un reparto 85/5/5/5 el segundo
+       se llevaba UNA moneda y los semifinalistas cero. Funciona, pero quedar
+       segundo pasa a ser identico a quedar ultimo, y entonces solo se apunta
+       quien se ve favorito. El resto mira desde fuera, el torneo no se llena, y
+       el bote se queda en nada.
+
+       Un torneo vive de que se apunte gente que puede perder. */
+    if(prem1 > 0 && prem2 < entrada && entrada > 0)
+      j.push(["ojo","!",`Quedar segundo (<b>${prem2}</b>) no cubre ni la entrada (${entrada}). Para el que pierde la final es lo mismo que caer en la primera ronda.`]);
+    if(plazas >= 4 && prem3 === 0 && p3 > 0)
+      j.push(["ojo","!",`Los semifinalistas se llevan <b>0</b>: el ${p3}% del bote no da ni para una moneda entre dos. O subes ese porcentaje o mejor pon 0 y repartelo, para no prometer un premio que no existe.`]);
+    if(plazas >= 8 && p3 === 0 && p2 === 0)
+      j.push(["mal","✕","Solo cobra el ganador. En un cuadro de "+plazas+", "+(plazas-1)+" de cada "+plazas+" se van con las manos vacias — y eso se sabe antes de apuntarse."]);
+
     /* Emisión: cero. Vale la pena decirlo porque es la propiedad que hace que
        este diseño no rompa la economía por muchos torneos que se hagan. */
     j.push(["ok","✓","<b>Emisión neta cero</b>: el premio sale del bote, no de la reserva. Puedes hacer todos los torneos que quieras sin tocar el presupuesto diario."]);
