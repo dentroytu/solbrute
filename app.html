@@ -176,6 +176,59 @@
   .ev.arma .ev-txt b{ color:var(--bronze-light); }
   @media(max-width:560px){ .ev{ flex-wrap:wrap; } .ev .ev-cuando{ width:100%; padding-left:26px; } }
 
+  /* ── torneos ── */
+  .tor-lista{ display:flex; flex-direction:column; gap:10px; }
+  .tor-card{ display:flex; align-items:center; gap:14px; padding:14px 16px; cursor:pointer;
+        background:var(--surface); border:1px solid var(--line); border-radius:12px;
+        transition:border-color .15s; }
+  .tor-card:hover{ border-color:var(--bronze); }
+  .tor-card h3{ font-family:'Cinzel',serif; font-size:15px; color:var(--bronze-light);
+        margin:0; min-width:120px; }
+  .tor-card .est{ font-size:10px; padding:2px 8px; border-radius:99px; letter-spacing:.05em;
+        text-transform:uppercase; border:1px solid var(--line); color:var(--muted); }
+  .tor-card .est.inscripcion{ color:var(--sol-teal); border-color:var(--sol-teal); }
+  .tor-card .est.terminado{ color:var(--bronze); border-color:var(--bronze); }
+  .tor-card .dato{ font-size:12px; color:var(--muted); }
+  .tor-card .dato b{ color:var(--text); font-variant-numeric:tabular-nums; }
+  .tor-card .yo{ font-size:10px; color:var(--sol-teal); border:1px solid var(--sol-teal);
+        border-radius:99px; padding:2px 8px; }
+  .tor-card .flecha{ margin-left:auto; color:var(--muted); }
+  @media(max-width:620px){ .tor-card{ flex-wrap:wrap; } .tor-card .flecha{ display:none; } }
+
+  /* El cuadro: una columna por ronda, para que se lea como un cuadro y no
+     como una lista de resultados. */
+  .cuadro{ display:flex; gap:18px; overflow-x:auto; padding:4px 0 10px; }
+  .cuadro .ronda{ display:flex; flex-direction:column; min-width:186px; }
+  /* El título va FIJO arriba y solo las llaves se reparten en vertical. Si el
+     h4 entra en el `space-around`, cada ronda pone su título a una altura
+     distinta y el cuadro deja de leerse como un cuadro. */
+  .cuadro .ronda h4{ font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+        color:var(--muted); margin:0 0 10px; text-align:center; flex:none; }
+  .cuadro .llaves{ display:flex; flex-direction:column; justify-content:space-around;
+        gap:10px; flex:1; }
+  .llave{ background:var(--surface); border:1px solid var(--line); border-radius:10px;
+        overflow:hidden; font-size:12.5px; }
+  .llave div{ display:flex; justify-content:space-between; gap:8px; padding:7px 10px; }
+  .llave div + div{ border-top:1px solid var(--line); }
+  .llave .gana{ color:var(--sol-teal); font-weight:600; }
+  .llave .pierde{ color:var(--muted); }
+  .llave .vacio{ color:var(--muted); font-style:italic; }
+  .llave .t{ font-size:10px; color:var(--muted); }
+
+  .tor-podio{ display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 20px; }
+  .tor-podio div{ background:var(--surface); border:1px solid var(--line); border-radius:10px;
+        padding:10px 14px; font-size:13px; }
+  .tor-podio b{ font-family:'Cinzel',serif; color:var(--bronze-light); }
+  .tor-podio .oro{ border-color:var(--bronze); }
+  .tor-podio .premio{ color:var(--sol-teal); font-variant-numeric:tabular-nums; }
+
+  .tor-elige{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:4px 0 18px; }
+  .tor-elige button{ background:var(--surface); border:1px solid var(--line); color:var(--text);
+        border-radius:9px; padding:8px 12px; font:inherit; font-size:13px; cursor:pointer; }
+  .tor-elige button:hover:not(:disabled){ border-color:var(--bronze); }
+  .tor-elige button:disabled{ opacity:.4; cursor:not-allowed; }
+  .tor-elige button small{ display:block; font-size:10px; color:var(--muted); }
+
   .salas{ display:flex; gap:8px; flex-wrap:wrap; }
 
   /* ── historial ──
@@ -423,6 +476,7 @@
       <nav class="salas">
         <button class="btn btn-ghost btn-sm" id="btnArm" data-i18n="arm_open">⚔️ Armoury</button>
         <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
+        <button class="btn btn-ghost btn-sm" id="btnTor" data-i18n="tor_open">🏛️ Tournaments</button>
         <button class="btn btn-ghost btn-sm" id="btnHist" data-i18n="hist_open">📜 History</button>
       </nav>
     </div>
@@ -454,6 +508,24 @@
     </div>
     <p class="match-note" data-i18n="rank_note">Real players only. House brutes are made up at matchmaking time and never saved, so they don't score.</p>
     <div class="opp-list" id="rankList"></div>
+  </section>
+
+  <section class="screen" id="scTorneos">
+    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
+    <div class="page-head">
+      <div><h1 data-i18n="tor_h1">Tournaments</h1><p data-i18n="tor_sub">Single elimination. The whole bracket is resolved at once, and every fight can be replayed.</p></div>
+    </div>
+    <p class="match-note" data-i18n="tor_note">Tournament fights do NOT use up your three daily ones. The prize comes from the entry fees, not from the reward pool: nobody prints coins by winning.</p>
+    <div class="tor-lista" id="torListaJug"></div>
+  </section>
+
+  <section class="screen" id="scTorneo">
+    <button class="back" id="btnTorVolver" data-i18n="tor_volver">‹ Back to tournaments</button>
+    <div class="page-head">
+      <div><h1 id="torTitulo">—</h1><p id="torSub"></p></div>
+    </div>
+    <div id="torAccion"></div>
+    <div id="torCuadro"></div>
   </section>
 
   <section class="screen" id="scHist">
@@ -690,6 +762,21 @@
       hist_retirada:"Retirada", hist_skin:"Aspecto", hist_torneo:"Torneo",
       hist_mascota:"Mascota", hist_ajuste:"Ajuste",
       hist_pendiente:"pendiente", hist_enviada:"enviada", hist_fallida:"fallida",
+      tor_open:"🏛️ Torneos", tor_h1:"Torneos",
+      tor_sub:"Eliminatorias directas. El cuadro se resuelve entero de una vez, y cada combate se puede recalcular.",
+      tor_note:"Las peleas del torneo NO gastan tus tres diarias. El premio sale de las entradas, no del fondo de recompensas: nadie imprime monedas por ganar.",
+      tor_none:"No hay ningún torneo abierto ahora mismo.",
+      tor_volver:"‹ Volver a los torneos",
+      tor_plazas:"plazas", tor_entrada:"entrada", tor_bote:"bote", tor_niveles:"niveles",
+      tor_e_inscripcion:"abierto", tor_e_en_curso:"resolviéndose",
+      tor_e_terminado:"terminado", tor_e_cancelado:"cancelado",
+      tor_elige:"¿Con cuál de tus brutos te apuntas?",
+      tor_ya_estas:"Ya estás apuntado. Un jugador, una entrada.",
+      tor_lleno:"No quedan plazas.",
+      tor_cerrado:"Las inscripciones ya están cerradas.",
+      tor_no_nivel:"fuera de nivel", tor_no_saldo:"sin saldo",
+      tor_inscritos:"Apuntados",
+      tor_final:"Final", tor_semis:"Semifinales", tor_ronda:"Ronda", tor_descanso:"descansa",
       arm_guardar:"Guardar", arm_libres:"libres en tu bolsa",
       ev_h2:"Últimas novedades", ev_gana:"venció a", ev_pierde:"cayó ante",
       ev_nivel:"subió al nivel", ev_rota:"perdió para siempre su", ev_con:"con",
@@ -779,6 +866,21 @@
       hist_retirada:"Withdrawal", hist_skin:"Skin", hist_torneo:"Tournament",
       hist_mascota:"Pet", hist_ajuste:"Adjustment",
       hist_pendiente:"pending", hist_enviada:"sent", hist_fallida:"failed",
+      tor_open:"🏛️ Tournaments", tor_h1:"Tournaments",
+      tor_sub:"Single elimination. The whole bracket is resolved at once, and every fight can be replayed.",
+      tor_note:"Tournament fights do NOT use up your three daily ones. The prize comes from the entry fees, not from the reward pool: nobody prints coins by winning.",
+      tor_none:"No tournaments open right now.",
+      tor_volver:"‹ Back to tournaments",
+      tor_plazas:"seats", tor_entrada:"entry", tor_bote:"pot", tor_niveles:"levels",
+      tor_e_inscripcion:"open", tor_e_en_curso:"resolving",
+      tor_e_terminado:"finished", tor_e_cancelado:"cancelled",
+      tor_elige:"Which of your brutes is going in?",
+      tor_ya_estas:"You are already in. One player, one entry.",
+      tor_lleno:"No seats left.",
+      tor_cerrado:"Entries are closed.",
+      tor_no_nivel:"wrong level", tor_no_saldo:"not enough coins",
+      tor_inscritos:"Entered",
+      tor_final:"Final", tor_semis:"Semi-finals", tor_ronda:"Round", tor_descanso:"bye",
       arm_guardar:"Stow", arm_libres:"free in your bag",
       ev_h2:"Latest news", ev_gana:"beat", ev_pierde:"fell to",
       ev_nivel:"reached level", ev_rota:"lost for good their", ev_con:"with",
@@ -868,6 +970,21 @@
       hist_retirada:"Retrait", hist_skin:"Apparence", hist_torneo:"Tournoi",
       hist_mascota:"Familier", hist_ajuste:"Ajustement",
       hist_pendiente:"en attente", hist_enviada:"envoyé", hist_fallida:"échoué",
+      tor_open:"🏛️ Tournois", tor_h1:"Tournois",
+      tor_sub:"Élimination directe. Le tableau se résout d'un coup, et chaque combat peut être rejoué.",
+      tor_note:"Les combats du tournoi NE consomment PAS tes trois combats quotidiens. Le prix vient des inscriptions, pas du fonds de récompenses : personne n'imprime de pièces en gagnant.",
+      tor_none:"Aucun tournoi ouvert pour le moment.",
+      tor_volver:"‹ Retour aux tournois",
+      tor_plazas:"places", tor_entrada:"entrée", tor_bote:"cagnotte", tor_niveles:"niveaux",
+      tor_e_inscripcion:"ouvert", tor_e_en_curso:"en cours",
+      tor_e_terminado:"terminé", tor_e_cancelado:"annulé",
+      tor_elige:"Avec laquelle de tes brutes tu t'inscris ?",
+      tor_ya_estas:"Tu es déjà inscrit. Un joueur, une entrée.",
+      tor_lleno:"Plus de places.",
+      tor_cerrado:"Les inscriptions sont closes.",
+      tor_no_nivel:"hors niveau", tor_no_saldo:"pas assez de pièces",
+      tor_inscritos:"Inscrits",
+      tor_final:"Finale", tor_semis:"Demi-finales", tor_ronda:"Tour", tor_descanso:"exempt",
       arm_guardar:"Ranger", arm_libres:"libres dans votre sac",
       ev_h2:"Dernières nouvelles", ev_gana:"a battu", ev_pierde:"est tombé face à",
       ev_nivel:"atteint le niveau", ev_rota:"a perdu à jamais son", ev_con:"avec",
@@ -1441,6 +1558,158 @@
     }).join("");
   }
 
+  /* ═══════════ torneos ═══════════
+     La lista se lee directa de la base; el detalle va por la función, que es
+     donde se comprueba si ya toca resolver el torneo. Así no hace falta ningún
+     reloj: entrar a mirarlo es lo que lo dispara. */
+  let torneos = [], torneoAbierto = null;
+
+  const torFecha = iso => {
+    const d = new Date(iso);
+    return isNaN(d) ? "—" : d.toLocaleString(lang === "en" ? "en-GB" : lang,
+      { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" });
+  };
+
+  async function openTorneos(){
+    show("scTorneos");
+    el("torListaJug").innerHTML = `<p class="match-note">${t("loading")}</p>`;
+    try{
+      torneos = await SolBruteDB.torneos() || [];
+      pintarTorneos();
+    }catch(e){
+      el("torListaJug").innerHTML = `<p class="match-note">${t("f_error")}</p>`;
+      console.warn("[SolBrute] torneos:", e.message);
+    }
+  }
+
+  function pintarTorneos(){
+    if(!torneos.length){
+      el("torListaJug").innerHTML = `<p class="match-note">${t("tor_none")}</p>`;
+      return;
+    }
+    el("torListaJug").innerHTML = torneos.map(x => `
+      <div class="tor-card" data-id="${x.id}">
+        <h3>${esc(x.nombre)}</h3>
+        <span class="est ${x.estado}">${t("tor_e_" + x.estado) || x.estado}</span>
+        <span class="dato">${t("tor_plazas")} <b>${x.plazas}</b></span>
+        <span class="dato">${t("tor_entrada")} <b>${x.entrada}</b></span>
+        <span class="dato">${t("tor_bote")} <b>${x.bote}</b></span>
+        <span class="dato">${x.nivel_min > 1 || x.nivel_max < 100
+            ? t("tor_niveles") + " " + x.nivel_min + "-" + x.nivel_max : ""}</span>
+        <span class="dato">${torFecha(x.empieza_at)}</span>
+        <span class="flecha">›</span>
+      </div>`).join("");
+    el("torListaJug").querySelectorAll(".tor-card").forEach(c =>
+      c.onclick = () => abrirTorneo(+c.dataset.id));
+  }
+
+  async function abrirTorneo(id){
+    show("scTorneo");
+    el("torTitulo").textContent = "…";
+    el("torSub").textContent = "";
+    el("torAccion").innerHTML = "";
+    el("torCuadro").innerHTML = `<p class="match-note">${t("loading")}</p>`;
+    try{
+      torneoAbierto = await SolBruteDB.torneoVer(id);
+      pintarTorneo();
+    }catch(e){
+      el("torCuadro").innerHTML = `<p class="match-note">${t("f_error")}</p>`;
+      console.warn("[SolBrute] torneo:", e.message);
+    }
+  }
+
+  function pintarTorneo(){
+    const { torneo: x, entradas, cuadro } = torneoAbierto;
+    el("torTitulo").textContent = x.nombre;
+    el("torSub").textContent =
+      `${t("tor_e_" + x.estado) || x.estado} · ${entradas.length}/${x.plazas} ${t("tor_plazas")}` +
+      ` · ${t("tor_bote")} ${x.bote}` +
+      (x.nivel_min > 1 || x.nivel_max < 100 ? ` · ${t("tor_niveles")} ${x.nivel_min}-${x.nivel_max}` : "");
+
+    /* ── apuntarse ──
+       Se elige CON QUÉ BRUTO, y los que no valen salen desactivados con el
+       motivo puesto. Un botón que no se puede pulsar y no dice por qué es peor
+       que no tenerlo. */
+    const mio = entradas.find(e => brutes.some(b => b.rid === e.bruto_id));
+    let acc = "";
+    if(mio){
+      acc = `<p class="match-note">${t("tor_ya_estas")}</p>`;
+    }else if(x.estado === "inscripcion"){
+      if(entradas.length >= x.plazas){
+        acc = `<p class="match-note">${t("tor_lleno")}</p>`;
+      }else{
+        acc = `<p class="match-note">${t("tor_elige")}</p><div class="tor-elige">` +
+          brutes.map(b => {
+            let no = "";
+            if(b.lv < x.nivel_min || b.lv > x.nivel_max) no = t("tor_no_nivel");
+            else if(balance < x.entrada)                 no = t("tor_no_saldo");
+            return `<button data-b="${b.id}"${no ? " disabled" : ""}>
+                      ${esc(b.name)} <small>${t("lvl")} ${b.lv}${no ? " · " + no : ""}</small>
+                    </button>`;
+          }).join("") + `</div>`;
+      }
+    }
+    el("torAccion").innerHTML = acc;
+    el("torAccion").querySelectorAll("button[data-b]").forEach(btn =>
+      btn.onclick = () => apuntarse(x.id, +btn.dataset.b));
+
+    /* ── el podio ── */
+    const podio = entradas.filter(e => e.posicion && e.posicion <= 3)
+                          .sort((a, b) => a.posicion - b.posicion);
+    const nombre = e => esc(e?.snapshot?.name || "?");
+    let html = "";
+    if(podio.length){
+      html += `<div class="tor-podio">` + podio.map(e =>
+        `<div class="${e.posicion === 1 ? "oro" : ""}">
+           ${e.posicion}º <b>${nombre(e)}</b>
+           ${e.premio ? `<span class="premio">+${e.premio}</span>` : ""}
+         </div>`).join("") + `</div>`;
+    }
+
+    /* ── el cuadro, una columna por ronda ── */
+    if(cuadro.length){
+      const porId = Object.fromEntries(entradas.map(e => [e.id, e]));
+      const rondas = [...new Set(cuadro.map(f => f.ronda))].sort((a,b) => a-b);
+      const total = rondas.length;
+      html += `<div class="cuadro">` + rondas.map(r => {
+        const titulo = r === total ? t("tor_final")
+                     : r === total - 1 ? t("tor_semis")
+                     : t("tor_ronda") + " " + r;
+        return `<div class="ronda"><h4>${titulo}</h4><div class="llaves">` +
+          cuadro.filter(f => f.ronda === r).map(f => {
+            const a = porId[f.a_entry], b = porId[f.b_entry];
+            const lado = (e, cual) => {
+              if(!e) return `<div><span class="vacio">${t("tor_descanso")}</span></div>`;
+              const gana = f.winner === cual;
+              return `<div><span class="${f.winner ? (gana ? "gana" : "pierde") : ""}">${nombre(e)}</span>` +
+                     `${gana ? `<span class="t">${f.turns}t</span>` : ""}</div>`;
+            };
+            return `<div class="llave">${lado(a,"A")}${lado(b,"B")}</div>`;
+          }).join("") + `</div></div>`;
+      }).join("") + `</div>`;
+    }else if(x.estado === "inscripcion"){
+      html += `<p class="match-note">${t("tor_inscritos")}: ` +
+              (entradas.length ? entradas.map(e => esc(nombre(e))).join(" · ") : "—") + `</p>`;
+    }
+    el("torCuadro").innerHTML = html;
+  }
+
+  async function apuntarse(torneoId, bruteLocalId){
+    const b = brutes.find(x => x.id === bruteLocalId);
+    if(!b) return;
+    try{
+      const r = await SolBruteDB.torneoApuntarse(torneoId, b.rid);
+      balance -= (torneoAbierto.torneo.entrada || 0);
+      el("balNum").textContent = balance;
+      await abrirTorneo(torneoId);
+    }catch(e){
+      const porClase = { lleno:"tor_lleno", repetido:"tor_ya_estas", nivel:"tor_no_nivel",
+                         sin_saldo:"tor_no_saldo", cerrado:"tor_cerrado" };
+      el("torAccion").innerHTML = `<p class="match-note">${t(porClase[e.clase] || "f_error")}</p>`;
+      console.warn("[SolBrute] apuntarse:", e.clase || "?", e.message);
+    }
+  }
+
   /* ═══════════ el historial ═══════════
      Compras y retiradas, solo las tuyas.
 
@@ -1960,6 +2229,8 @@
   };
   el("btnRank").onclick = openRank;
   el("btnArm").onclick = () => openArmeria();
+  el("btnTor").onclick = openTorneos;
+  el("btnTorVolver").onclick = openTorneos;
   el("btnHist").onclick = openHist;
   el("btnHistRefresh").onclick = cargarHist;
   el("btnRankRefresh").onclick = async () => {

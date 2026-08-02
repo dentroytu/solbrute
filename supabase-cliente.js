@@ -346,6 +346,25 @@
       return await pedirAuth({ accion: "retiradas", token: token(), limite: limite || 20 });
     },
 
+    /* ═══════════ torneos ═══════════
+       La LISTA va por lectura directa: `tournaments` tiene política de lectura
+       para todo lo que no sea borrador, y un torneo es público por definición
+       — la gente tiene que poder verlo antes de apuntarse.
+
+       El DETALLE va por la función, y no por comodidad: al abrirlo es cuando
+       se comprueba si ya toca resolverlo. Sin tarea programada que mantener. */
+    async torneos(){
+      return await pedir("/tournaments?select=id,nombre,estado,plazas,entrada,bote," +
+                         "empieza_at,nivel_min,nivel_max,pct_1,pct_2,pct_semis,ganador" +
+                         "&estado=neq.borrador&order=empieza_at.asc&limit=30", { method:"GET" });
+    },
+    async torneoVer(torneoId){
+      return await pedirAuth({ accion: "torneo_ver", token: token(), torneoId });
+    },
+    async torneoApuntarse(torneoId, bruteId){
+      return await pedirAuth({ accion: "torneo_apuntarse", token: token(), torneoId, bruteId });
+    },
+
     /* Las últimas peleas de TUS brutos, para el tablón del ludus.
        Va por lectura directa —`fights` tiene política de lectura pública desde
        el paso 7— y no por la Edge Function: no hay nada que decidir ni nada
