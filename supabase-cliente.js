@@ -219,6 +219,10 @@
 
       return {
         balance: Number(jugador.coins),
+        /* La bolsa de armas es del JUGADOR, no del bruto (paso 14). Formato
+           {"daga":2,"mandoble":1}: solo las copias LIBRES. Lo que un bruto
+           lleva puesto no está aquí — está en su `arma`. */
+        bolsa: (jugador.armas && typeof jugador.armas === "object") ? jugador.armas : {},
         brutos: (brutos || []).map((f, i) => aBruto(f, i + 1))
       };
     },
@@ -290,8 +294,12 @@
     },
 
     /* ═══════════ la armería ═══════════ */
-    async comprarArma(bruteRid, arma){
-      return await pedirAuth({ accion: "comprar", token: token(), bruteId: bruteRid, arma });
+    /* Comprar ya no lleva bruto: el arma va a TU bolsa y desde ahí la equipas
+       en el que quieras. Antes las armas eran del bruto, así que la daga que
+       comprabas no era tuya sino suya, y un bruto nuevo empezaba sin nada
+       aunque tuvieras cinco guardadas. */
+    async comprarArma(arma){
+      return await pedirAuth({ accion: "comprar", token: token(), arma });
     },
     async equiparArma(bruteRid, arma){
       return await pedirAuth({ accion: "equipar", token: token(), bruteId: bruteRid, arma });

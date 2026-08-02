@@ -543,63 +543,82 @@ async function manejar(req: Request): Promise<Response> {
   /* ══════════ comprar en la armería ══════════
      El precio lo pone el servidor desde brute-combate.js, y el cobro va
      después de añadir el arma: si algo falla en medio, no se paga por nada. */
-  if (accion === "comprar") {
-    const bid = idEntero(cuerpo.bruteId);
-    if (!bid) return responder({ error: "identificador no válido" }, 400);
-    const filas = await db("/brutes?id=eq." + bid +
-                           "&owner=eq." + encodeURIComponent(dueno) + "&select=id,arma,armas");
-    const fila = filas && filas[0];
-    if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
+  /* ══════════ comprar un arma ══════════
+     Ya NO se compra "para un bruto": se compra a tu BOLSA, y desde ahí la
+     equipas en el que quieras (ver supabase-14-inventario.sql). Por eso esta
+     ruta no pide `bruteId` — y por eso desapareció el "ya la tienes": si
+     quieres tres dagas para tres brutos, compras tres.
 
+     El precio sale de `brute-combate.js`, aquí en el servidor. Nunca del
+     navegador: mandarlo sería dejar que el cliente ponga el suyo. */
+  if (accion === "comprar") {
     const id = String(cuerpo.arma || "");
     const w = C.ARMAS[id];
     if (!w || id === "ninguna") return responder({ error: "esa arma no existe" }, 400);
 
-    const tiene: string[] = Array.isArray(fila.armas) ? fila.armas : [];
-    if (tiene.includes(id)) return responder({ error: "ya la tienes", clase: "ya_tienes" }, 409);
+    /* Cobrar y dar el arma es UNA operación de base de datos, no dos escrituras
+       desde aquí. Si se hicieran sueltas, un fallo entre medias te cobraría sin
+       darte nada — o peor, al revés. */
+    let r;
+    try {
+      r = await db("/rpc/arma_comprar", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_arma: id, p_precio: w.precio }),
+      });
+    } catch (e) {
+      const m = (e as Error).message;
+      if (m.includes("sin_saldo")) {
+        return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
+      }
+      if (m.includes("jugador desconocido")) return responder({ error: "sesión no válida" }, 401);
+      throw e;
+    }
 
-    const jug = await db("/players?address=eq." + encodeURIComponent(dueno) + "&select=coins");
-    const saldo = Number((jug && jug[0] && jug[0].coins) || 0);
-    if (saldo < w.precio) return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
-
-    const inventario = tiene.concat([id]);
-    await db("/brutes?id=eq." + fila.id + "&owner=eq." + encodeURIComponent(dueno), {
-      method: "PATCH",
-      /* Si peleaba a puño limpio, se equipa sola: comprar algo y no verlo
-         puesto es una mala primera impresión. */
-      body: JSON.stringify({ armas: inventario, arma: fila.arma === "ninguna" ? id : fila.arma }),
-    });
-    const restante = saldo - w.precio;
-    await db("/players?address=eq." + encodeURIComponent(dueno), {
-      method: "PATCH", body: JSON.stringify({ coins: restante }),
-    });
-    /* El arma comprada vuelve a la reserva. Es el único sumidero que existe
-       hoy, así que es literalmente todo el reciclaje del juego. */
+    /* Lo gastado vuelve a la reserva (90%) y al fondo (10%). Es el único
+       sumidero que existe hoy, así que es todo el reciclaje del juego. */
     reciclar(w.precio);
     apuntar(dueno, "compra_arma", id, -w.precio, { precio: w.precio });
-    return responder({ arma: id, armas: inventario, balance: restante });
+    return responder({ arma: id, bolsa: r.bolsa, balance: r.balance });
   }
 
   /* ══════════ equipar un arma ══════════
      Solo se puede llevar lo que se tiene, y eso lo comprueba el servidor
      contra su propia lista: mandar "mandoble" sin tenerlo no hace nada. */
+  /* ══════════ equipar ══════════
+     Mueve una copia de tu bolsa a un bruto, y devuelve a la bolsa lo que ese
+     bruto llevaba. Es lo que permite pasarse las armas entre brutos.
+
+     "ninguna" desarma: devuelve lo puesto a la bolsa y lo deja a puño limpio.
+
+     Las dos escrituras —quitar de la bolsa, poner en el bruto— van dentro de
+     una sola función con `for update`. Hechas por separado, un fallo entre
+     ellas dejaría el arma en los dos sitios a la vez. Sobre un token con valor
+     real, eso es duplicar dinero. */
   if (accion === "equipar") {
     const bid = idEntero(cuerpo.bruteId);
     if (!bid) return responder({ error: "identificador no válido" }, 400);
-    const filas = await db("/brutes?id=eq." + bid +
-                           "&owner=eq." + encodeURIComponent(dueno) + "&select=id,arma,armas");
-    const fila = filas && filas[0];
-    if (!fila) return responder({ error: "ese bruto no es tuyo" }, 403);
-
     const quiere = String(cuerpo.arma || "ninguna");
-    const tiene: string[] = Array.isArray(fila.armas) ? fila.armas : [];
-    if (quiere !== "ninguna" && !tiene.includes(quiere)) {
-      return responder({ error: "no tienes esa arma", clase: "sin_arma" }, 403);
+
+    let r;
+    try {
+      r = await db("/rpc/arma_equipar", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_arma: quiere }),
+      });
+    } catch (e) {
+      const m = (e as Error).message;
+      /* La comprobación de propiedad vive DENTRO de la función (busca por id y
+         por dueño a la vez), así que aquí solo se traduce el error. Mandar el
+         id de un bruto ajeno no lo toca. */
+      if (m.includes("no es tuyo")) return responder({ error: "ese bruto no es tuyo" }, 403);
+      if (m.includes("no tienes ninguna")) {
+        return responder({ error: "no tienes esa arma", clase: "sin_arma" }, 403);
+      }
+      if (m.includes("arma desconocida")) return responder({ error: "esa arma no existe" }, 400);
+      if (m.includes("jugador desconocido")) return responder({ error: "sesión no válida" }, 401);
+      throw e;
     }
-    await db("/brutes?id=eq." + fila.id + "&owner=eq." + encodeURIComponent(dueno), {
-      method: "PATCH", body: JSON.stringify({ arma: quiere }),
-    });
-    return responder({ arma: quiere });
+    return responder({ arma: r.arma, bolsa: r.bolsa });
   }
 
   /* ══════════ la lista de rivales ══════════
@@ -706,10 +725,26 @@ async function manejar(req: Request): Promise<Response> {
     }
     const foe = pool[idx];
 
+    /* El jugador se lee AQUÍ, antes de simular, porque `aplicar()` lo necesita:
+       cuando el nivel toca arma, elige una que no tengas ya, y ese "tengas" es
+       ahora lo del JUGADOR —la bolsa más lo que lleva puesto este bruto— y no
+       lo del bruto, que desde el paso 14 no guarda inventario.
+
+       Si se le pasara una lista vacía, el sorteo podría darte una quinta daga
+       teniendo ya cuatro, que es un premio que no se siente como premio. */
+    const jug = await db("/players?address=eq." + encodeURIComponent(dueno) +
+                         "&select=coins,armas");
+    const yo = (jug && jug[0]) || { coins: 0, armas: {} };
+    const bolsaMia = (yo.armas && typeof yo.armas === "object") ? yo.armas : {};
+    const poseidas = Object.keys(bolsaMia).filter((k) => Number(bolsaMia[k]) > 0);
+    if (fila.arma && fila.arma !== "ninguna" && !poseidas.includes(fila.arma)) {
+      poseidas.push(fila.arma);
+    }
+
     const mio = {
       name: fila.name, lv: fila.level, xp: fila.xp, hpMax: fila.hp_max,
       str: fila.str, agi: fila.agi, spd: fila.spd, w: fila.wins, l: fila.losses,
-      arma: fila.arma || "ninguna", armas: fila.armas || [],
+      arma: fila.arma || "ninguna", armas: poseidas,
     };
 
     /* La semilla la genera el SERVIDOR. Si la eligiera el cliente, elegiría su
@@ -724,22 +759,32 @@ async function manejar(req: Request): Promise<Response> {
        rompería nunca nada. Se comprueba después del combate: la que se te cayó
        a media pelea la recuperas, la que se rompe no vuelve. */
     let armaAhora = mio.arma;
-    let inventario: string[] = Array.isArray(mio.armas) ? mio.armas.slice() : [];
     let rota = "";
     if (armaAhora !== "ninguna" && C.seRompe(armaAhora)) {
       rota = armaAhora;
-      inventario = inventario.filter((x) => x !== armaAhora);
+      /* Se destruye: NO vuelve a la bolsa. Es lo que hace que el mandoble
+         cueste mantenerlo (~11 combates) y que las armas sigan siendo un
+         sumidero en vez de una compra única. */
       armaAhora = "ninguna";
     }
 
     /* Un arma nueva puede ser lo que toque al subir de nivel. */
     let armaNueva = "";
+    let bolsa: unknown = undefined;
     if (typeof premio.ganancia === "string" && premio.ganancia.startsWith("arma:")) {
       armaNueva = premio.ganancia.slice(5);
-      if (!inventario.includes(armaNueva)) inventario.push(armaNueva);
-      /* Si peleabas a puño limpio, se equipa sola: si no, el jugador gana algo
-         que no ve por ningún lado. */
-      if (armaAhora === "ninguna") armaAhora = armaNueva;
+      if (armaAhora === "ninguna") {
+        /* Si peleabas a puño limpio se equipa sola, sin pasar por la bolsa: si
+           no, el jugador gana algo que no ve por ningún lado. */
+        armaAhora = armaNueva;
+      } else {
+        /* Ya llevas algo, así que la nueva va a la bolsa del JUGADOR — desde
+           ahí se la puedes poner a cualquiera de tus brutos. */
+        bolsa = await db("/rpc/arma_dar", {
+          method: "POST",
+          body: JSON.stringify({ p_owner: dueno, p_arma: armaNueva }),
+        }).catch((e) => { console.warn("no pude dar el arma: " + e.message); return undefined; });
+      }
     }
 
     /* ── de puntos a monedas ──
@@ -761,9 +806,9 @@ async function manejar(req: Request): Promise<Response> {
                          clase: "emision" }, 503);
     }
 
-    /* Monedas: se leen de la base y se suman aquí. El navegador no interviene. */
-    const jug = await db("/players?address=eq." + encodeURIComponent(dueno) + "&select=coins");
-    const monedas = Number((jug && jug[0] && jug[0].coins) || 0) + ganadas;
+    /* Monedas: el saldo se leyó arriba junto con la bolsa. El navegador no
+       interviene en ninguna de las dos cosas. */
+    const monedas = Number(yo.coins || 0) + ganadas;
 
     await db("/brutes?id=eq." + fila.id + "&owner=eq." + encodeURIComponent(dueno), {
       method: "PATCH",
@@ -772,7 +817,9 @@ async function manejar(req: Request): Promise<Response> {
         str: mio.str, agi: mio.agi, spd: mio.spd,
         wins: mio.w, losses: mio.l,
         fights_left: peleas - 1, fights_day: hoy, pool,
-        arma: armaAhora, armas: inventario,
+        /* Solo la equipada. El inventario ya no vive en el bruto: es del
+           jugador (supabase-14-inventario.sql). */
+        arma: armaAhora,
       }),
     });
     await db("/players?address=eq." + encodeURIComponent(dueno), {
@@ -810,7 +857,7 @@ async function manejar(req: Request): Promise<Response> {
          día ("1 punto = 0,94 monedas"). Sin eso, el jugador ve que un día cobra
          menos que otro por la misma pelea y parece que se le está robando. */
       puntos: premio.coins, tasa: tasaHoy,
-      arma: armaAhora, armas: inventario, arma_rota: rota, arma_nueva: armaNueva,
+      arma: armaAhora, bolsa, arma_rota: rota, arma_nueva: armaNueva,
       /* QUÉ tocó al subir: "str" | "agi" | "spd" | "hp". Sin esto el cartel
          del juego no puede decirlo y acaba enseñando siempre vida. */
       ganancia: premio.ganancia,

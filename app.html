@@ -138,6 +138,20 @@
   .opp-stats{ display:flex; gap:12px; margin-top:5px; font-size:10.5px; color:var(--muted); flex-wrap:wrap; }
   /* ── clasificación ── */
   /* ── armería ── */
+  /* La versión, pegada al logo y muy apagada. Tiene que poderse leer si la
+     buscas y desaparecer si no. */
+  /* `margin-right:auto` empuja todo lo demás a la derecha y deja la versión
+     pegada al logo. Sin él, la barra reparte el espacio entre sus tres hijos
+     y la versión acaba flotando en el centro, como si fuera un título. */
+  .version{ font-size:10px; letter-spacing:.06em; color:var(--muted); opacity:.65;
+            align-self:center; margin:2px 0 0 8px; margin-right:auto;
+            white-space:nowrap; }
+
+  /* Cuántas copias libres tienes. Bronce porque es equipo, siguiendo la
+     regla de color del juego: rojo vida, verde progreso, bronce equipo. */
+  .arm-n{ font-size:11px; font-weight:700; color:var(--bronze-light);
+          border:1px solid var(--line); border-radius:99px; padding:1px 7px; }
+
   .salas{ display:flex; gap:8px; flex-wrap:wrap; }
 
   /* ── historial ──
@@ -320,6 +334,10 @@
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="logo">SOL<span>BRUTE</span></a>
+    <!-- La versión la escribe el JS desde una sola constante (VERSION_JUEGO).
+         No va escrita a mano aquí: dos sitios que dicen la versión acaban
+         diciendo versiones distintas. -->
+    <span class="version" id="versionJuego"></span>
     <div class="nav-right">
       <div class="balance" id="balBox"><b id="balNum">120</b> <small>$BRUTE</small></div>
       <div class="wallet-chip" id="walletChip">
@@ -587,6 +605,26 @@
           ARMAS, ARMAS_REALES, duracion,
           simulate, aplicar } = window.BruteCombate;
 
+  /* ═══════════ versión del juego ═══════════
+     Un solo sitio. Se pinta en la cabecera y se sube A MANO al publicar algo
+     que el jugador note.
+
+     No es decoración: la caché de este proyecto ya ha hecho perder tiempo dos
+     veces —está avisado en el CLAUDE.md— y con la versión a la vista el
+     diagnóstico deja de ser una conjetura. Si alguien dice que un fallo
+     corregido le sigue pasando, lo primero es preguntar qué versión ve. Si es
+     la anterior, es caché, y se acabó la discusión.
+
+     Formato `beta · v0.1.0`: mayor.menor.parche. Mientras sea beta el primer
+     número es 0, que es exactamente lo que significa —nada es estable
+     todavía— y evita la ambigüedad de "0.01", que no dice si el siguiente es
+     0.02 o 0.11.
+
+     Es distinta de la VERSION de `brute-combate.js`, que numera las REGLAS y
+     la comprueba el servidor para rechazar clientes viejos. Esta es para
+     humanos; aquella es para máquinas. */
+  const VERSION_JUEGO = "beta · v0.1.0";
+
   /* ═══════════ i18n ═══════════ */
   const T = {
     es:{ disconnect:"Salir", gate_h1:"La puerta está cerrada",
@@ -638,6 +676,7 @@
       hist_retirada:"Retirada", hist_skin:"Aspecto", hist_torneo:"Torneo",
       hist_mascota:"Mascota", hist_ajuste:"Ajuste",
       hist_pendiente:"pendiente", hist_enviada:"enviada", hist_fallida:"fallida",
+      arm_guardar:"Guardar", arm_libres:"libres en tu bolsa",
       f_error:"No he podido resolver el combate. Inténtalo otra vez.",
       f_version:"El juego se ha actualizado. Recarga la página para seguir jugando.",
       g_nonce:"Pidiendo un código de un solo uso al servidor…",
@@ -723,6 +762,7 @@
       hist_retirada:"Withdrawal", hist_skin:"Skin", hist_torneo:"Tournament",
       hist_mascota:"Pet", hist_ajuste:"Adjustment",
       hist_pendiente:"pending", hist_enviada:"sent", hist_fallida:"failed",
+      arm_guardar:"Stow", arm_libres:"free in your bag",
       f_error:"Couldn't resolve the fight. Try again.",
       f_version:"The game was updated. Reload the page to keep playing.",
       g_nonce:"Asking the server for a one-time code…",
@@ -808,6 +848,7 @@
       hist_retirada:"Retrait", hist_skin:"Apparence", hist_torneo:"Tournoi",
       hist_mascota:"Familier", hist_ajuste:"Ajustement",
       hist_pendiente:"en attente", hist_enviada:"envoyé", hist_fallida:"échoué",
+      arm_guardar:"Ranger", arm_libres:"libres dans votre sac",
       f_error:"Impossible de résoudre le combat. Réessaie.",
       f_version:"Le jeu a été mis à jour. Recharge la page pour continuer.",
       g_nonce:"Demande d'un code à usage unique au serveur…",
@@ -863,6 +904,10 @@
   /* ═══════════ estado ═══════════ */
   const NAMES = ["Vurkas","Torvald","Maximus","Drusa","Kaelo","Brennus","Sabina","Orlok","Crixus","Vardo","Nerva","Thrax","Galba","Rufa","Sceva","Murro","Balba","Priscus","Verus","Calpa"];
   let balance = 0, brutes = [], nextId = 1, pool = [], active = null;
+  /* La bolsa de armas del JUGADOR: {"daga":2,"mandoble":1}, solo copias
+     LIBRES. Lo que un bruto lleva puesto NO está aquí, está en su `arma`.
+     Dos sitios contando lo mismo es como acaban apareciendo armas duplicadas. */
+  let bolsa = {};
   let addr = null, loaded = false;
 
   /* ══════════════════════════════════════════════════════════════
@@ -919,6 +964,7 @@
       try{
         const d = await SolBruteDB.cargar(addr);
         balance = d.balance;
+        bolsa   = d.bolsa || {};
         brutes  = d.brutos;
         nextId  = brutes.length + 1;
 
@@ -946,7 +992,7 @@
     let d = null;
     try{ d = raw ? JSON.parse(raw) : null; }catch(e){ d = null; }
     if(!d){
-      brutes = []; balance = 0; nextId = 1;
+      brutes = []; balance = 0; nextId = 1; bolsa = {};
       await saveMe(utcDay());
     }else{
       brutes = Array.isArray(d.brutes) ? d.brutes : [];
@@ -1030,7 +1076,7 @@
       { id:nextId++, name:"Drusa", lv:6, xp:80, hpMax:57, str:3, agi:5, spd:4, w:9, l:8, fights:2, rerolls:REROLLS_DAY, pool:null,
         look:{ sex:1, skin:1, hair:1, hairC:5, cloth:2, clothC:2, face:3, eyeC:0, tat:0, tatC:0 } }
     ];
-    balance = 0;
+    balance = 0; bolsa = {};
   }
 
   /* ═══════════ combate determinista ═══════════ */
@@ -1160,9 +1206,10 @@
       return;
     }
 
-    /* El selector se enseña SIEMPRE, aunque solo haya un bruto. Ocultarlo
-       parecía limpio y dejaba una duda peor: a quién le estás comprando. Las
-       armas son de un bruto concreto, no del jugador, y eso tiene que verse. */
+    /* El selector se enseña SIEMPRE, aunque solo haya un bruto. Ahora las armas
+       son del JUGADOR y se pueden mover entre brutos, así que esto ya no dice
+       "a quién le compras" sino "a quién se la pones" — y por eso cada botón
+       lleva debajo lo que ese bruto lleva puesto. */
     el("armQuien").innerHTML =
       `<span class="arm-quien-lbl">${t("arm_para")}</span>` +
       brutes.map(b => `<button class="${b.id === active.id ? "on" : ""}" data-b="${b.id}">
@@ -1173,20 +1220,36 @@
     });
 
     el("armSub").textContent = `${active.name} · ${t("lvl")} ${active.lv}`;
-    const mias = active.armas || [];
     const puesta = active.arma || "ninguna";
     const nombres = O("armas"), comos = O("como");
+    /* Cuántas copias LIBRES tienes de cada una. Las que llevan puestas tus
+       brutos no cuentan: están ocupadas. */
+    const libres = id => Number(bolsa[id] || 0);
 
     const tarjeta = id => {
       const w = ARMAS[id];
-      const tengo = id === "ninguna" || mias.includes(id);
       const llevo = puesta === id;
+      const n = libres(id);
       let pie;
-      if(llevo)      pie = `<div class="arm-tengo">✓ ${t("arm_puesta")}</div>`;
-      else if(tengo) pie = `<button class="btn btn-ghost btn-sm js-eq" data-a="${id}">${t("arm_equipar")}</button>`;
+      if(llevo){
+        /* Se puede desequipar: el arma vuelve a la bolsa y desde ahí va a otro
+           bruto. Sin este botón, mover un arma exigiría equipar otra encima. */
+        pie = `<div class="arm-tengo">✓ ${t("arm_puesta")}</div>` +
+              (id === "ninguna" ? "" :
+               `<button class="btn btn-ghost btn-sm js-eq" data-a="ninguna">${t("arm_guardar")}</button>`);
+      }
+      else if(id === "ninguna" || n > 0)
+                     pie = `<button class="btn btn-ghost btn-sm js-eq" data-a="${id}">${t("arm_equipar")}</button>`;
       else if(balance >= w.precio)
                      pie = `<button class="btn btn-primary btn-sm js-comp" data-a="${id}">${t("arm_comprar")} · ${w.precio}</button>`;
       else           pie = `<div class="arm-tengo" style="color:var(--muted)">${t("arm_caro")} (${w.precio})</div>`;
+
+      /* Comprar sigue disponible aunque ya tengas una: tres brutos pueden
+         llevar tres dagas, y para eso hacen falta tres. Antes decía "ya la
+         tienes" aunque la quisieras para otro bruto. */
+      if(id !== "ninguna" && !llevo && n > 0 && balance >= w.precio){
+        pie += `<button class="btn btn-ghost btn-sm js-comp" data-a="${id}">+1 · ${w.precio}</button>`;
+      }
 
       /* Los puños no se compran ni se rompen: no llevan ni precio ni desgaste. */
       const datos = id === "ninguna" ? "" : `
@@ -1199,6 +1262,7 @@
         <div class="arm-top">
           <span class="arm-icono">${iconoArma(id)}</span>
           <span class="arm-nom">${nombres[id]}</span>
+          ${n > 0 ? `<span class="arm-n" title="${t("arm_libres")}">×${n}</span>` : ""}
           ${id === "ninguna" ? "" : `<span class="arm-precio">${w.precio} $BRUTE</span>`}
         </div>
         <p class="arm-como">${comos[id]}</p>
@@ -1212,21 +1276,25 @@
     el("armLista").querySelectorAll(".js-comp").forEach(b => b.onclick = () => comprar(b.dataset.a));
   }
 
+  /* Equipar mueve una copia entre la bolsa y el bruto, en los dos sentidos. La
+     bolsa que vale es la que DEVUELVE el servidor: aquí no se suma ni se resta
+     nada a mano, porque dos sitios llevando la cuenta acaban discrepando. */
   async function equipar(id){
     try{
-      await SolBruteDB.equiparArma(active.rid, id);
-      active.arma = id;
+      const r = await SolBruteDB.equiparArma(active.rid, id);
+      active.arma = r.arma;
+      bolsa = r.bolsa || {};
       renderArmeria();
     }catch(e){ console.warn("[SolBrute] equipar:", e.clase || "?", e.message); }
   }
 
   async function comprar(id){
     try{
-      const r = await SolBruteDB.comprarArma(active.rid, id);
+      /* Ya no lleva bruto: el arma va a la bolsa del jugador. */
+      const r = await SolBruteDB.comprarArma(id);
       /* Lo que vale es lo que responde el servidor, no lo que calcule esta
          pantalla: el precio y el saldo los lleva él. */
-      active.armas = r.armas;
-      active.arma = r.arma;
+      bolsa = r.bolsa || {};
       balance = r.balance;
       el("balNum").textContent = balance;
       renderArmeria();
@@ -1496,8 +1564,10 @@
     let extra = "";
     if(premio.arma_rota)  extra += ` · ${t("arm_rota")} ${nombres[premio.arma_rota] || premio.arma_rota}`;
     if(premio.arma_nueva) extra += ` · ${t("arm_ganada")} ${nombres[premio.arma_nueva] || premio.arma_nueva}`;
-    active.arma  = premio.arma;
-    active.armas = premio.armas;
+    active.arma = premio.arma;
+    /* `bolsa` solo viene si el nivel dio un arma Y el bruto ya llevaba otra:
+       si peleaba a puno limpio se equipa sola y la bolsa no cambia. */
+    if(premio.bolsa) bolsa = premio.bolsa;
 
     /* El cambio del día, y SOLO si no es 1,0.
        Las monedas salen de una reserva finita, así que lo que se gana son
@@ -1844,6 +1914,11 @@
     if(cur.id === "scForge" && look){ buildCreator(); renderForge(); }
   }
   document.querySelectorAll(".lang-btn").forEach(b => b.onclick = () => applyLang(b.dataset.lang));
+
+  /* La versión no pasa por applyLang: es la misma en los tres idiomas y no
+     lleva `data-i18n` a propósito, para que no haya que mantenerla en tres
+     tablas cada vez que se suba un número. */
+  el("versionJuego").textContent = VERSION_JUEGO;
 
   applyLang("en"); show("scGate");
 

@@ -251,31 +251,68 @@ $$;
 --
 -- El reparto: `reciclaje_seguridad_pct` al fondo de garantía (10% por
 -- defecto), el resto al pool de recompensas.
+--
+-- ── EL TOPE DE LA RESERVA, y por qué hizo falta ───────────────────────────
+--
+-- `reserva_restante` NUNCA puede pasar de `reserva_total`. Lo que no quepa se
+-- quema. Parece una precaución teórica y no lo es: se vio en producción el
+-- primer día.
+--
+-- Un jugador tenía 407 monedas de ANTES de que existiera el tope de emisión,
+-- cuando el juego imprimía sin control. Al gastarlas, el reciclaje las
+-- devolvió a la reserva — y la dejó en 40.000.117, por encima de su propio
+-- techo. La aritmética era correcta; lo que estaba mal era la premisa:
+-- devolver a la reserva algo que nunca salió de ella.
+--
+-- Y eso rompe la única promesa que sostiene el modelo entero: si la reserva
+-- puede crecer, el juego puede acabar debiendo más $BRUTE de los que existen.
+-- Un saldo que no se puede pagar es peor que un suministro infinito, porque
+-- el infinito al menos es honesto.
+--
+-- En régimen normal esto no se activa nunca: toda moneda en circulación salió
+-- de la reserva, así que devolverla no puede desbordarla. Solo salta con las
+-- monedas heredadas, y solo hasta que se gasten.
+--
+-- El fondo de garantía SÍ puede crecer: está diseñado para rellenarse solo, y
+-- ese es su trabajo.
 create or replace function emision_reciclar(p_monedas bigint)
 returns json
 language plpgsql
 security definer
 as $$
 declare
-  v_total bigint := greatest(coalesce(p_monedas, 0), 0);
-  v_pct   int;
-  v_seg   bigint;
+  v_total  bigint := greatest(coalesce(p_monedas, 0), 0);
+  v_pct    int;
+  v_seg    bigint;
+  v_pool   bigint;
+  v_hueco  bigint;
+  v_max    bigint;
+  v_actual bigint;
 begin
   if v_total = 0 then
-    return json_build_object('pool', 0, 'seguridad', 0);
+    return json_build_object('pool', 0, 'seguridad', 0, 'quemado', 0);
   end if;
 
-  select reciclaje_seguridad_pct into v_pct from economia where id = 1 for update;
+  select reciclaje_seguridad_pct, reserva_total, reserva_restante
+    into v_pct, v_max, v_actual
+    from economia where id = 1 for update;
 
-  v_seg := (v_total * greatest(least(coalesce(v_pct, 0), 100), 0)) / 100;
+  v_seg  := (v_total * greatest(least(coalesce(v_pct, 0), 100), 0)) / 100;
+  v_pool := v_total - v_seg;
+
+  -- Lo que cabe hasta el techo. Si la reserva ya está llena, `v_hueco` es 0 y
+  -- la parte del pool se quema entera.
+  v_hueco := greatest(v_max - v_actual, 0);
+  v_pool  := least(v_pool, v_hueco);
 
   update economia
-     set reserva_restante  = reserva_restante  + (v_total - v_seg),
+     set reserva_restante  = reserva_restante  + v_pool,
          reserva_seguridad = reserva_seguridad + v_seg,
          actualizado = now()
    where id = 1;
 
-  return json_build_object('pool', v_total - v_seg, 'seguridad', v_seg);
+  return json_build_object('pool', v_pool, 'seguridad', v_seg,
+                           'quemado', (v_total - v_seg) - v_pool);
 end;
 $$;
 
@@ -388,6 +425,20 @@ grant  execute on function emision_resumen()        to service_role;
 revoke execute on function seguridad_usar(text, bigint, text, boolean) from public;
 revoke execute on function seguridad_usar(text, bigint, text, boolean) from anon, authenticated;
 grant  execute on function seguridad_usar(text, bigint, text, boolean) to service_role;
+
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- Corrección: devolver la reserva a su techo
+-- ══════════════════════════════════════════════════════════════════════════
+-- Repara lo que ya se desbordó antes de que existiera el tope de arriba. Es
+-- repetible: si la reserva está por debajo de su total, no toca nada.
+--
+-- Solo corrige HACIA ABAJO. Subirla sería inventarse monedas, que es
+-- justamente lo que se está arreglando.
+update economia
+   set reserva_restante = reserva_total,
+       actualizado = now()
+ where id = 1 and reserva_restante > reserva_total;
 
 
 -- ══════════════════════════════════════════════════════════════════════════
