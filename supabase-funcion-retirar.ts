@@ -228,11 +228,52 @@ Deno.serve(async (req) => {
       return responder({ error: "el envio no esta configurado", clase: "sin_enviador" }, 503);
     }
 
+    /* La conexión se crea aquí arriba porque la necesitan tres sitios: la
+       comprobación de SOL de abajo, el envío, y el `catch` cuando tiene que ir
+       a preguntarle a la cadena si la transacción llegó.
+
+       Estaba declarada justo antes del `try` y la comprobación de SOL la usaba
+       cien líneas antes: en JavaScript eso no es un aviso, es un ReferenceError
+       en cuanto alguien intenta retirar. */
+    const con = new Connection(RPC, "confirmed");
+
     /* El destino es la wallet del JUGADOR y sale de la SESIÓN, nunca del cuerpo
        de la petición. Aceptarlo del navegador sería dejar que cualquiera se
        mande a sí mismo el saldo de otro. */
     const destino = pubkey(dueno);
     if (!destino) return responder({ error: "direccion de destino no valida" }, 400);
+
+    /* ── 0 bis · ¿tiene el tesoro SOL para pagar el envío? ──
+       Los $BRUTE no se mandan solos: cada transacción cuesta comisión de red y,
+       si el jugador retira por primera vez, hay que CREARLE su cuenta de token
+       — unos 0,00204 SOL de renta. Todo eso lo paga la wallet operativa, en SOL,
+       no en $BRUTE.
+
+       Esto salió probando en devnet y es de los hallazgos que justifican el
+       ensayo entero: la operativa se quedó sin SOL después de la primera
+       retirada y todas las siguientes empezaron a fallar. Lo grave no era
+       quedarse sin SOL —eso se rellena— sino que fallaba con un error de red
+       genérico. En mainnet habrían sido retiradas cayendo en cascada sin que
+       nadie supiera por qué.
+
+       Se comprueba ANTES de `retirada_abrir`, para no descontarle el saldo a
+       nadie por un problema que es nuestro. */
+    const MINIMO_SOL = 5_000_000;   // 0,005 SOL: renta de una cuenta + margen
+    try {
+      const solTesoro = await con.getBalance(tesoro.publicKey);
+      if (solTesoro < MINIMO_SOL) {
+        console.error("TESORO SIN SOL: " + (solTesoro / 1e9).toFixed(6) +
+                      " SOL. Recarga la wallet operativa " + tesoro.publicKey.toBase58());
+        return responder({ error: "las retiradas no estan disponibles ahora mismo",
+                           clase: "tesoro_sin_gas" }, 503);
+      }
+    } catch (e) {
+      /* Si ni siquiera se puede consultar el saldo, el RPC no responde y no
+         tiene sentido seguir: mejor parar aquí que a mitad de una retirada. */
+      console.error("no pude consultar el saldo del tesoro: " + (e as Error).message);
+      return responder({ error: "no se puede contactar con la red ahora mismo",
+                         clase: "sin_red" }, 503);
+    }
 
     /* ── 1 · reservar el saldo y crear la fila ──
        Todo dentro de una función de Postgres con `for update`: cobrar y apuntar
@@ -280,7 +321,6 @@ Deno.serve(async (req) => {
        quedaría en revisión para siempre por un fallo de red de dos segundos. */
     let firma = "";
     let ultimoBloqueValido = 0;
-    const con = new Connection(RPC, "confirmed");
 
     try {
       const origen  = await getAssociatedTokenAddress(mint, tesoro.publicKey);
