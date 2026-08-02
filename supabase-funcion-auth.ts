@@ -192,6 +192,105 @@ function reciclar(monedas: number): void {
   }).catch((e) => console.warn("no pude reciclar " + monedas + ": " + e.message));
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   Resolver el cuadro de un torneo
+   ══════════════════════════════════════════════════════════════════════════
+   Vive aquí y no en SQL porque hace falta `simulate()`. Postgres se queda con
+   lo que tiene que ser atómico —cobrar la entrada, tomar el torneo, pagar los
+   premios— y esto pone los combates.
+
+   `torneo_tomar` es la llave: pasa el torneo a `en_curso` dentro de una
+   transacción con `for update`. Si dos personas abren el torneo a la vez, la
+   segunda se lo encuentra ya tomado y esta función no hace nada. Sin eso, el
+   premio se repartiría dos veces.
+
+   ── El cuadro ──
+   Se baraja con una semilla del SERVIDOR y se rellena hasta la siguiente
+   potencia de dos con descansos. Un descanso no es un combate: se guarda la
+   fila para que el cuadro se vea completo, pero sin semilla ni registro.
+
+   ── Los puestos ──
+   Quien cae en la ronda `r` de `R` totales queda en el puesto `2^(R-r) + 1`:
+   el que pierde la final es 2º, los dos que pierden las semifinales son 3º,
+   los cuatro de cuartos son 5º. Eso hace que `torneo_cerrar` pueda pagar por
+   puesto sin saber nada del cuadro. */
+async function resolverTorneo(tid: number): Promise<unknown> {
+  let tomado;
+  try {
+    tomado = await db("/rpc/torneo_tomar", {
+      method: "POST", body: JSON.stringify({ p_torneo: tid }),
+    });
+  } catch (e) {
+    /* `todavia_no` y `no_resoluble` son lo normal: se abre un torneo que aún
+       no toca, o que ya está resuelto. No es un error. */
+    const m = (e as Error).message;
+    if (m.includes("todavia_no") || m.includes("no_resoluble")) return null;
+    throw e;
+  }
+  if (tomado?.cancelado) return tomado;
+
+  const entradas = tomado.entradas as Array<{ id: number; snapshot: Record<string, unknown> }>;
+  const semilla = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000000;
+
+  /* Fisher-Yates con el PRNG del juego. El `sort(() => Math.random()-.5)` está
+     sesgado y su comparador es inconsistente; en un cuadro de ocho eso se nota
+     y aquí hay dinero de por medio. */
+  const rnd = C.mulberry32(semilla);
+  const orden: (typeof entradas[0] | null)[] = entradas.slice();
+  for (let i = orden.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [orden[i], orden[j]] = [orden[j], orden[i]];
+  }
+  let tam = 1;
+  while (tam < orden.length) tam *= 2;
+  while (orden.length < tam) orden.push(null);          // descansos
+
+  const rondas = Math.log2(tam);
+  const cuadro: unknown[] = [];
+  const puestos: { entrada_id: number; posicion: number }[] = [];
+
+  let vivos = orden;
+  for (let ronda = 1; ronda <= rondas; ronda++) {
+    const siguiente: (typeof entradas[0] | null)[] = [];
+    for (let i = 0; i < vivos.length; i += 2) {
+      const a = vivos[i], b = vivos[i + 1], puesto = i / 2;
+
+      if (!a && !b) { siguiente.push(null); continue; }
+      if (!a || !b) {
+        /* Descanso: pasa sin pelear. Se guarda la fila igualmente para que el
+           cuadro se pueda dibujar entero. */
+        cuadro.push({ ronda, puesto, a_entry: a?.id ?? null, b_entry: b?.id ?? null,
+                      seed: 0, winner: null, turns: null, log: null });
+        siguiente.push(a || b);
+        continue;
+      }
+
+      /* Semilla derivada de la del torneo: distinta por combate y reproducible.
+         Con semilla y registro guardados, cualquiera puede recalcular cada
+         pelea del cuadro — un torneo cuyo resultado hay que creerse no vale
+         nada. */
+      const seed = (semilla + ronda * 7919 + puesto * 31) % 1000000000;
+      const fight = C.simulate(a.snapshot, b.snapshot, seed);
+      const gana = fight.winner === "A" ? a : b;
+      const cae  = fight.winner === "A" ? b : a;
+
+      cuadro.push({ ronda, puesto, a_entry: a.id, b_entry: b.id, seed,
+                    winner: fight.winner, turns: fight.turns, log: fight.log });
+      puestos.push({ entrada_id: cae.id, posicion: Math.pow(2, rondas - ronda) + 1 });
+      siguiente.push(gana);
+    }
+    vivos = siguiente;
+  }
+
+  const campeon = vivos.find(Boolean);
+  if (campeon) puestos.push({ entrada_id: campeon.id, posicion: 1 });
+
+  return await db("/rpc/torneo_cerrar", {
+    method: "POST",
+    body: JSON.stringify({ p_torneo: tid, p_cuadro: cuadro, p_puestos: puestos }),
+  });
+}
+
 /* El libro de cuentas del jugador (supabase-13-movimientos.sql). `monedas` va
    CON SIGNO: negativo lo que sale del saldo, positivo lo que entra.
 
@@ -913,6 +1012,66 @@ async function manejar(req: Request): Promise<Response> {
       body: JSON.stringify({ p_address: dueno, p_limite: limite }),
     });
     return responder({ movimientos: filas || [] });
+  }
+
+  /* ══════════ torneos ══════════
+     El cuadro se resuelve AQUÍ y no en SQL porque hace falta `simulate()`, que
+     vive en brute-combate.js. Postgres solo entrega los datos, cobra y paga —
+     lo que tiene que ser atómico— y esto pone las peleas.
+
+     Se dispara al ABRIR el torneo, no con una tarea programada. Un cron es una
+     cosa más que mantener y que se cae en silencio; esto no puede caerse
+     porque no existe. Si nadie abre el torneo, se resuelve cuando alguien lo
+     abra, y el resultado es el mismo.
+
+     `torneo_tomar` lo pasa a `en_curso` de forma atómica: si dos personas lo
+     abren a la vez, la segunda se encuentra el estado ya cambiado y no hace
+     nada. Sin eso, el premio se repartiría dos veces. */
+  if (accion === "torneo_ver" || accion === "torneo_apuntarse") {
+    const tid = idEntero(cuerpo.torneoId);
+    if (!tid) return responder({ error: "identificador no valido" }, 400);
+
+    if (accion === "torneo_apuntarse") {
+      const bid = idEntero(cuerpo.bruteId);
+      if (!bid) return responder({ error: "identificador no valido" }, 400);
+      try {
+        const r = await db("/rpc/torneo_inscribir", {
+          method: "POST",
+          body: JSON.stringify({ p_owner: dueno, p_torneo: Number(tid), p_bruto: Number(bid) }),
+        });
+        /* La entrada NO se recicla aquí: pasa a ser BOTE, y el bote se
+           reparte al cerrar. Lo que vuelve a la reserva es solo la parte de la
+           casa, y eso lo hace `torneo_cerrar`. */
+        apuntar(dueno, "torneo", String(tid), -Number(r.pagado), { entrada_id: r.entrada_id });
+        return responder(r);
+      } catch (e) {
+        const m = (e as Error).message;
+        if (m.includes("torneo_desconocido"))   return responder({ error: "ese torneo no existe" }, 404);
+        if (m.includes("inscripcion_cerrada"))  return responder({ error: "las inscripciones estan cerradas", clase: "cerrado" }, 403);
+        if (m.includes("torneo_lleno"))         return responder({ error: "no quedan plazas", clase: "lleno" }, 409);
+        if (m.includes("no es tuyo"))           return responder({ error: "ese bruto no es tuyo" }, 403);
+        if (m.includes("nivel_fuera:"))         return responder({ error: "tu bruto esta fuera del rango de niveles",
+                                                                   clase: "nivel", rango: (m.match(/nivel_fuera:([\d-]+)/) || [])[1] }, 403);
+        if (m.includes("sin_saldo"))            return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
+        if (m.includes("entrada_jugador_unico")) return responder({ error: "ya estas apuntado con otro bruto", clase: "repetido" }, 409);
+        if (m.includes("entrada_bruto_unico"))   return responder({ error: "ese bruto ya esta apuntado", clase: "repetido" }, 409);
+        throw e;
+      }
+    }
+
+    /* ── ver: y de paso resolverlo si toca ── */
+    await resolverTorneo(Number(tid)).catch((e) =>
+      console.warn("torneo " + tid + " no se pudo resolver: " + e.message));
+
+    const t = await db("/tournaments?id=eq." + tid + "&select=*");
+    if (!t || !t[0]) return responder({ error: "ese torneo no existe" }, 404);
+    const entradas = await db("/tournament_entries?torneo_id=eq." + tid +
+                              "&select=id,bruto_id,address,snapshot,posicion,premio" +
+                              "&order=posicion.asc.nullslast,created_at.asc");
+    const cuadro = await db("/tournament_fights?torneo_id=eq." + tid +
+                            "&select=ronda,puesto,a_entry,b_entry,seed,winner,turns" +
+                            "&order=ronda.asc,puesto.asc");
+    return responder({ torneo: t[0], entradas: entradas || [], cuadro: cuadro || [] });
   }
 
   /* ══════════ panel de administración ══════════

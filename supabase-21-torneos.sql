@@ -326,7 +326,13 @@ begin
   end loop;
 
   -- Lo que queda sin repartir —la parte de la casa y los redondeos— vuelve a
-  -- la reserva. Es el sumidero, y por eso se pasa por `emision_reciclar` en
+  -- la reserva.
+  --
+  -- Con DESCANSOS el cuadro queda desigual y puede haber un solo semifinalista
+  -- en vez de dos (probado: con 5 inscritos en un cuadro de 8 pasa). Entonces
+  -- se paga media parte de semifinales y la otra media cae aquí. No se pierde
+  -- ni se inventa una moneda: la casa se lleva un poco más cuando el torneo no
+  -- se llena, que es exactamente el incentivo correcto para llenarlo. Es el sumidero, y por eso se pasa por `emision_reciclar` en
   -- vez de sumarlo a mano: así el 10% del fondo de garantía también se lleva
   -- su parte, igual que con las armas.
   select t.bote - coalesce(sum(premio), 0) into v_casa
