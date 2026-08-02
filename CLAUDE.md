@@ -39,6 +39,9 @@ experiencia y sube de nivel.
 | `supabase-18-retirada-cuentas.sql` | La retirada: topes, comisión y estado. **Sin el envío** | Aplicado |
 | `supabase-19-cerrar-simulacro.sql` | Cierra el simulacro y limpia lo que dejó | Aplicado una vez |
 | `supabase-20-cerrar-devnet.sql` | Cierra las pruebas de devnet, por lista blanca | Aplicado una vez |
+| `supabase-21-torneos.sql` | Torneos: cuadro, inscripción y reparto del bote | Aplicado |
+| `supabase-23-mascotas.sql` | Mascotas: bolsa del jugador y muerte permanente | Aplicado |
+| `prueba-mascotas.mjs` | Simula el combate con mascota. Se valida contra `simulate()` | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
 | `DESPLIEGUE.md` | En qué orden se aplica todo lo de arriba | Guía |
@@ -680,7 +683,8 @@ verdad tenía sus dependencias, y eso le da al juego sensación de lugar.
 | La arena | pelear | hecha |
 | La clasificación | ver quién manda | hecha |
 | El historial | tus compras y retiradas, solo tuyas | hecha |
-| **El vivarium** | comprar mascotas | pendiente |
+| El vivarium | comprar mascotas | hecha |
+| Los torneos | apuntarse y ver el cuadro | hecha |
 
 `vivarium` era el recinto donde se guardaban las fieras de la arena. El nombre
 está elegido; el contenido no existe.
@@ -831,6 +835,59 @@ una compra única.
 `brutes.armas` sigue existiendo pero **está vacía y no significa nada**. Se dejó
 por no romper la función desplegada en el hueco entre aplicar el SQL y
 redesplegar.
+
+---
+
+## Mascotas (el vivarium)
+
+**Una mascota SÍ es una ventaja, a diferencia de las armas.** Quien lleva una
+gana ~57% contra quien no. Eso es deliberado, y lo que impide que sea comprar
+victorias son tres frenos:
+
+- **Estorba:** resta 2 de iniciativa. Sin eso la ventaja sube al 63%.
+- **Muere y no vuelve**, como el arma que se rompe.
+- **No da más monedas ni más XP.**
+
+Al 57%, quien no lleva gana 43 de cada 100: molesto, no excluyente. Ese era el
+límite buscado.
+
+| | contra quien no lleva | dura | precio |
+|---|---|---|---|
+| perro | 56,6% | ~18 combates | 80 |
+| lobo | 57,8% | ~17 | 70 |
+| oso | 57,1% | ~27 | 110 |
+
+Las tres dentro de **1,2 puntos** y equilibradas entre ellas (45-54%). La
+duración del combate **no se mueve**: mediana 8, igual que sin mascota.
+
+### Se midió ANTES de escribirlas, y menos mal
+
+El diseño de partida —mordisco fuerte y mucha cobertura— daba **73-82% de
+victorias y +25% de duración**. Comprar mascota era comprar el combate. Se
+descartó por medirlo, no por opinar.
+
+**`prueba-mascotas.mjs` no reimplementa el combate:** copia el bucle de
+`simulate()` y comprueba que sin mascota da **idéntico al original en 5.000
+peleas** antes de medir nada. El primer intento sí lo reimplementó por libre y
+daba mediana 25 turnos cuando el juego tiene 8. **Si tocas estos números,
+vuelve a pasarlo.**
+
+### El modelo es el de las armas
+
+`players.mascotas` es la bolsa (copias libres), `brutes.mascota` la que lleva
+puesta. Comprar y equipar son funciones de Postgres con `for update`. La muerte
+la decide `simulate()` en el servidor y la ejecuta `mascota_morir`: si la
+decidiera el navegador, no se moriría ninguna.
+
+### Pendiente, pedido por el dueño
+
+- **El arte no convence.** Quiere registro anime, más trabajado. Lo que hay
+  ahora son tres siluetas planas que se distinguen a 44px pero no tienen el
+  nivel del resto del juego.
+- **La mascota debe atacar en su PROPIO turno**, visible en el registro del
+  combate. Hoy muerde en silencio dentro del turno del bruto, así que el
+  jugador no la ve hacer nada.
+- Y que su vida se vea durante la pelea, como la del bruto.
 
 ---
 
