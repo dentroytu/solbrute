@@ -111,6 +111,45 @@ todos los demás.
 | **Fondo de garantía** | **5%** | **5.000.000** | colchón. No se emite jugando |
 | Comunidad inicial | 5% | 5.000.000 | primeros jugadores |
 
+### Una wallet por parte, y una sola caliente
+
+Con todo en una wallet, esta tabla es **una promesa en un fichero markdown**.
+Con wallets separadas es comprobable en la cadena por cualquiera, sin tener que
+creerse nada.
+
+Pero la razón fuerte no es la transparencia: es el radio de daño.
+
+Para pagar retiradas, la Edge Function tiene que **firmar**. Esa clave vive en
+un secreto de Supabase, en un servidor, al alcance del código — es una wallet
+**caliente** por definición. Si está la que tiene los 100 millones, quien entre
+en el servidor se lleva el token entero.
+
+| Wallet | Tokens | |
+|---|---|---|
+| Recompensas (fría) | 37.500.000 | ❄️ se recarga a mano |
+| **Operativa** | **2.500.000** | 🔥 **la única que firma** |
+| Liquidez | 25.000.000 | ❄️ luego inmovilizada en el pool |
+| Equipo | 15.000.000 | ❄️ con bloqueo público |
+| Tesorería | 10.000.000 | ❄️ idealmente multisig |
+| Fondo de garantía | 5.000.000 | ❄️ multisig |
+| Comunidad inicial | 5.000.000 | ❄️ |
+
+**La operativa no lleva el 40%: lleva unos 90 días de emisión** (27.397 × 90 ≈
+2,5 millones) y se rellena a mano desde la fría cuando baja. Si comprometen el
+servidor se pierden tres meses de recompensas, no cuatro años. Es la diferencia
+entre un incidente feo y el final del proyecto.
+
+**Y el bloqueo del equipo solo es creíble si está separado.** No se puede
+bloquear el 15% de una wallet: se bloquea *una wallet*. Mezclado con el resto no
+hay nada que enseñar, y nadie tiene por qué creerte.
+
+**Ensayado entero en devnet** (mint `CQrsHLKWmgBjd1UUi115KzQ3GRfGfM8xafoUeP3ajWqX`),
+verificado leyendo las cuentas de la cadena: 8 cuentas, ninguna inesperada, suma
+exacta, y `mintAuthority` y `freezeAuthority` en `null`.
+
+En mainnet las claves las crea el dueño, una a una, y las frías van en papel. La
+única que pasa por un servidor es la operativa.
+
 ### El fondo de garantía sale de la tesorería, no de las recompensas
 
 Tesorería baja del 15% al 10%. Es lo único que cambió al añadirlo, y es
