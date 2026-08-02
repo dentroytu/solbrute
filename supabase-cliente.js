@@ -137,10 +137,13 @@
 
   /* Llamada a la Edge Function "auth". Va siempre con la clave anon: es el
      único sitio que tiene que funcionar ANTES de tener sesión. */
-  async function pedirAuth(cuerpo){
+  /* `funcion` existe porque la RETIRADA vive en su propia Edge Function, no en
+     `auth`: las librerías de Solana pesan y su arranque en frío no lo tiene que
+     pagar cada login y cada pelea. Todo lo demás sigue yendo a `auth`. */
+  async function pedirAuth(cuerpo, funcion = "auth"){
     let r;
     try{
-      r = await fetch(FUNCIONES + "/auth", {
+      r = await fetch(FUNCIONES + "/" + funcion, {
         method: "POST",
         headers: { "apikey": ANON, "Authorization": "Bearer " + ANON, "Content-Type": "application/json" },
         body: JSON.stringify(cuerpo)
@@ -303,6 +306,22 @@
     },
     async equiparArma(bruteRid, arma){
       return await pedirAuth({ accion: "equipar", token: token(), bruteId: bruteRid, arma });
+    },
+
+    /* Convierte saldo del juego en $BRUTE de verdad. Va a la función `retirar`,
+       que es la única que tiene la clave del tesoro.
+
+       La dirección de destino NO se manda: la saca el servidor del token de
+       sesión. Si se aceptara del navegador, cualquiera se mandaría a sí mismo
+       el saldo de otro. */
+    async retirar(monedas){
+      return await pedirAuth({ accion: "retirar", token: token(), monedas }, "retirar");
+    },
+
+    /* El listado sí se queda en `auth`: es una consulta sin riesgo y no
+       necesita ninguna librería de Solana. */
+    async misRetiradas(limite){
+      return await pedirAuth({ accion: "retiradas", token: token(), limite: limite || 20 });
     },
 
     /* Las últimas peleas de TUS brutos, para el tablón del ludus.
