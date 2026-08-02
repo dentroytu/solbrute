@@ -261,76 +261,124 @@
   }
 
   /* ═══════════ mascotas ═══════════
-     Tres siluetas que tienen que distinguirse A 44 PÍXELES, que es donde se
-     ven en la tienda. La lección de los iconos de las armas vale igual: no
-     puede distinguirlas el tamaño, porque el SVG escala al marco. Aquí las
-     separa la PROPORCIÓN — el perro es cuadrado, el lobo alargado y bajo, el
-     oso una masa redonda con patas cortas.
+     Mismo registro que los brutos, que es lo que hace que no parezcan de otro
+     juego. Las palancas son las mismas que dice la nota de arte:
 
-     `mirando` = 1 hacia la derecha, -1 hacia la izquierda. En la arena cada
-     bicho mira hacia el rival, como su bruto. */
+       · CABEZA GRANDE respecto al cuerpo — proporción anime, no realista
+       · OJOS grandes y bajos, con iris a DOS TONOS y punto de brillo
+       · CONTORNO grueso (OUT) contra detalle fino (IN). Igualar los grosores
+         es lo que hacía que la primera versión pareciera un diagrama
+       · PLANOS de sombra y una banda de brillo, en vez de color liso
+       · Pelo en pocos planos angulares, no en curvas suaves
+
+     Y cada uno con su gesto, que es lo que los separa de verdad: el perro
+     atento y con las orejas altas, el lobo agachado enseñando los dientes, el
+     oso pesado y con la cabeza baja.
+
+     `mirando` = 1 derecha, -1 izquierda. En la arena se voltean con su bruto. */
   function dibujoMascota(id, mirando){
     const P = {
-      perro: { pelo:"#b07a42", claro:"#c99560", osc:"#7d5227" },
-      lobo:  { pelo:"#8d8378", claro:"#a89e91", osc:"#5f574e" },
-      oso:   { pelo:"#6b4a2f", claro:"#87603f", osc:"#452e1c" },
+      perro: { base:"#b07a42", luz:"#d3a069", som:"#7d5227", ojo:"#c98a3a", ojo2:"#8a5a1e" },
+      lobo:  { base:"#8d8378", luz:"#b3aaa0", som:"#5a534b", ojo:"#e0b23a", ojo2:"#a67c14" },
+      oso:   { base:"#6b4a2f", luz:"#8f6642", som:"#412b19", ojo:"#c98a3a", ojo2:"#7d5227" },
     }[id];
     if(!P) return "";
-    const g = `<g transform="${mirando < 0 ? "translate(64,0) scale(-1,1)" : ""}">`;
 
-    if(id === "perro") return `${g}
-      <ellipse cx="30" cy="40" rx="17" ry="11" fill="${P.pelo}" stroke="${OL}" stroke-width="${OUT}"/>
-      <path d="M20 49 L20 56 M28 50 L28 57 M36 50 L36 57 M43 48 L43 55"
-            stroke="${OL}" stroke-width="6" stroke-linecap="round"/>
-      <path d="M20 49 L20 56 M28 50 L28 57 M36 50 L36 57 M43 48 L43 55"
-            stroke="${P.osc}" stroke-width="3.4" stroke-linecap="round"/>
-      <path d="M13 36 Q4 28 8 20" stroke="${OL}" stroke-width="6.5" fill="none" stroke-linecap="round"/>
-      <path d="M13 36 Q5 29 8.5 22" stroke="${P.claro}" stroke-width="3.4" fill="none" stroke-linecap="round"/>
-      <circle cx="45" cy="29" r="11" fill="${P.claro}" stroke="${OL}" stroke-width="${OUT}"/>
-      <path d="M39 20 L36 9 L45 15 Z" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"/>
-      <path d="M51 20 L54 9 L46 15 Z" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"/>
-      <ellipse cx="54" cy="32" rx="5" ry="4" fill="${P.osc}" stroke="${OL}" stroke-width="2.4"/>
-      <circle cx="48" cy="27" r="2.4" fill="${OL}"/>
-      <circle cx="48.8" cy="26.2" r=".9" fill="#fff"/>`+`</g>`;
+    /* El ojo, igual que el del bruto: blanco, iris a dos tonos y brillo. Es la
+       pieza que más "personaje" da por píxel gastado. */
+    const ojo = (x, y, r, gesto) => `
+      <ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * (gesto === "fiero" ? .74 : 1)}"
+               fill="#fff" stroke="${OL}" stroke-width="${IN + .5}"/>
+      <circle cx="${x + r * .18}" cy="${y}" r="${r * .62}" fill="${P.ojo}"/>
+      <circle cx="${x + r * .18}" cy="${y + r * .16}" r="${r * .40}" fill="${P.ojo2}"/>
+      <circle cx="${x + r * .18}" cy="${y}" r="${r * .22}" fill="${OL}"/>
+      <circle cx="${x + r * .48}" cy="${y - r * .34}" r="${r * .26}" fill="#fff"/>`;
 
-    if(id === "lobo") return `${g}
-      <ellipse cx="29" cy="41" rx="19" ry="9.5" fill="${P.pelo}" stroke="${OL}" stroke-width="${OUT}"/>
-      <path d="M17 48 L15 57 M26 49 L25 58 M35 49 L36 58 M43 47 L45 56"
-            stroke="${OL}" stroke-width="5.5" stroke-linecap="round"/>
-      <path d="M17 48 L15 57 M26 49 L25 58 M35 49 L36 58 M43 47 L45 56"
-            stroke="${P.osc}" stroke-width="3" stroke-linecap="round"/>
-      <path d="M11 38 Q2 34 3 25 Q6 32 12 33" fill="${P.claro}" stroke="${OL}" stroke-width="2.8" stroke-linejoin="round"/>
-      <path d="M40 34 Q46 24 56 26 L60 33 Q54 40 44 39 Z" fill="${P.claro}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
-      <path d="M43 26 L41 14 L50 21 Z" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"/>
-      <path d="M53 25 L56 14 L58 24 Z" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"/>
-      <ellipse cx="60" cy="33" rx="4" ry="3.2" fill="${P.osc}" stroke="${OL}" stroke-width="2.2"/>
-      <path d="M50 34 L56 36" stroke="${OL}" stroke-width="1.8" stroke-linecap="round"/>
-      <circle cx="49" cy="29" r="2.2" fill="${OL}"/>
-      <circle cx="49.7" cy="28.3" r=".8" fill="#fff"/>`+`</g>`;
+    const abre = `<g transform="${mirando < 0 ? "translate(64,0) scale(-1,1)" : ""}">`;
 
-    return `${g}
-      <ellipse cx="28" cy="38" rx="21" ry="16" fill="${P.pelo}" stroke="${OL}" stroke-width="${OUT}"/>
-      <path d="M17 52 L16 58 M28 53 L28 59 M39 52 L40 58"
-            stroke="${OL}" stroke-width="9" stroke-linecap="round"/>
-      <path d="M17 52 L16 58 M28 53 L28 59 M39 52 L40 58"
-            stroke="${P.osc}" stroke-width="5.5" stroke-linecap="round"/>
-      <circle cx="49" cy="27" r="13" fill="${P.claro}" stroke="${OL}" stroke-width="${OUT}"/>
-      <circle cx="43" cy="15" r="5.5" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6"/>
-      <circle cx="57" cy="16" r="5.5" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6"/>
-      <ellipse cx="57" cy="31" rx="6" ry="5" fill="${P.osc}" stroke="${OL}" stroke-width="2.4"/>
-      <circle cx="52" cy="24" r="2.4" fill="${OL}"/>
-      <circle cx="52.8" cy="23.2" r=".9" fill="#fff"/>`+`</g>`;
+    if(id === "perro") return `${abre}
+      <path d="M13 38 Q3 32 5 20 Q9 28 15 30 Z" fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M18 44 L16 57 M27 46 L26 58" stroke="${OL}" stroke-width="7.5" stroke-linecap="round"/>
+      <path d="M18 44 L16 57 M27 46 L26 58" stroke="${P.som}" stroke-width="4.2" stroke-linecap="round"/>
+      <path d="M13 30 Q26 24 38 30 Q44 34 42 44 Q30 50 18 46 Q11 40 13 30 Z"
+            fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M15 31 Q26 26 36 31 Q30 34 15 34 Z" fill="${P.luz}"/>
+      <path d="M20 45 Q30 49 41 43 Q42 47 38 49 Q28 51 20 45 Z" fill="${P.som}" opacity=".85"/>
+      <path d="M35 45 L33 57 M44 42 L45 55" stroke="${OL}" stroke-width="7.5" stroke-linecap="round"/>
+      <path d="M35 45 L33 57 M44 42 L45 55" stroke="${P.base}" stroke-width="4.2" stroke-linecap="round"/>
+      <path d="M40 12 L34 26 L45 22 Z" fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M40 15 L37 24 L43 22 Z" fill="${P.som}"/>
+      <path d="M55 11 L58 26 L48 21 Z" fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M55 14 L56 23 L51 21 Z" fill="${P.luz}"/>
+      <path d="M36 30 Q36 18 47 18 Q59 18 59 31 Q59 41 51 44 Q40 44 37 37 Z"
+            fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M38 24 Q46 19 55 22 Q47 25 39 29 Z" fill="${P.luz}"/>
+      <path d="M50 33 Q62 32 62 39 Q62 45 52 44 Q47 41 48 36 Z"
+            fill="${P.luz}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <ellipse cx="61" cy="37" rx="3.4" ry="2.8" fill="${OL}"/>
+      <path d="M56 42 Q59 44 61 42" stroke="${OL}" stroke-width="${IN}" fill="none" stroke-linecap="round"/>
+      ${ojo(47, 30, 5.4)}
+      <path d="M42 23 Q47 21 52 23" stroke="${OL}" stroke-width="${IN + .3}" fill="none" stroke-linecap="round"/>
+    </g>`;
+
+    if(id === "lobo") return `${abre}
+      <path d="M11 40 Q0 38 1 25 Q6 33 13 33 Z" fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M4 28 Q8 33 12 34 L11 38 Q4 35 4 28 Z" fill="${P.luz}"/>
+      <path d="M16 45 L13 58 M26 47 L24 59" stroke="${OL}" stroke-width="7" stroke-linecap="round"/>
+      <path d="M16 45 L13 58 M26 47 L24 59" stroke="${P.som}" stroke-width="3.8" stroke-linecap="round"/>
+      <path d="M11 32 Q24 26 37 32 Q45 37 43 46 Q28 52 17 47 Q9 41 11 32 Z"
+            fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M13 33 Q25 28 35 33 Q26 36 13 36 Z" fill="${P.luz}"/>
+      <path d="M18 47 Q30 51 42 45 Q43 49 37 51 Q26 53 18 47 Z" fill="${P.som}" opacity=".9"/>
+      <path d="M34 47 L31 59 M43 44 L45 56" stroke="${OL}" stroke-width="7" stroke-linecap="round"/>
+      <path d="M34 47 L31 59 M43 44 L45 56" stroke="${P.base}" stroke-width="3.8" stroke-linecap="round"/>
+      <path d="M39 10 L36 25 L47 20 Z" fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M39 13 L38 22 L44 20 Z" fill="${P.som}"/>
+      <path d="M55 9 L57 25 L48 19 Z" fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M55 13 L55 22 L51 19 Z" fill="${P.luz}"/>
+      <path d="M36 30 Q37 19 48 20 Q58 21 57 32 Q56 40 49 42 Q39 40 36 34 Z"
+            fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M38 25 Q46 21 54 24 Q46 27 39 30 Z" fill="${P.luz}"/>
+      <path d="M50 34 Q63 34 63 40 Q63 46 51 45 Q46 41 48 37 Z"
+            fill="${P.luz}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <ellipse cx="62" cy="38" rx="3.2" ry="2.6" fill="${OL}"/>
+      <path d="M53 43 L54.6 47.5 L56.2 43" fill="#fff" stroke="${OL}" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M58 42.6 L59.4 46.6 L60.8 42.6" fill="#fff" stroke="${OL}" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M51 42 Q56 44 62 41.5" stroke="${OL}" stroke-width="${IN}" fill="none" stroke-linecap="round"/>
+      ${ojo(47, 31, 4.8, "fiero")}
+      <path d="M41 25 L52 28" stroke="${OL}" stroke-width="${IN + .8}" stroke-linecap="round"/>
+    </g>`;
+
+    return `${abre}
+      <path d="M17 48 L15 58 M29 50 L28 59" stroke="${OL}" stroke-width="10" stroke-linecap="round"/>
+      <path d="M17 48 L15 58 M29 50 L28 59" stroke="${P.som}" stroke-width="6" stroke-linecap="round"/>
+      <path d="M10 34 Q22 22 36 27 Q47 33 44 46 Q30 55 17 50 Q6 44 10 34 Z"
+            fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M13 32 Q24 24 34 28 Q24 33 14 37 Z" fill="${P.luz}"/>
+      <path d="M18 50 Q31 55 43 46 Q44 51 37 54 Q26 57 18 50 Z" fill="${P.som}" opacity=".9"/>
+      <path d="M36 49 L34 59 M46 45 L47 57" stroke="${OL}" stroke-width="10" stroke-linecap="round"/>
+      <path d="M36 49 L34 59 M46 45 L47 57" stroke="${P.base}" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="39" cy="19" r="6.4" fill="${P.base}" stroke="${OL}" stroke-width="${OUT}"/>
+      <circle cx="39" cy="19" r="2.9" fill="${P.som}"/>
+      <circle cx="58" cy="18" r="6.4" fill="${P.base}" stroke="${OL}" stroke-width="${OUT}"/>
+      <circle cx="58" cy="18" r="2.9" fill="${P.luz}"/>
+      <path d="M34 30 Q34 16 48 16 Q62 16 62 31 Q62 42 52 45 Q37 44 34 35 Z"
+            fill="${P.base}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M37 23 Q47 17 58 21 Q47 25 38 30 Z" fill="${P.luz}"/>
+      <path d="M48 34 Q62 34 62 41 Q62 47 50 46 Q45 42 46 37 Z"
+            fill="${P.luz}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <ellipse cx="61" cy="38" rx="4" ry="3.2" fill="${OL}"/>
+      <path d="M54 43 Q57 46 60 43" stroke="${OL}" stroke-width="${IN}" fill="none" stroke-linecap="round"/>
+      ${ojo(46, 29, 4.6)}
+      <path d="M40 22 Q46 20 51 22" stroke="${OL}" stroke-width="${IN + .3}" fill="none" stroke-linecap="round"/>
+    </g>`;
   }
 
-  /* La mascota en la arena, a los pies del bruto.
+  /* Para el vivarium: la mascota sola, en el mismo marco de 64 que las armas. */
+  function iconoMascota(id){
+    return `<svg viewBox="0 0 64 64" aria-hidden="true">${dibujoMascota(id, 1)}</svg>`;
+  }
 
-     Va DETRÁS y hacia atrás —al lado contrario del rival— por dos motivos: no
-     tapa al bruto, que es lo que el jugador ha elegido pieza a pieza, y se lee
-     al instante quién lleva bicho sin tener que mirar dos veces.
-
-     El grupo entero se mete dentro del `scale(-1,1)` del sprite cuando el bruto
-     mira a la izquierda, así que el bicho se voltea con él y siempre encara al
-     rival. Por eso aquí se dibuja mirando a la derecha y no se toca. */
   /* Se dibuja DESPUÉS de las piernas y ANTES del torso: por delante de ellas,
      para que se lea entera, y por detrás de lo que el jugador ha elegido pieza
      a pieza. */
