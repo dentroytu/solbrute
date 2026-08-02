@@ -491,7 +491,8 @@
         acciones = `<button class="btn btn-sm js-abrir" data-id="${t.id}">Abrir inscripciones</button>
                     <button class="btn btn-ghost btn-sm js-borrar" data-id="${t.id}">Borrar</button>`;
       else if(t.estado === "inscripcion")
-        acciones = `<button class="btn btn-ghost btn-sm js-cancelar" data-id="${t.id}">Cancelar</button>`;
+        acciones = `<button class="btn btn-sm js-resolver" data-id="${t.id}">Resolver ya</button>
+                    <button class="btn btn-ghost btn-sm js-cancelar" data-id="${t.id}">Cancelar</button>`;
 
       return `<div class="tor-fila">
         <span class="tid">#${t.id}</span>
@@ -511,6 +512,8 @@
     el("torLista").querySelectorAll(".js-cancelar").forEach(b =>
       b.onclick = () => { if(confirm("Cancelar el torneo. A quien esté apuntado se le devuelve la entrada.")) 
         cambiarTorneo(+b.dataset.id, { estado: "cancelado" }, "cancelado"); });
+    el("torLista").querySelectorAll(".js-resolver").forEach(b =>
+      b.onclick = () => resolverTorneoYa(+b.dataset.id));
     el("torLista").querySelectorAll(".js-borrar").forEach(b =>
       b.onclick = () => borrarTorneo(+b.dataset.id));
   }
@@ -519,6 +522,15 @@
     try{
       await SolBruteDB.adminTorneoEditar(id, campos);
       aviso("Torneo " + hecho);
+      await cargarTorneos();
+    }catch(e){ aviso(e.message, true); }
+  }
+
+  async function resolverTorneoYa(id){
+    if(!confirm("Resolver el torneo ahora, sin esperar a la fecha. Con menos de dos inscritos se cancela y se devuelven las entradas.")) return;
+    try{
+      const r = await SolBruteDB.adminTorneoResolver(id);
+      aviso(r.resuelto?.cancelado ? "Cancelado: no habia suficientes inscritos" : "Torneo resuelto");
       await cargarTorneos();
     }catch(e){ aviso(e.message, true); }
   }

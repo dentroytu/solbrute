@@ -290,6 +290,11 @@
     async adminTorneoEditar(id, campos){
       return await pedirAuth({ accion: "admin_torneo_editar", token: token(), id, campos });
     },
+    /* Adelanta la fecha y resuelve. No se salta ninguna comprobación: si hay
+       menos de dos inscritos, se cancela y se devuelven las entradas. */
+    async adminTorneoResolver(id){
+      return await pedirAuth({ accion: "admin_torneo_resolver", token: token(), id });
+    },
     async adminTorneoBorrar(id){
       return await pedirAuth({ accion: "admin_torneo_borrar", token: token(), id });
     },

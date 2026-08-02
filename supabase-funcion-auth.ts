@@ -1218,6 +1218,31 @@ async function manejar(req: Request): Promise<Response> {
       return responder({ torneo: fila[0], inscritos: dentro });
     }
 
+    /* ── Resolver ya, sin esperar a la fecha ──
+       Util de verdad, no solo para probar: si un torneo se llena en dos horas,
+       esperar tres dias no tiene sentido.
+
+       Adelanta la fecha y llama al mismo resolvedor de siempre. NO se salta
+       ninguna comprobacion: `torneo_tomar` sigue exigiendo estado
+       `inscripcion` y sigue cancelando con devolucion si hay menos de dos
+       inscritos. Lo unico que cambia es el reloj. */
+    if (accion === "admin_torneo_resolver") {
+      const id = idEntero(cuerpo.id);
+      if (!id) return responder({ error: "identificador no valido" }, 400);
+      const antes = (await db("/tournaments?id=eq." + id + "&select=*"))?.[0];
+      if (!antes) return responder({ error: "ese torneo no existe" }, 404);
+      if (antes.estado !== "inscripcion") {
+        return responder({ error: "solo se puede resolver uno con las inscripciones abiertas",
+                           clase: "no_resoluble" }, 409);
+      }
+      await db("/tournaments?id=eq." + id, {
+        method: "PATCH", body: JSON.stringify({ empieza_at: new Date().toISOString() }),
+      });
+      const r = await resolverTorneo(Number(id));
+      await anotar("torneo_resolver", String(id), antes, r);
+      return responder({ resuelto: r });
+    }
+
     if (accion === "admin_torneo_borrar") {
       const id = idEntero(cuerpo.id);
       if (!id) return responder({ error: "identificador no valido" }, 400);
