@@ -1085,17 +1085,6 @@ async function manejar(req: Request): Promise<Response> {
       return responder({ error: "sesion no valida o caducada" }, 401);
     }
 
-    if (accion === "admin_resumen") {
-      const r = await db("/rpc/admin_resumen", { method: "POST", body: "{}" });
-      return responder({ resumen: r });
-    }
-
-    if (accion === "admin_jugadores") {
-      const jugadores = await db("/players?select=address,coins,slots,created_at,last_seen&order=last_seen.desc&limit=200");
-      const brutos = await db("/brutes?select=id,owner,name,level,xp,hp_max,str,agi,spd,wins,losses,fights_left,created_at&order=level.desc&limit=500");
-      return responder({ jugadores, brutos });
-    }
-
     /* ── Registro de auditoría ──
        Toda modificación deja rastro con el antes y el después. Sin el antes,
        el registro solo dice que algo cambió, no de qué a qué. */
@@ -1106,6 +1095,151 @@ async function manejar(req: Request): Promise<Response> {
         body: JSON.stringify({ admin: dueno, accion: acc, objetivo: String(objetivo),
                                antes: antes ?? null, despues: despues ?? null }),
       }).catch((e) => console.warn("admin_log: " + e.message));
+
+
+    if (accion === "admin_resumen") {
+      const r = await db("/rpc/admin_resumen", { method: "POST", body: "{}" });
+      return responder({ resumen: r });
+    }
+
+    /* ══════════ torneos, desde el panel ══════════
+       Crear, listar y editar. Los borradores solo se ven por aquí: la política
+       de lectura de `tournaments` los esconde del navegador a propósito, para
+       que el admin pueda montar uno tranquilo antes de abrirlo. */
+    if (accion === "admin_torneos") {
+      const torneos = await db("/tournaments?select=*&order=created_at.desc&limit=100");
+      const inscritos = await db("/tournament_entries?select=torneo_id,posicion,premio,snapshot,address");
+      return responder({ torneos: torneos || [], inscritos: inscritos || [] });
+    }
+
+    /* Valida y recorta TODO lo que llega del formulario. El panel ya avisa de
+       un reparto que no suma 100, pero el panel es una página del navegador y
+       cualquiera puede saltárselo: lo que decide es esto. */
+    const saneaTorneo = (c: Record<string, unknown>, antes?: Record<string, unknown>) => {
+      const campos: Record<string, unknown> = {};
+      const num = (v: unknown, min: number, max: number, def: number) => {
+        const n = Math.floor(Number(v));
+        return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : def;
+      };
+      if (c.nombre !== undefined) {
+        const n = sanearNombre(c.nombre);
+        if (n.length < 2) throw new Error("nombre_corto");
+        campos.nombre = n;
+      }
+      if (c.plazas !== undefined) {
+        const p = Math.floor(Number(c.plazas));
+        if (![4, 8, 16, 32].includes(p)) throw new Error("plazas_invalidas");
+        campos.plazas = p;
+      }
+      if (c.entrada !== undefined)   campos.entrada   = num(c.entrada, 0, 1e9, Number(antes?.entrada) || 0);
+      if (c.nivel_min !== undefined) campos.nivel_min = num(c.nivel_min, 1, NIVEL_MAX, 1);
+      if (c.nivel_max !== undefined) campos.nivel_max = num(c.nivel_max, 1, NIVEL_MAX, NIVEL_MAX);
+      if (campos.nivel_min !== undefined && campos.nivel_max !== undefined &&
+          Number(campos.nivel_min) > Number(campos.nivel_max)) throw new Error("niveles_al_reves");
+
+      if (c.empieza_at !== undefined) {
+        const t = Date.parse(String(c.empieza_at));
+        if (!Number.isFinite(t)) throw new Error("fecha_invalida");
+        campos.empieza_at = new Date(t).toISOString();
+      }
+      /* El reparto se comprueba ENTERO o no se toca: cuatro porcentajes que
+         deben sumar 100, y la restriccion de la tabla lo repetiria de todas
+         formas — pero con un error de Postgres en vez de uno explicable. */
+      const p = ["pct_1", "pct_2", "pct_semis", "pct_casa"];
+      if (p.some((k) => c[k] !== undefined)) {
+        const v = p.map((k) => num(c[k] ?? antes?.[k], 0, 100, 0));
+        if (v.reduce((a, b) => a + b, 0) !== 100) throw new Error("reparto_no_suma");
+        p.forEach((k, i) => campos[k] = v[i]);
+      }
+      if (c.estado !== undefined) {
+        if (!["borrador", "inscripcion", "cancelado"].includes(String(c.estado))) {
+          throw new Error("estado_invalido");
+        }
+        campos.estado = c.estado;
+      }
+      return campos;
+    };
+
+    const errorTorneo = (m: string) => {
+      const mapa: Record<string, string> = {
+        nombre_corto: "el nombre es demasiado corto",
+        plazas_invalidas: "las plazas tienen que ser 4, 8, 16 o 32",
+        niveles_al_reves: "el nivel minimo es mayor que el maximo",
+        fecha_invalida: "esa fecha no vale",
+        reparto_no_suma: "el reparto del bote no suma 100",
+        estado_invalido: "ese estado no se puede poner a mano",
+      };
+      for (const k in mapa) if (m.includes(k)) return responder({ error: mapa[k], clase: k }, 400);
+      return null;
+    };
+
+    if (accion === "admin_torneo_crear") {
+      let campos;
+      try { campos = saneaTorneo(cuerpo.campos || {}); }
+      catch (e) { return errorTorneo((e as Error).message) || responder({ error: "datos no validos" }, 400); }
+      if (!campos.nombre || !campos.empieza_at) {
+        return responder({ error: "hacen falta nombre y fecha", clase: "faltan" }, 400);
+      }
+      const fila = await db("/tournaments", {
+        method: "POST", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ ...campos, creado_por: dueno }),
+      });
+      await anotar("torneo_crear", String(fila[0].id), null, fila[0]);
+      return responder({ torneo: fila[0] });
+    }
+
+    if (accion === "admin_torneo_editar") {
+      const id = idEntero(cuerpo.id);
+      if (!id) return responder({ error: "identificador no valido" }, 400);
+      const antes = (await db("/tournaments?id=eq." + id + "&select=*"))?.[0];
+      if (!antes) return responder({ error: "ese torneo no existe" }, 404);
+
+      /* Un torneo empezado no se toca: cambiar la entrada o el reparto con
+         gente ya apuntada y el bote cobrado seria cambiarles las reglas a
+         mitad de partida. */
+      if (antes.estado === "en_curso" || antes.estado === "terminado") {
+        return responder({ error: "ese torneo ya no se puede editar", clase: "cerrado" }, 409);
+      }
+      let campos;
+      try { campos = saneaTorneo(cuerpo.campos || {}, antes); }
+      catch (e) { return errorTorneo((e as Error).message) || responder({ error: "datos no validos" }, 400); }
+
+      /* Con gente dentro, la ENTRADA y las PLAZAS quedan bloqueadas: el bote ya
+         se cobro a ese precio, y bajar las plazas dejaria inscritos fuera. */
+      const dentro = (await db("/tournament_entries?torneo_id=eq." + id + "&select=id"))?.length || 0;
+      if (dentro > 0) { delete campos.entrada; delete campos.plazas; }
+
+      if (!Object.keys(campos).length) return responder({ torneo: antes, sin_cambios: true });
+      const fila = await db("/tournaments?id=eq." + id, {
+        method: "PATCH", headers: { Prefer: "return=representation" },
+        body: JSON.stringify(campos),
+      });
+      await anotar("torneo_editar", String(id), antes, fila[0]);
+      return responder({ torneo: fila[0], inscritos: dentro });
+    }
+
+    if (accion === "admin_torneo_borrar") {
+      const id = idEntero(cuerpo.id);
+      if (!id) return responder({ error: "identificador no valido" }, 400);
+      const antes = (await db("/tournaments?id=eq." + id + "&select=*"))?.[0];
+      if (!antes) return responder({ error: "ese torneo no existe" }, 404);
+      const dentro = (await db("/tournament_entries?torneo_id=eq." + id + "&select=id"))?.length || 0;
+      /* Con gente apuntada no se borra: habria que devolverles la entrada, y
+         eso es `cancelar`, no `borrar`. Borrar seria quedarse su dinero. */
+      if (dentro > 0) {
+        return responder({ error: "tiene gente apuntada; cancelalo en vez de borrarlo",
+                           clase: "con_inscritos", inscritos: dentro }, 409);
+      }
+      await db("/tournaments?id=eq." + id, { method: "DELETE" });
+      await anotar("torneo_borrar", String(id), antes, null);
+      return responder({ borrado: true });
+    }
+
+    if (accion === "admin_jugadores") {
+      const jugadores = await db("/players?select=address,coins,slots,created_at,last_seen&order=last_seen.desc&limit=200");
+      const brutos = await db("/brutes?select=id,owner,name,level,xp,hp_max,str,agi,spd,wins,losses,fights_left,created_at&order=level.desc&limit=500");
+      return responder({ jugadores, brutos });
+    }
 
     /* ── editar un bruto ──
        Los valores se recortan al mismo rango legal que usa el juego. Un

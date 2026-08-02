@@ -84,6 +84,26 @@
 
   /* El veredicto: verde si está sano, naranja si conviene mirarlo, rojo si
      rompe algo. El color hace el trabajo de leerlo por ti. */
+  .tor-alta{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:20px;
+        padding-top:18px; border-top:1px solid var(--line); }
+  .tor-alta .campo{ display:flex; flex-direction:column; gap:4px; }
+  .tor-alta .campo span{ font-size:10px; color:var(--muted); }
+  .tor-alta input{ background:var(--bg-deep); color:var(--text); border:1px solid var(--line);
+        border-radius:7px; padding:6px 8px; font:inherit; }
+
+  .tor-lista{ display:flex; flex-direction:column; gap:8px; }
+  .tor-fila{ display:flex; align-items:center; gap:12px; padding:11px 14px; font-size:13px;
+        background:var(--bg-deep); border:1px solid var(--line); border-radius:10px; }
+  .tor-fila .nom{ font-family:'Cinzel',serif; color:var(--bronze-light); min-width:120px; }
+  .tor-fila .est{ font-size:10px; padding:2px 8px; border-radius:99px; border:1px solid var(--line);
+        color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .tor-fila .est.inscripcion{ color:var(--sol-teal); border-color:var(--sol-teal); }
+  .tor-fila .est.terminado{ color:var(--bronze); border-color:var(--bronze); }
+  .tor-fila .est.cancelado{ color:var(--blood-bright); border-color:var(--blood); }
+  .tor-fila .dat{ color:var(--muted); font-size:12px; }
+  .tor-fila .dat b{ color:var(--text); font-variant-numeric:tabular-nums; }
+  .tor-fila .cre{ margin-left:auto; display:flex; gap:6px; }
+
   .tor-juicio{ margin-top:16px; display:flex; flex-direction:column; gap:7px; }
   .tor-j{ display:flex; gap:9px; align-items:flex-start; font-size:12.5px; line-height:1.45;
         padding:9px 12px; border-radius:9px; border-left:3px solid var(--line);
@@ -201,6 +221,27 @@
           <div class="tor-juicio" id="torJuicio"></div>
         </div>
       </div>
+
+      <!-- El alta usa los valores de arriba: lo que ves en el calculador es
+           exactamente lo que se guarda. -->
+      <div class="tor-alta">
+        <div class="campo"><span>Nombre</span>
+          <input id="torNombre" placeholder="Torneo del sábado" maxlength="32"></div>
+        <div class="campo"><span>Se resuelve el</span>
+          <input id="torFecha" type="datetime-local"></div>
+        <div class="campo"><span>Nivel mín.</span>
+          <input id="torNivMin" type="number" value="1" min="1" max="100" style="width:70px"></div>
+        <div class="campo"><span>Nivel máx.</span>
+          <input id="torNivMax" type="number" value="100" min="1" max="100" style="width:70px"></div>
+        <button class="btn" id="btnTorCrear">Crear en borrador</button>
+      </div>
+      <p class="nota" style="margin:10px 0 0">Nace en <b>borrador</b>: nadie lo ve hasta que le des a abrir. Así puedes montarlo con calma y comprobar los números antes de que entre nadie.</p>
+    </div>
+
+    <div class="bloque">
+      <h2>Torneos</h2>
+      <p class="nota">Con gente apuntada, la entrada y las plazas se bloquean: el bote ya se cobró a ese precio. Y no se puede borrar — eso sería quedarse su dinero; hay que cancelarlo, que se lo devuelve.</p>
+      <div class="tor-lista" id="torLista"></div>
     </div>
 
     <div class="bloque">
@@ -331,6 +372,117 @@
       `<div class="tor-j ${c}"><i>${i}</i><span>${t}</span></div>`).join("");
   }
 
+  /* ═══════════ torneos ═══════════
+     El alta reutiliza los valores del calculador de arriba: lo que ves ahí es
+     exactamente lo que se guarda, sin un segundo formulario que pueda decir
+     otra cosa.
+
+     Nacen en BORRADOR y no se ven desde el juego —la política de lectura de
+     `tournaments` los esconde— para poder montarlos con calma. Abrirlos es un
+     botón aparte, y eso es deliberado: crear y publicar no deberían ser el
+     mismo gesto cuando publicar significa que la gente empieza a pagar. */
+  let torneos = [], inscritos = [];
+
+  async function cargarTorneos(){
+    try{
+      const r = await SolBruteDB.adminTorneos();
+      torneos = r.torneos || []; inscritos = r.inscritos || [];
+      pintarTorneos();
+    }catch(e){ console.warn("[admin] torneos:", e.message); }
+  }
+
+  const fechaCorta = iso => {
+    const d = new Date(iso);
+    return isNaN(d) ? "—" : d.toLocaleString("es", { day:"2-digit", month:"short",
+                                                     hour:"2-digit", minute:"2-digit" });
+  };
+
+  function pintarTorneos(){
+    if(!torneos.length){
+      el("torLista").innerHTML = `<p class="nota" style="margin:0">Todavía no hay ninguno. Ajusta los números arriba y créalo.</p>`;
+      return;
+    }
+    el("torLista").innerHTML = torneos.map(t => {
+      const dentro = inscritos.filter(i => i.torneo_id === t.id);
+      const campeon = dentro.find(i => i.posicion === 1);
+      /* Los botones dependen del estado. Un torneo terminado no se toca, y uno
+         con gente dentro no se borra: eso sería quedarse su entrada. */
+      let acciones = "";
+      if(t.estado === "borrador")
+        acciones = `<button class="btn btn-sm js-abrir" data-id="${t.id}">Abrir inscripciones</button>
+                    <button class="btn btn-ghost btn-sm js-borrar" data-id="${t.id}">Borrar</button>`;
+      else if(t.estado === "inscripcion")
+        acciones = `<button class="btn btn-ghost btn-sm js-cancelar" data-id="${t.id}">Cancelar</button>`;
+
+      return `<div class="tor-fila">
+        <span class="nom">${esc(t.nombre)}</span>
+        <span class="est ${t.estado}">${t.estado}</span>
+        <span class="dat"><b>${dentro.length}</b>/${t.plazas} plazas</span>
+        <span class="dat">entrada <b>${t.entrada}</b></span>
+        <span class="dat">bote <b>${t.bote}</b></span>
+        <span class="dat">${fechaCorta(t.empieza_at)}</span>
+        ${campeon ? `<span class="dat">ganó <b>${esc(campeon.snapshot?.name || "?")}</b> · ${campeon.premio}</span>` : ""}
+        <span class="cre">${acciones}</span>
+      </div>`;
+    }).join("");
+
+    el("torLista").querySelectorAll(".js-abrir").forEach(b =>
+      b.onclick = () => cambiarTorneo(+b.dataset.id, { estado: "inscripcion" }, "abierto a inscripciones"));
+    el("torLista").querySelectorAll(".js-cancelar").forEach(b =>
+      b.onclick = () => { if(confirm("Cancelar el torneo. A quien esté apuntado se le devuelve la entrada.")) 
+        cambiarTorneo(+b.dataset.id, { estado: "cancelado" }, "cancelado"); });
+    el("torLista").querySelectorAll(".js-borrar").forEach(b =>
+      b.onclick = () => borrarTorneo(+b.dataset.id));
+  }
+
+  async function cambiarTorneo(id, campos, hecho){
+    try{
+      await SolBruteDB.adminTorneoEditar(id, campos);
+      aviso("Torneo " + hecho);
+      await cargarTorneos();
+    }catch(e){ aviso(e.message, true); }
+  }
+
+  async function borrarTorneo(id){
+    if(!confirm("Borrar este torneo. Solo se puede si no hay nadie apuntado.")) return;
+    try{
+      await SolBruteDB.adminTorneoBorrar(id);
+      aviso("Torneo borrado");
+      await cargarTorneos();
+    }catch(e){ aviso(e.message, true); }
+  }
+
+  async function crearTorneo(){
+    const nombre = el("torNombre").value.trim();
+    const fecha  = el("torFecha").value;
+    if(nombre.length < 2) return aviso("Ponle un nombre", true);
+    if(!fecha)            return aviso("Ponle una fecha de resolución", true);
+
+    /* Los números salen del calculador, no de un formulario aparte: así lo que
+       acabas de comprobar arriba es literalmente lo que se guarda. */
+    const campos = {
+      nombre,
+      empieza_at: new Date(fecha).toISOString(),
+      plazas:  PLAZAS_OPC[+el("torPlazas").value],
+      entrada: +el("torEntrada").value,
+      nivel_min: +el("torNivMin").value || 1,
+      nivel_max: +el("torNivMax").value || 100,
+      pct_1: +el("tp1").value, pct_2: +el("tp2").value,
+      pct_semis: +el("tp3").value, pct_casa: +el("tpc").value,
+    };
+    try{
+      await SolBruteDB.adminTorneoCrear(campos);
+      aviso("Torneo creado en borrador");
+      el("torNombre").value = "";
+      await cargarTorneos();
+    }catch(e){ aviso(e.message, true); }
+  }
+
+  /* Los nombres los escribe el admin, pero el del ganador lo escribió un
+     jugador y se pinta aquí. Escapar siempre sale más barato que acordarse. */
+  const esc = t => String(t == null ? "" : t)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
   function aviso(txt, err){
     el("aviso").textContent = txt || "";
     el("aviso").className = "aviso" + (err ? " err" : "");
@@ -397,6 +549,7 @@
   /* Tras cada cambio se recarga todo del servidor en vez de tocar la tabla a
      mano: así lo que ves es lo que hay guardado, no lo que creemos que quedó. */
   async function recargar(){
+    cargarTorneos();
     const resumen = await SolBruteDB.adminResumen();
     const { jugadores, brutos } = await SolBruteDB.adminJugadores();
     datos.brutos = brutos || [];
@@ -626,6 +779,14 @@
   ["torEntrada","torPlazas","tp1","tp2","tp3","tpc","torPrecio"]
     .forEach(id => { const n = el(id); if(n) n.oninput = calcTorneo; });
   calcTorneo();
+  el("btnTorCrear").onclick = crearTorneo;
+  /* Fecha por defecto: dentro de una semana, a las 20:00. Un torneo se anuncia
+     con tiempo o no se apunta nadie. */
+  (() => {
+    const d = new Date(Date.now() + 7*24*3600e3);
+    d.setHours(20,0,0,0);
+    el("torFecha").value = new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  })();
 
   el("btnEntrar").onclick = entrar;
   el("btnSalir").onclick = () => { SolBruteDB.cerrarSesion(); location.reload(); };

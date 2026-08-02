@@ -345,10 +345,6 @@
   .roll-note{ font-size:11.5px; color:var(--muted); margin-top:10px; }
   .forge-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
 
-  .devbar{ position:fixed; bottom:0; left:0; right:0; z-index:80; background:rgba(12,10,7,.96); border-top:1px solid var(--line); padding:8px 14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; }
-  .devbar span{ font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--blood-bright); }
-  .devbar button{ background:var(--surface); border:1px solid var(--line); color:var(--muted); font-family:inherit; font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:7px; cursor:pointer; }
-  .devbar button:hover{ color:var(--text); border-color:var(--bronze); }
 
   @media(prefers-reduced-motion:reduce){ .fighter,.bar .fill{ transition:none; } .dmg{ animation:none; opacity:1; } }
 </style>
@@ -597,19 +593,6 @@
   </section>
 </main>
 
-<!-- Barra de maqueta. Nace OCULTA y solo la muestra entrar() si el servidor
-     dice que esta dirección es administradora.
-     Ojo: esconderla no protege nada. Los botones que quedan solo llaman a
-     rutas que el servidor autoriza igualmente a cualquiera (vaciar tu propio
-     ludus). Los que sí importaban —recargar peleas y darse monedas— dejaron de
-     funcionar cuando el servidor tomó el control de esos números, no cuando se
-     ocultó el botón. -->
-<div class="devbar" id="devbar" style="display:none">
-  <span data-i18n="mock">Mock</span>
-  <button id="devReset" data-i18n="dev_reset">Reset</button>
-  <button id="devEmpty" data-i18n="dev_empty">Empty ludus</button>
-</div>
-
 <script src="brute-render.js"></script>
 <script src="supabase-cliente.js"></script>
 <script src="wallet-solana.js"></script>
@@ -733,7 +716,6 @@
       reroll_left:"Puedes cambiar la lista una vez al día. Esta es la lista de hoy para este bruto.",
       reroll_none:"Ya has cambiado la lista hoy. Vuelve mañana para otra tanda de rivales.",
       rank_empty:"Todavía no hay ningún bruto forjado. El primero serás tú.",
-      mock:"Maqueta", dev_reset:"Reiniciar", dev_empty:"Ludus vacío", dev_refill:"Recargar peleas", dev_coins:"+500 $BRUTE",
       o:{
           armas:{ ninguna:"Puños", daga:"Daga", mandoble:"Mandoble", lanza:"Lanza", escudo:"Escudo" },
           como:{ ninguna:"Equilibrado y no se rompe nunca. No llevar nada es una opción de verdad.",
@@ -823,7 +805,6 @@
       reroll_left:"You can swap this list once a day. This is today's list for this brute.",
       reroll_none:"You already swapped the list today. Come back tomorrow for a fresh set.",
       rank_empty:"No brute has been forged yet. You could be the first.",
-      mock:"Mock", dev_reset:"Reset", dev_empty:"Empty ludus", dev_refill:"Refill fights", dev_coins:"+500 $BRUTE",
       o:{
           armas:{ ninguna:"Bare fists", daga:"Dagger", mandoble:"Greatsword", lanza:"Spear", escudo:"Shield" },
           como:{ ninguna:"Balanced, and never breaks. Carrying nothing is a real option.",
@@ -913,7 +894,6 @@
       reroll_left:"Tu peux changer la liste une fois par jour. Voici la liste du jour pour cette brute.",
       reroll_none:"Tu as déjà changé la liste aujourd'hui. Reviens demain pour d'autres adversaires.",
       rank_empty:"Aucune brute forgée pour l'instant. Tu peux être le premier.",
-      mock:"Maquette", dev_reset:"Réinitialiser", dev_empty:"Ludus vide", dev_refill:"Recharger", dev_coins:"+500 $BRUTE",
       o:{
           armas:{ ninguna:"Poings nus", daga:"Dague", mandoble:"Espadon", lanza:"Lance", escudo:"Bouclier" },
           como:{ ninguna:"Équilibré, et ne casse jamais. Ne rien porter est une vraie option.",
@@ -1109,19 +1089,6 @@
     }
     return a;
   }
-  function seedData(){
-    nextId = 1;
-    /* Valores acordes a la curva de arriba: un nivel 7 lleva 6 puntos repartidos
-       sobre una base de 1-4, no un 8 de fuerza de salida. */
-    brutes = [
-      { id:nextId++, name:"Grognak", lv:7, xp:120, hpMax:61, str:5, agi:3, spd:4, w:14, l:6, fights:FIGHTS_DAY, rerolls:REROLLS_DAY, pool:null,
-        look:{ sex:0, skin:2, hair:2, hairC:3, cloth:3, clothC:3, face:0, eyeC:2, tat:1, tatC:0 } },
-      { id:nextId++, name:"Drusa", lv:6, xp:80, hpMax:57, str:3, agi:5, spd:4, w:9, l:8, fights:2, rerolls:REROLLS_DAY, pool:null,
-        look:{ sex:1, skin:1, hair:1, hairC:5, cloth:2, clothC:2, face:3, eyeC:0, tat:0, tatC:0 } }
-    ];
-    balance = 0; bolsa = {};
-  }
-
   /* ═══════════ combate determinista ═══════════ */
   /* ═══════════ render ═══════════ */
   /* Los nombres los escriben los jugadores y se pintan en la lista de rivales
@@ -1924,9 +1891,6 @@
     el("balNum").textContent = balance;
     pintarEstado();
     avisoPuerta("");
-    /* La barra de maqueta, solo para administradores. Quién lo es lo dice el
-       servidor al verificar la firma; aquí solo se obedece. */
-    el("devbar").style.display = SolBruteDB.esAdmin() ? "" : "none";
     show("scRoster");
   }
 
@@ -2019,11 +1983,6 @@
     await pedirLista(true);
     b.disabled = false;
   };
-  /* La barra de maqueta escribe en la base de datos como todo lo demás, así que
-     vaciar el ludus tiene que borrar las filas — si no, vuelven al recargar. */
-  const vaciarNube = async () => { if(nube){ try{ await SolBruteDB.borrarTodos(); }catch(e){} } };
-  el("devReset").onclick  = async () => { await vaciarNube(); seedData(); await saveMe(); el("balNum").textContent = balance; show("scRoster"); };
-  el("devEmpty").onclick  = async () => { await vaciarNube(); brutes = []; await saveMe(); show("scRoster"); };
   /* "Recargar peleas" y "+500 $BRUTE" se han quitado: desde que el servidor
      lleva las peleas del día y las monedas, esos botones no hacían nada — y
      mientras hicieron algo, eran el agujero por el que se imprimía dinero. */

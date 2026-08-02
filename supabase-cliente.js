@@ -277,6 +277,23 @@
        la sesión con una lista suya. Aquí no hay ninguna comprobación porque
        cualquiera podría saltársela: si no eres admin, estas dos responden lo
        mismo que una sesión caducada. */
+    /* ═══════════ torneos, desde el panel ═══════════
+       Los borradores solo se ven por aquí: la política de lectura de
+       `tournaments` los esconde del navegador a propósito, para que el admin
+       pueda montar uno tranquilo antes de abrirlo. */
+    async adminTorneos(){
+      return await pedirAuth({ accion: "admin_torneos", token: token() });
+    },
+    async adminTorneoCrear(campos){
+      return await pedirAuth({ accion: "admin_torneo_crear", token: token(), campos });
+    },
+    async adminTorneoEditar(id, campos){
+      return await pedirAuth({ accion: "admin_torneo_editar", token: token(), id, campos });
+    },
+    async adminTorneoBorrar(id){
+      return await pedirAuth({ accion: "admin_torneo_borrar", token: token(), id });
+    },
+
     async adminResumen(){
       return (await pedirAuth({ accion: "admin_resumen", token: token() })).resumen;
     },
