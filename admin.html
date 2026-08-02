@@ -84,6 +84,15 @@
 
   /* El veredicto: verde si está sano, naranja si conviene mirarlo, rojo si
      rompe algo. El color hace el trabajo de leerlo por ti. */
+  .tor-presets{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
+  .tor-preset{ flex:1; min-width:150px; text-align:left; cursor:pointer;
+        background:var(--bg-deep); border:1px solid var(--line); border-radius:10px;
+        padding:10px 12px; font:inherit; color:var(--text); }
+  .tor-preset:hover{ border-color:var(--bronze); }
+  .tor-preset b{ display:block; font-family:'Cinzel',serif; font-size:13px;
+        color:var(--bronze-light); margin-bottom:3px; }
+  .tor-preset span{ display:block; font-size:11px; color:var(--muted); line-height:1.4; }
+
   .tor-alta{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:20px;
         padding-top:18px; border-top:1px solid var(--line); }
   .tor-alta .campo{ display:flex; flex-direction:column; gap:4px; }
@@ -94,6 +103,11 @@
   .tor-lista{ display:flex; flex-direction:column; gap:8px; }
   .tor-fila{ display:flex; align-items:center; gap:12px; padding:11px 14px; font-size:13px;
         background:var(--bg-deep); border:1px solid var(--line); border-radius:10px; }
+  /* El id se enseña porque hace falta para hablar de un torneo concreto —con
+     soporte, en un log, o al depurar— y no tenerlo obliga a ir a buscarlo a la
+     base de datos. */
+  .tor-fila .tid{ font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;
+        min-width:26px; }
   .tor-fila .nom{ font-family:'Cinzel',serif; color:var(--bronze-light); min-width:120px; }
   .tor-fila .est{ font-size:10px; padding:2px 8px; border-radius:99px; border:1px solid var(--line);
         color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
@@ -195,6 +209,9 @@
       <h2>Torneos - calculador de precios</h2>
       <p class="nota">Mueve la entrada y el reparto y mira qué sale. Todo se mide en <b>días de juego</b> (un bruto gana ~40 monedas al día): es la unidad que sigue significando lo mismo valga lo que valga el token en euros.</p>
 
+      <div class="tor-presets" id="torPresets"></div>
+      <p class="nota" style="margin:8px 0 18px">Cuatro configuraciones que ya cumplen las reglas de abajo. Pulsa una y ajusta desde ahí si quieres — el veredicto se recalcula solo.</p>
+
       <div class="tor-grid">
         <div class="tor-mando">
           <label>Entrada por jugador · <b id="lblEntrada">50</b> monedas</label>
@@ -293,6 +310,68 @@
   const MONEDAS_DIA = 40;        // lo que gana un bruto al día, 3 peleas
   const POOL_DIARIO = 27397;     // presupuesto de emisión diario
   const PLAZAS_OPC  = [4, 8, 16, 32];
+
+  /* ═══════════ configuraciones prefabricadas ═══════════
+     No son adornos: acertar estos números a ojo es difícil, y una entrada mal
+     puesta o vacía el torneo o se come el juego diario. Las cuatro están
+     calculadas para pasar en verde las reglas del veredicto de abajo.
+
+     Lo que las diferencia NO es solo el precio: `Veteranos` cuesta casi lo
+     mismo que `Semanal` y lo que cambia es el NIVEL MÍNIMO. Un torneo de élite
+     debería filtrar por quién eres, no por cuánto pagas — si filtra por dinero,
+     acaba ganándolo el que más compró. */
+  const PRESETS = [
+    { id:"iniciacion", nombre:"Iniciación",
+      que:"8 plazas · entrada 20 · niveles 1-5",
+      por:"Para gente que acaba de empezar. Media jornada de juego por entrar, y el ganador se lleva dos días.",
+      entrada:20, plazas:8, nivMin:1, nivMax:5, dias:3, hora:20 },
+
+    { id:"semanal", nombre:"Semanal",
+      que:"16 plazas · entrada 60 · todos los niveles",
+      por:"El estándar. Día y medio de juego por entrar; el ganador se lleva doce. Suficiente para que apetezca sin comerse el día a día.",
+      entrada:60, plazas:16, nivMin:1, nivMax:100, dias:7, hora:20 },
+
+    { id:"veteranos", nombre:"Veteranos",
+      que:"16 plazas · entrada 70 · nivel 10 o más",
+      por:"Cuesta casi lo mismo que el semanal: lo que cambia es que hay que haber jugado para entrar. Filtra por nivel, no por dinero.",
+      entrada:70, plazas:16, nivMin:10, nivMax:100, dias:7, hora:20 },
+
+    { id:"relampago", nombre:"Relámpago",
+      que:"4 plazas · entrada 40 · todos los niveles",
+      por:"Se llena rápido y se resuelve esta misma noche. Pensado para hacerlo a menudo, no para ser el evento de la semana.",
+      entrada:40, plazas:4, nivMin:1, nivMax:100, dias:0, hora:22 },
+  ];
+
+  function pintarPresets(){
+    el("torPresets").innerHTML = PRESETS.map(p =>
+      `<button class="tor-preset" data-id="${p.id}">
+         <b>${p.nombre}</b><span>${p.que}</span></button>`).join("");
+    el("torPresets").querySelectorAll(".tor-preset").forEach(b =>
+      b.onclick = () => aplicarPreset(PRESETS.find(x => x.id === b.dataset.id)));
+  }
+
+  function aplicarPreset(p){
+    if(!p) return;
+    el("torEntrada").value = p.entrada;
+    el("torPlazas").value  = PLAZAS_OPC.indexOf(p.plazas);
+    el("torNivMin").value  = p.nivMin;
+    el("torNivMax").value  = p.nivMax;
+    /* El reparto se deja en el que ya está probado. Cambiarlo por preset
+       añadiría una variable más sin que ninguna configuración lo necesite. */
+    el("tp1").value = 50; el("tp2").value = 20; el("tp3").value = 15; el("tpc").value = 15;
+    el("torNombre").value = p.nombre;
+
+    const d = new Date(Date.now() + p.dias*24*3600e3);
+    d.setHours(p.hora, 0, 0, 0);
+    /* Si la hora de hoy ya pasó, se va a mañana: crear un torneo con fecha
+       pasada lo dejaría resolviéndose en cuanto alguien lo abra, sin que se
+       apunte nadie. */
+    if(d <= new Date()) d.setDate(d.getDate() + 1);
+    el("torFecha").value = new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+
+    calcTorneo();
+    aviso(p.nombre + ": " + p.por);
+  }
 
   function calcTorneo(){
     const entrada = +el("torEntrada").value;
@@ -415,6 +494,7 @@
         acciones = `<button class="btn btn-ghost btn-sm js-cancelar" data-id="${t.id}">Cancelar</button>`;
 
       return `<div class="tor-fila">
+        <span class="tid">#${t.id}</span>
         <span class="nom">${esc(t.nombre)}</span>
         <span class="est ${t.estado}">${t.estado}</span>
         <span class="dat"><b>${dentro.length}</b>/${t.plazas} plazas</span>
@@ -778,6 +858,7 @@
 
   ["torEntrada","torPlazas","tp1","tp2","tp3","tpc","torPrecio"]
     .forEach(id => { const n = el(id); if(n) n.oninput = calcTorneo; });
+  pintarPresets();
   calcTorneo();
   el("btnTorCrear").onclick = crearTorneo;
   /* Fecha por defecto: dentro de una semana, a las 20:00. Un torneo se anuncia
