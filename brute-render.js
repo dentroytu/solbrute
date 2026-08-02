@@ -260,6 +260,98 @@
     </svg>`;
   }
 
+  /* ═══════════ mascotas ═══════════
+     Tres siluetas que tienen que distinguirse A 44 PÍXELES, que es donde se
+     ven en la tienda. La lección de los iconos de las armas vale igual: no
+     puede distinguirlas el tamaño, porque el SVG escala al marco. Aquí las
+     separa la PROPORCIÓN — el perro es cuadrado, el lobo alargado y bajo, el
+     oso una masa redonda con patas cortas.
+
+     `mirando` = 1 hacia la derecha, -1 hacia la izquierda. En la arena cada
+     bicho mira hacia el rival, como su bruto. */
+  function dibujoMascota(id, mirando){
+    const P = {
+      perro: { pelo:"#b07a42", claro:"#c99560", osc:"#7d5227" },
+      lobo:  { pelo:"#8d8378", claro:"#a89e91", osc:"#5f574e" },
+      oso:   { pelo:"#6b4a2f", claro:"#87603f", osc:"#452e1c" },
+    }[id];
+    if(!P) return "";
+    const g = `<g transform="${mirando < 0 ? "translate(64,0) scale(-1,1)" : ""}">`;
+
+    if(id === "perro") return `${g}
+      <ellipse cx="30" cy="40" rx="17" ry="11" fill="${P.pelo}" stroke="${OL}" stroke-width="${OUT}"/>
+      <path d="M20 49 L20 56 M28 50 L28 57 M36 50 L36 57 M43 48 L43 55"
+            stroke="${OL}" stroke-width="6" stroke-linecap="round"/>
+      <path d="M20 49 L20 56 M28 50 L28 57 M36 50 L36 57 M43 48 L43 55"
+            stroke="${P.osc}" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M13 36 Q4 28 8 20" stroke="${OL}" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+      <path d="M13 36 Q5 29 8.5 22" stroke="${P.claro}" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+      <circle cx="45" cy="29" r="11" fill="${P.claro}" stroke="${OL}" stroke-width="${OUT}"/>
+      <path d="M39 20 L36 9 L45 15 Z" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"/>
+      <path d="M51 20 L54 9 L46 15 Z" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"/>
+      <ellipse cx="54" cy="32" rx="5" ry="4" fill="${P.osc}" stroke="${OL}" stroke-width="2.4"/>
+      <circle cx="48" cy="27" r="2.4" fill="${OL}"/>
+      <circle cx="48.8" cy="26.2" r=".9" fill="#fff"/>`+`</g>`;
+
+    if(id === "lobo") return `${g}
+      <ellipse cx="29" cy="41" rx="19" ry="9.5" fill="${P.pelo}" stroke="${OL}" stroke-width="${OUT}"/>
+      <path d="M17 48 L15 57 M26 49 L25 58 M35 49 L36 58 M43 47 L45 56"
+            stroke="${OL}" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M17 48 L15 57 M26 49 L25 58 M35 49 L36 58 M43 47 L45 56"
+            stroke="${P.osc}" stroke-width="3" stroke-linecap="round"/>
+      <path d="M11 38 Q2 34 3 25 Q6 32 12 33" fill="${P.claro}" stroke="${OL}" stroke-width="2.8" stroke-linejoin="round"/>
+      <path d="M40 34 Q46 24 56 26 L60 33 Q54 40 44 39 Z" fill="${P.claro}" stroke="${OL}" stroke-width="${OUT}" stroke-linejoin="round"/>
+      <path d="M43 26 L41 14 L50 21 Z" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"/>
+      <path d="M53 25 L56 14 L58 24 Z" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"/>
+      <ellipse cx="60" cy="33" rx="4" ry="3.2" fill="${P.osc}" stroke="${OL}" stroke-width="2.2"/>
+      <path d="M50 34 L56 36" stroke="${OL}" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="49" cy="29" r="2.2" fill="${OL}"/>
+      <circle cx="49.7" cy="28.3" r=".8" fill="#fff"/>`+`</g>`;
+
+    return `${g}
+      <ellipse cx="28" cy="38" rx="21" ry="16" fill="${P.pelo}" stroke="${OL}" stroke-width="${OUT}"/>
+      <path d="M17 52 L16 58 M28 53 L28 59 M39 52 L40 58"
+            stroke="${OL}" stroke-width="9" stroke-linecap="round"/>
+      <path d="M17 52 L16 58 M28 53 L28 59 M39 52 L40 58"
+            stroke="${P.osc}" stroke-width="5.5" stroke-linecap="round"/>
+      <circle cx="49" cy="27" r="13" fill="${P.claro}" stroke="${OL}" stroke-width="${OUT}"/>
+      <circle cx="43" cy="15" r="5.5" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6"/>
+      <circle cx="57" cy="16" r="5.5" fill="${P.pelo}" stroke="${OL}" stroke-width="2.6"/>
+      <ellipse cx="57" cy="31" rx="6" ry="5" fill="${P.osc}" stroke="${OL}" stroke-width="2.4"/>
+      <circle cx="52" cy="24" r="2.4" fill="${OL}"/>
+      <circle cx="52.8" cy="23.2" r=".9" fill="#fff"/>`+`</g>`;
+  }
+
+  /* La mascota en la arena, a los pies del bruto.
+
+     Va DETRÁS y hacia atrás —al lado contrario del rival— por dos motivos: no
+     tapa al bruto, que es lo que el jugador ha elegido pieza a pieza, y se lee
+     al instante quién lleva bicho sin tener que mirar dos veces.
+
+     El grupo entero se mete dentro del `scale(-1,1)` del sprite cuando el bruto
+     mira a la izquierda, así que el bicho se voltea con él y siempre encara al
+     rival. Por eso aquí se dibuja mirando a la derecha y no se toca. */
+  /* Se dibuja DESPUÉS de las piernas y ANTES del torso: por delante de ellas,
+     para que se lea entera, y por detrás de lo que el jugador ha elegido pieza
+     a pieza. */
+  function mascotaEnArena(id){
+    if(!id || id === "ninguna") return "";
+    /* Apoyada en el suelo (y≈128) y por delante de las piernas.
+
+       El tamaño se eligió mirándolo: mas pequeña se leia como una mancha entre
+       las piernas. Y NO se puede ensanchar el lienzo para darle sitio, como se
+       hizo hacia arriba con las armas: `.fighter` fija el ANCHO en 116px, asi
+       que estirar el viewBox a lo ancho encogeria al bruto. */
+    return `<g transform="translate(-6,74) scale(0.92)">
+              ${dibujoMascota(id, 1)}
+            </g>`;
+  }
+
+  /* Para el vivarium: la mascota sola, en el mismo marco de 64 que las armas. */
+  function iconoMascota(id){
+    return `<svg viewBox="0 0 64 64" aria-hidden="true">${dibujoMascota(id, 1)}</svg>`;
+  }
+
   /* ═══════════ iconos de las armas ═══════════
      Para la armería: el arma sola, sin bruto que la sujete. Mismo registro que
      el resto —contorno grueso, detalle fino, bronce— para que no parezcan de
@@ -516,6 +608,7 @@
         <ellipse cx="52" cy="126" rx="30" ry="4.5" fill="#000" opacity=".45"/>
         ${cloakBack}${hairBack}
         ${legs}
+        ${mascotaEnArena(b.mascota)}
         ${shieldArm}
         ${bareTorso}${clothFront}
         ${pauldron}
@@ -529,6 +622,6 @@
     OL, SKIN, HAIRC, CLOTHC, INK, EYEC, HAIRS, CLOTHS, FACES, TATS, HD, OUT, IN, PB,
     shade, torsoPath, HEADP,
     drawBody, drawTat, drawCloth, drawFace, drawHair,
-    bust, spriteProfile, iconoArma
+    bust, spriteProfile, iconoArma, iconoMascota, dibujoMascota
   };
 })();

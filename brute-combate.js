@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 6;
+  const VERSION = 7;   // 7: mascotas
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -207,6 +207,39 @@
   /* Las que pueden tocar o comprarse. Los puños no son un arma, son no llevar. */
   const ARMAS_REALES = ["daga","mandoble","lanza","escudo"];
 
+  /* ═══════════ mascotas ═══════════
+     A diferencia de las armas, una mascota SÍ es una ventaja: quien lleva una
+     gana ~57% contra quien no. Eso es deliberado y es la diferencia entre las
+     dos cosas — pero tiene tres frenos que impiden que sea comprar victorias:
+
+       · ESTORBA. `ini` te resta iniciativa, así que vas más lento. Llevarla es
+         una elección, no una mejora gratis. Sin esto la ventaja sube al 63%.
+       · MUERE, y no vuelve. Se pierde para siempre, como el arma que se rompe.
+       · Y NO da más monedas ni más XP. Igual que las armas.
+
+     Al 57%, quien no lleva mascota gana 43 de cada 100: molesto, no
+     excluyente. Ese era el límite que se buscaba.
+
+     ── Los números salen de medir, no de la intuición ────────────────────
+     El primer diseño —mordisco fuerte y mucha cobertura— daba 73-82% de
+     victorias y alargaba los combates un 25%. Está en `prueba-mascotas.mjs`,
+     que copia el bucle de `simulate()` y comprueba que sin mascota da idéntico
+     antes de medir nada. SI TOCAS ESTOS NÚMEROS, VUELVE A PASARLO.
+
+       ataca   probabilidad por turno de que muerda
+       dmg     daño de ese mordisco
+       cubre   probabilidad de que se coma un golpe dirigido a ti
+       hp      su vida; a cero muere y se pierde
+       ini     lo que te resta de iniciativa por llevarla */
+  const MASCOTAS = {
+    ninguna: { nombre:"ninguna", ataca:0,    dmg:0, cubre:0,    hp:0,  ini:0, precio:0 },
+    perro:   { nombre:"perro",   ataca:0.15, dmg:3, cubre:0.06, hp:22, ini:2, precio:80  },
+    lobo:    { nombre:"lobo",    ataca:0.25, dmg:4, cubre:0.03, hp:15, ini:2, precio:70  },
+    oso:     { nombre:"oso",     ataca:0.08, dmg:2, cubre:0.09, hp:34, ini:2, precio:110 },
+  };
+  const MASCOTAS_REALES = ["perro","lobo","oso"];
+  const mascota = id => MASCOTAS[id] || MASCOTAS.ninguna;
+
   const arma = id => ARMAS[id] || PUNOS;
 
   /* ═══════════ azar reproducible ═══════════ */
@@ -228,12 +261,22 @@
      promesa de combate verificable. */
   function simulate(a, b, seed){
     const rnd = mulberry32(seed);
-    const F = {
-      A:{ ...a, hp:a.hpMax, side:"A", w:arma(a.arma), sinArma:false },
-      B:{ ...b, hp:b.hpMax, side:"B", w:arma(b.arma), sinArma:false },
+    /* La mascota entra con su vida propia. `viva:false` desde el principio si
+       no lleva ninguna, para que el resto del bucle no tenga que preguntar dos
+       cosas en cada comprobación. */
+    const bicho = (id) => {
+      const m = mascota(id);
+      return m.hp > 0 ? { ...m, hp:m.hp, viva:true } : null;
     };
-    /* La iniciativa la modifica el arma: el mandoble es lento, la daga rápida. */
-    const iniA = F.A.spd + F.A.w.ini, iniB = F.B.spd + F.B.w.ini;
+    const F = {
+      A:{ ...a, hp:a.hpMax, side:"A", w:arma(a.arma), sinArma:false, m:bicho(a.mascota) },
+      B:{ ...b, hp:b.hpMax, side:"B", w:arma(b.arma), sinArma:false, m:bicho(b.mascota) },
+    };
+    /* La iniciativa la modifica el arma —el mandoble es lento, la daga rápida—
+       y la mascota SIEMPRE la resta: llevarla te hace ir más lento, y es lo que
+       impide que sea una mejora gratis. */
+    const iniA = F.A.spd + F.A.w.ini - (F.A.m ? F.A.m.ini : 0);
+    const iniB = F.B.spd + F.B.w.ini - (F.B.m ? F.B.m.ini : 0);
     const first = iniA > iniB ? "A" : iniB > iniA ? "B" : (rnd() < .5 ? "A" : "B");
     const order = first === "A" ? ["A","B"] : ["B","A"];
     const log = []; let turn = 0;
@@ -267,9 +310,37 @@
           if(rnd() < 0.05 + att.agi * 0.014 + att.w.crit){ dmg = Math.round(dmg * 1.9); type = "crit"; }
           /* lo que encaja el defensor depende de SU arma: el escudo protege */
           dmg = Math.max(1, Math.round(dmg * def.w.def));
+
+          /* ── la mascota se interpone ──
+             Se come el golpe entero. Si la mata, muere para siempre: no vuelve
+             a la bolsa ni se cura entre combates. Es lo que hace que llevarla
+             sea una decisión que se repite y no una compra única. */
+          if(def.m && def.m.viva && rnd() < def.m.cubre){
+            def.m.hp -= dmg;
+            log.push({ turn, type:"cubre", att:att.name, def:def.name, side:def.side,
+                       dmg, mascota:def.m.nombre });
+            if(def.m.hp <= 0){
+              def.m.viva = false;
+              log.push({ turn, type:"muere_mascota", side:def.side, mascota:def.m.nombre });
+            }
+            continue;
+          }
+
           def.hp = Math.max(0, def.hp - dmg);
           log.push({ turn, type, att:att.name, def:def.name, side:def.side, dmg, hp:def.hp, hpMax:def.hpMax });
           if(def.hp <= 0){ log.push({ turn, type:"ko", def:def.name, side:def.side }); break; }
+        }
+
+        /* ── el mordisco ──
+           Después de los golpes del bruto y solo si el rival sigue en pie. No
+           puede rematar por su cuenta antes de que el bruto haya atacado: la
+           mascota acompaña, no sustituye. */
+        if(att.m && att.m.viva && def.hp > 0 && rnd() < att.m.ataca){
+          const d = att.m.dmg;
+          def.hp = Math.max(0, def.hp - d);
+          log.push({ turn, type:"muerde", side:def.side, def:def.name, dmg:d,
+                     hp:def.hp, hpMax:def.hpMax, mascota:att.m.nombre });
+          if(def.hp <= 0) log.push({ turn, type:"ko", def:def.name, side:def.side });
         }
       }
     }
@@ -277,8 +348,13 @@
     const timeout = F.A.hp > 0 && F.B.hp > 0;
     const winner = F.A.hp <= 0 ? "B" : F.B.hp <= 0 ? "A" : (F.A.hp >= F.B.hp ? "A" : "B");
     /* Se devuelve si el arma aguantó: el servidor decide con esto si se rompe. */
+    /* `murioA` es lo que el servidor usa para quitarle la mascota al jugador.
+       Igual que `perdioA` con el arma: la decisión la toma aquí y la ejecuta
+       allí, para que el navegador no pueda decir que su bicho sobrevivió. */
     return { log, winner, timeout, turns: turn, seed,
-             armaA: a.arma || "ninguna", perdioA: F.A.sinArma };
+             armaA: a.arma || "ninguna", perdioA: F.A.sinArma,
+             mascotaA: a.mascota || "ninguna",
+             murioA: !!(F.A.m && !F.A.m.viva) };
   }
 
   /* ¿Se rompe el arma tras este combate? Lo decide el servidor, nunca el
@@ -345,6 +421,7 @@
     STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS, PROB_ATRIBUTO, PROB_ARMA,
     OPP_COUNT, LEVEL_SPREAD, FIGHTS_DAY, REROLLS_DAY, NAMES, LOOK_N,
     ARMAS, ARMAS_REALES, arma, seRompe, duracion,
+    MASCOTAS, MASCOTAS_REALES, mascota,
     randomLook, barajar, nuevoBot,
     ri, xpNeed, rollStats, subirAtributo, botStats,
     mulberry32, simulate, recompensa, aplicar
