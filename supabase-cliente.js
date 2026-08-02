@@ -305,6 +305,22 @@
       return await pedirAuth({ accion: "equipar", token: token(), bruteId: bruteRid, arma });
     },
 
+    /* Las últimas peleas de TUS brutos, para el tablón del ludus.
+       Va por lectura directa —`fights` tiene política de lectura pública desde
+       el paso 7— y no por la Edge Function: no hay nada que decidir ni nada
+       sensible dentro, así que hacerla pasar por allí sería gastar una llamada
+       en un portero que siempre dice que sí.
+
+       Ojo con la diferencia respecto a `historial()`, que sí pasa por la
+       función: una pelea la ve el rival igual que tú; lo que gastas, no. */
+    async eventos(addr, limite){
+      const n = Math.min(Math.max(limite || 12, 1), 50);
+      return await pedir(
+        "/fights?a_owner=eq." + encodeURIComponent(addr) +
+        "&select=id,a_brute,b_name,b_bot,winner,turns,coins,xp,subio,nivel,ganancia,arma_rota,arma,created_at" +
+        "&order=created_at.desc&limit=" + n, { method:"GET" });
+    },
+
     /* El historial va por la función, no por lectura directa como los rivales
        o la clasificación. No es por comodidad: la tabla `movimientos` tiene RLS
        y cero políticas, así que desde aquí no se puede leer ni queriendo.

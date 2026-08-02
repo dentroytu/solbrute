@@ -843,6 +843,11 @@ async function manejar(req: Request): Promise<Response> {
            avisa de que la economía se ha roto antes de que se note en el
            precio, y con la tasa de por medio los puntos ya no lo dicen. */
         coins: ganadas, xp: premio.xp,
+        /* Lo que hace posible el tablón del ludus (supabase-17-eventos.sql).
+           Ya estaba todo calculado; antes se tiraba al acabar la petición, así
+           que el tablón solo habría podido decir "ganaste" y "perdiste". */
+        subio: !!premio.subio, nivel: mio.lv, ganancia: premio.ganancia || null,
+        arma_rota: rota || null, arma: mio.arma,
       }),
     }).catch((e) => console.warn("no pude guardar la pelea: " + e.message));
 

@@ -29,7 +29,12 @@ insert into _basura values
   ('9M9o9v6BrzzEbXNBX7U1hw4yT5fwHTwpfCLjAaWAkHd4'),  -- Race779002 (la carrera)
   ('AtEjHgCABUisVDHhHmR4aq5jcCpkE83BcAYsY2xxKGhc'),  -- sin bruto
   ('8VB1Lj8LZCae1TLz2bkYc34gMujxkQX7k2zcjAiAikqa'),  -- sin bruto
-  ('BQNUEfMmBLQ5MQfw54rmx1cQxP4jAMfi9ZtqiKK44Zyd');  -- sin bruto
+  ('BQNUEfMmBLQ5MQfw54rmx1cQxP4jAMfi9ZtqiKK44Zyd'),  -- sin bruto
+  ('3BTanRiTZ5i5Lo3PPpEyuiM6KVWBokFyi14zFdVTwhBT'); -- Ev…, la prueba del tablón
+
+-- Borrar por dirección es idempotente: las que ya no existan no hacen nada.
+-- Por eso este fichero se puede volver a pasar cada vez que se añada una
+-- cuenta nueva a la lista, sin tocar a nadie más.
 
 
 select 'ANTES' as momento,

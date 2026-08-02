@@ -152,6 +152,30 @@
   .arm-n{ font-size:11px; font-weight:700; color:var(--bronze-light);
           border:1px solid var(--line); border-radius:99px; padding:1px 7px; }
 
+  /* ── tablón de eventos ──
+     Cada línea es un hecho, no una frase de relleno. El color lo pone el TIPO
+     de evento siguiendo la regla del juego: verde progreso, rojo daño y
+     pérdida, bronce equipo. Si todo fuera del mismo color habría que leerlo
+     entero para encontrar lo que importa. */
+  .tablon{ margin-top:34px; }
+  .tablon h2{ font-family:'Cinzel',serif; font-size:15px; letter-spacing:.04em;
+              color:var(--bronze); margin:0 0 12px; }
+  .ev{ display:flex; align-items:baseline; gap:10px; padding:8px 12px;
+       border-left:2px solid var(--line); margin-bottom:2px; font-size:13px; }
+  .ev .ev-ico{ font-size:13px; width:16px; flex:none; text-align:center; }
+  .ev .ev-txt{ flex:1; min-width:0; color:var(--text); }
+  .ev .ev-txt b{ font-weight:600; }
+  .ev .ev-cuando{ font-size:11px; color:var(--muted); white-space:nowrap; }
+  .ev.gana{ border-left-color:var(--sol-teal); }
+  .ev.pierde{ border-left-color:var(--blood); }
+  .ev.nivel{ border-left-color:var(--sol-teal); }
+  .ev.nivel .ev-txt b{ color:var(--sol-teal); }
+  .ev.rota{ border-left-color:var(--blood-bright); }
+  .ev.rota .ev-txt b{ color:var(--blood-bright); }
+  .ev.arma{ border-left-color:var(--bronze); }
+  .ev.arma .ev-txt b{ color:var(--bronze-light); }
+  @media(max-width:560px){ .ev{ flex-wrap:wrap; } .ev .ev-cuando{ width:100%; padding-left:26px; } }
+
   .salas{ display:flex; gap:8px; flex-wrap:wrap; }
 
   /* ── historial ──
@@ -401,12 +425,19 @@
     <div class="page-head">
       <div><h1 data-i18n="ludus_h1">Your ludus</h1><p id="slotInfo"></p></div>
       <nav class="salas">
-        <button class="btn btn-ghost btn-sm" id="btnArm" data-i18n="arm_open">⚔ Armoury</button>
+        <button class="btn btn-ghost btn-sm" id="btnArm" data-i18n="arm_open">⚔️ Armoury</button>
         <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
         <button class="btn btn-ghost btn-sm" id="btnHist" data-i18n="hist_open">📜 History</button>
       </nav>
     </div>
     <div class="roster" id="roster"></div>
+
+    <!-- El tablón va DEBAJO de los brutos, no encima: lo primero que tiene que
+         ver el jugador al entrar es su ludus, no un registro. -->
+    <section class="tablon" id="tablon" hidden>
+      <h2 data-i18n="ev_h2">Latest news</h2>
+      <div id="evLista"></div>
+    </section>
   </section>
 
   <section class="screen" id="scArmeria">
@@ -677,6 +708,10 @@
       hist_mascota:"Mascota", hist_ajuste:"Ajuste",
       hist_pendiente:"pendiente", hist_enviada:"enviada", hist_fallida:"fallida",
       arm_guardar:"Guardar", arm_libres:"libres en tu bolsa",
+      ev_h2:"Últimas novedades", ev_gana:"venció a", ev_pierde:"cayó ante",
+      ev_nivel:"subió al nivel", ev_rota:"perdió para siempre su", ev_con:"con",
+      ev_un_bruto:"Un bruto", ev_ahora:"ahora mismo", ev_min:"min", ev_h:"h",
+      ev_ayer:"ayer", ev_dias:"días",
       f_error:"No he podido resolver el combate. Inténtalo otra vez.",
       f_version:"El juego se ha actualizado. Recarga la página para seguir jugando.",
       g_nonce:"Pidiendo un código de un solo uso al servidor…",
@@ -685,7 +720,7 @@
       g_fail:"No he podido conectar con la wallet.",
       g_notinstalled:"Esa wallet no está en este navegador.",
       arm_sin_brutos:"Todavía no tienes ningún bruto. Fórjalo primero en la forja.",
-      arm_h1:"La armería", arm_open:"⚔ Armería",
+      arm_h1:"La armería", arm_open:"⚔️ Armería",
       arm_note:"Las armas no te hacen más fuerte: cambian cómo peleas. Cada una gana la mitad de sus enfrentamientos — los puños incluidos. Y se rompen, así que llevar una es una decisión que tomas una y otra vez.",
       arm_para:"Armería de", arm_puesta:"Equipada", arm_equipar:"Equipar", arm_comprar:"Comprar",
       arm_dura:"aguanta", arm_combates:"combates", arm_cae:"se cae", arm_turno:"por turno",
@@ -763,6 +798,10 @@
       hist_mascota:"Pet", hist_ajuste:"Adjustment",
       hist_pendiente:"pending", hist_enviada:"sent", hist_fallida:"failed",
       arm_guardar:"Stow", arm_libres:"free in your bag",
+      ev_h2:"Latest news", ev_gana:"beat", ev_pierde:"fell to",
+      ev_nivel:"reached level", ev_rota:"lost for good their", ev_con:"with",
+      ev_un_bruto:"A brute", ev_ahora:"just now", ev_min:"min", ev_h:"h",
+      ev_ayer:"yesterday", ev_dias:"days",
       f_error:"Couldn't resolve the fight. Try again.",
       f_version:"The game was updated. Reload the page to keep playing.",
       g_nonce:"Asking the server for a one-time code…",
@@ -771,7 +810,7 @@
       g_fail:"Couldn't reach the wallet.",
       g_notinstalled:"That wallet isn't in this browser.",
       arm_sin_brutos:"You have no brutes yet. Forge one first.",
-      arm_h1:"The armoury", arm_open:"⚔ Armoury",
+      arm_h1:"The armoury", arm_open:"⚔️ Armoury",
       arm_note:"Weapons don't make you stronger: they change how you fight. Each one wins about half its matchups — bare fists included. And they break, so carrying one is a choice you make again and again.",
       arm_para:"Armoury for", arm_puesta:"Equipped", arm_equipar:"Equip", arm_comprar:"Buy",
       arm_dura:"lasts", arm_combates:"fights", arm_cae:"dropped", arm_turno:"per turn",
@@ -849,6 +888,10 @@
       hist_mascota:"Familier", hist_ajuste:"Ajustement",
       hist_pendiente:"en attente", hist_enviada:"envoyé", hist_fallida:"échoué",
       arm_guardar:"Ranger", arm_libres:"libres dans votre sac",
+      ev_h2:"Dernières nouvelles", ev_gana:"a battu", ev_pierde:"est tombé face à",
+      ev_nivel:"atteint le niveau", ev_rota:"a perdu à jamais son", ev_con:"avec",
+      ev_un_bruto:"Un brute", ev_ahora:"à l'instant", ev_min:"min", ev_h:"h",
+      ev_ayer:"hier", ev_dias:"jours",
       f_error:"Impossible de résoudre le combat. Réessaie.",
       f_version:"Le jeu a été mis à jour. Recharge la page pour continuer.",
       g_nonce:"Demande d'un code à usage unique au serveur…",
@@ -857,7 +900,7 @@
       g_fail:"Impossible de joindre le wallet.",
       g_notinstalled:"Ce wallet n'est pas dans ce navigateur.",
       arm_sin_brutos:"Tu n'as encore aucune brute. Forge-en une d'abord.",
-      arm_h1:"L'armurerie", arm_open:"⚔ Armurerie",
+      arm_h1:"L'armurerie", arm_open:"⚔️ Armurerie",
       arm_note:"Les armes ne te rendent pas plus fort : elles changent ta façon de combattre. Chacune gagne environ la moitié de ses duels — poings nus compris. Et elles cassent, donc en porter une est un choix qui se répète.",
       arm_para:"Armurerie de", arm_puesta:"Équipée", arm_equipar:"Équiper", arm_comprar:"Acheter",
       arm_dura:"tient", arm_combates:"combats", arm_cae:"tombe", arm_turno:"par tour",
@@ -1114,6 +1157,91 @@
     <path d="M16 22 L24 22 L22 30 L18 30 Z" fill="#a3762f" stroke="#241505" stroke-width="2" stroke-linejoin="round"/>
     <path d="M11 30 L29 30 L31 35 L9 35 Z" fill="#c98a3a" stroke="#241505" stroke-width="2" stroke-linejoin="round"/></svg></span>`;
 
+  /* ═══════════ el tablón de eventos ═══════════
+     Se construye a partir de `fights`, que ya guarda todo lo que pasó en cada
+     pelea (paso 17). No hay tabla de eventos aparte a propósito: subir de nivel
+     y romper el arma son cosas que ocurren DENTRO de una pelea, y tenerlas en
+     dos sitios es tenerlas contradiciéndose algún día.
+
+     Una pelea puede dar hasta tres líneas: el resultado, la subida de nivel y
+     el arma rota. Por eso se piden pocas peleas y salen más eventos. */
+  let eventos = [];
+
+  const haceCuanto = iso => {
+    const ms = Date.now() - Date.parse(iso);
+    if(!isFinite(ms)) return "";
+    const m = Math.floor(ms/60000);
+    if(m < 1)  return t("ev_ahora");
+    if(m < 60) return `${m} ${t("ev_min")}`;
+    const h = Math.floor(m/60);
+    if(h < 24) return `${h} ${t("ev_h")}`;
+    const d = Math.floor(h/24);
+    return d === 1 ? t("ev_ayer") : `${d} ${t("ev_dias")}`;
+  };
+
+  async function cargarEventos(){
+    if(!nube || !addr){ el("tablon").hidden = true; return; }
+    try{
+      eventos = await SolBruteDB.eventos(addr, 12) || [];
+    }catch(e){
+      eventos = [];
+      console.warn("[SolBrute] eventos:", e.message);
+    }
+    pintarEventos();
+  }
+
+  function pintarEventos(){
+    /* Sin peleas todavía no se enseña un tablón vacío: un recuadro que dice
+       "no hay nada" ocupa lo mismo que uno lleno y no aporta nada. */
+    if(!eventos.length){ el("tablon").hidden = true; return; }
+    el("tablon").hidden = false;
+
+    const nombreBruto = rid => {
+      const b = brutes.find(x => x.rid === rid);
+      return b ? esc(b.name) : t("ev_un_bruto");
+    };
+    const armas = O("armas");
+    const lineas = [];
+
+    for(const f of eventos){
+      const quien = nombreBruto(f.a_brute);
+      const rival = esc(f.b_name || "?") + (f.b_bot ? ` <span class="tag">BOT</span>` : "");
+      const cuando = haceCuanto(f.created_at);
+      const gano = f.winner === "A";
+
+      /* El resultado, con el arma que llevaba. Decir "venció con el mandoble"
+         es lo que hace que el arma se sienta parte del combate y no un número
+         en una ficha. */
+      const conArma = (f.arma && f.arma !== "ninguna")
+        ? ` <span class="ev-cuando">${t("ev_con")} ${esc(armas[f.arma] || f.arma)}</span>` : "";
+      lineas.push({ tipo: gano ? "gana" : "pierde", ico: gano ? "⚔️" : "✖", cuando,
+        txt: `<b>${quien}</b> ${gano ? t("ev_gana") : t("ev_pierde")} <b>${rival}</b>`
+             + ` · +${f.coins} $BRUTE${conArma}` });
+
+      if(f.subio){
+        const g = String(f.ganancia || "");
+        let premio;
+        if(g.startsWith("arma:")) premio = `+${esc(armas[g.slice(5)] || g.slice(5))}`;
+        else premio = ({ str:`+1 ${t("str")}`, agi:`+1 ${t("agi")}`, spd:`+1 ${t("spd")}` })[g]
+                      || `+${HP_NIVEL} ${t("gain_hp")}`;
+        lineas.push({ tipo:"nivel", ico:"★", cuando,
+          txt:`<b>${quien}</b> ${t("ev_nivel")} <b>${f.nivel || "?"}</b> · ${premio}` });
+      }
+
+      if(f.arma_rota){
+        lineas.push({ tipo:"rota", ico:"✧", cuando,
+          txt:`<b>${quien}</b> ${t("ev_rota")} <b>${esc(armas[f.arma_rota] || f.arma_rota)}</b>` });
+      }
+    }
+
+    el("evLista").innerHTML = lineas.slice(0, 14).map(l => `
+      <div class="ev ${l.tipo}">
+        <span class="ev-ico">${l.ico}</span>
+        <span class="ev-txt">${l.txt}</span>
+        <span class="ev-cuando">${l.cuando}</span>
+      </div>`).join("");
+  }
+
   function renderRoster(){
     el("slotInfo").textContent = `${brutes.length} / ${MAX_BRUTES} ${t("slots")}`;
     let h = brutes.map(b => `
@@ -1125,7 +1253,7 @@
         ${xpRow(b)}
         ${statRows(b)}
         <div class="fights">${torchRow(b.fights)}</div>
-        <div class="bruto-arma">⚔ ${O("armas")[b.arma || "ninguna"] || t("arm_sin")}</div>
+        <div class="bruto-arma">⚔️ ${O("armas")[b.arma || "ninguna"] || t("arm_sin")}</div>
         <div class="card-foot">
           <button class="btn btn-primary btn-sm js-go" data-id="${b.id}"${b.fights>0?"":" disabled"}>
             ${b.fights>0 ? t("fight") : t("no_fights")}</button>
@@ -1151,6 +1279,11 @@
     el("roster").querySelectorAll(".js-go").forEach(b => b.onclick = () => openMatch(+b.dataset.id));
     el("roster").querySelectorAll(".js-forge").forEach(b => b.onclick = () => openForge(+b.dataset.price));
     el("roster").querySelectorAll(".js-arm").forEach(b => b.onclick = () => openArmeria(+b.dataset.id));
+
+    /* El tablón se pide aparte y sin esperar: el ludus tiene que aparecer ya,
+       y las novedades pueden llegar medio segundo después. Si la consulta
+       falla, el tablón simplemente no sale — no bloquea la pantalla. */
+    cargarEventos();
   }
 
   /* ═══════════ emparejamiento ═══════════ */
