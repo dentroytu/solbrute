@@ -962,6 +962,12 @@ dos lados.
         Instinto: prestigio y un arma rara, no un montón de monedas.
       · Las peleas del torneo **no deberían gastar las 3 diarias**, o la gente
         tendría que elegir entre torneo y jugar.
+- [ ] **Skins y aspectos** — el mejor sumidero que existe, y el más barato de
+      hacer aquí: el aspecto ya son diez enteros pequeños, así que añadir un
+      peinado o un tatuaje es añadir una entrada a una lista.
+      **No tocan el equilibrio**, y por eso se les puede poner el precio que se
+      quiera sin convertir el juego en pay-to-win. Los buenos sumideros son
+      RECURRENTES: comprar una vez saca monedas una vez.
 - [ ] Arte de personajes con ilustrador (capas en PNG sobre el sistema actual)
 - [x] ~~Portar el renderizador por capas a la landing~~ — hecho: las dos páginas
       dibujan desde `brute-render.js`. (La nota de "bustos con casco" en el hero

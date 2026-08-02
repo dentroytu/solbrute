@@ -59,6 +59,40 @@
            padding:18px 20px; margin-bottom:24px; }
   .nota{ font-size:12px; color:var(--muted); margin-bottom:14px; }
 
+  /* ── calculador de torneos ── */
+  .tor-grid{ display:grid; grid-template-columns:1fr 1fr; gap:26px; }
+  @media(max-width:820px){ .tor-grid{ grid-template-columns:1fr; } }
+  .tor-mando label{ display:block; font-size:12px; color:var(--muted); margin:14px 0 5px; }
+  .tor-mando label b{ color:var(--bronze-light); font-variant-numeric:tabular-nums; }
+  .tor-mando input[type=range]{ width:100%; accent-color:var(--bronze); }
+  .tor-mando input[type=number]{ width:90px; background:var(--bg-deep); color:var(--text);
+        border:1px solid var(--line); border-radius:7px; padding:5px 8px; font:inherit; }
+  .tor-pct{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:6px; }
+  .tor-pct div{ text-align:center; }
+  .tor-pct span{ display:block; font-size:10px; color:var(--muted); margin-bottom:3px; }
+  .tor-pct input{ width:100%; text-align:center; background:var(--bg-deep); color:var(--text);
+        border:1px solid var(--line); border-radius:7px; padding:5px 0; font:inherit; }
+
+  .tor-res{ background:var(--bg-deep); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .tor-linea{ display:flex; justify-content:space-between; align-items:baseline;
+        padding:7px 0; border-bottom:1px solid rgba(255,255,255,.04); font-size:13px; }
+  .tor-linea:last-child{ border-bottom:0; }
+  .tor-linea b{ font-family:'Cinzel',serif; font-size:15px; color:var(--bronze-light);
+        font-variant-numeric:tabular-nums; }
+  .tor-linea .dias{ font-size:11px; color:var(--muted); margin-left:7px; }
+  .tor-linea.sumidero b{ color:var(--sol-teal); }
+
+  /* El veredicto: verde si está sano, naranja si conviene mirarlo, rojo si
+     rompe algo. El color hace el trabajo de leerlo por ti. */
+  .tor-juicio{ margin-top:16px; display:flex; flex-direction:column; gap:7px; }
+  .tor-j{ display:flex; gap:9px; align-items:flex-start; font-size:12.5px; line-height:1.45;
+        padding:9px 12px; border-radius:9px; border-left:3px solid var(--line);
+        background:rgba(255,255,255,.02); }
+  .tor-j.ok  { border-left-color:var(--sol-teal); }
+  .tor-j.ojo { border-left-color:var(--torch); }
+  .tor-j.mal { border-left-color:var(--blood-bright); }
+  .tor-j i{ font-style:normal; flex:none; width:14px; text-align:center; }
+
   table{ width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
   th{ text-align:left; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
       color:var(--muted); font-weight:600; padding:0 10px 8px 0; border-bottom:1px solid var(--line); }
@@ -138,6 +172,38 @@
     </div>
 
     <div class="bloque">
+      <h2>Torneos - calculador de precios</h2>
+      <p class="nota">Mueve la entrada y el reparto y mira qué sale. Todo se mide en <b>días de juego</b> (un bruto gana ~40 monedas al día): es la unidad que sigue significando lo mismo valga lo que valga el token en euros.</p>
+
+      <div class="tor-grid">
+        <div class="tor-mando">
+          <label>Entrada por jugador · <b id="lblEntrada">50</b> monedas</label>
+          <input type="range" id="torEntrada" min="0" max="500" step="5" value="50">
+
+          <label>Plazas · <b id="lblPlazas">16</b></label>
+          <input type="range" id="torPlazas" min="0" max="3" step="1" value="2">
+
+          <label>Reparto del bote (tiene que sumar 100)</label>
+          <div class="tor-pct">
+            <div><span>1º</span><input type="number" id="tp1" value="50" min="0" max="100"></div>
+            <div><span>2º</span><input type="number" id="tp2" value="20" min="0" max="100"></div>
+            <div><span>3º y 4º</span><input type="number" id="tp3" value="15" min="0" max="100"></div>
+            <div><span>casa</span><input type="number" id="tpc" value="15" min="0" max="100"></div>
+          </div>
+
+          <label style="margin-top:18px">Si el token valiera... (solo para verlo en euros)</label>
+          <input type="number" id="torPrecio" value="0" min="0" step="0.001" placeholder="0.00">
+          <p class="nota" style="margin-top:6px">Hoy el token no cotiza en ningún sitio, así que no hay precio que consultar. Escribe uno hipotético si quieres la equivalencia.</p>
+        </div>
+
+        <div>
+          <div class="tor-res" id="torRes"></div>
+          <div class="tor-juicio" id="torJuicio"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bloque">
       <h2>Brutos</h2>
       <div class="scroll"><table id="tablaBrutos"></table></div>
     </div>
@@ -173,6 +239,97 @@
 
   let editando = null;                  // "b<id>" o "j<direccion>"
   const datos = { brutos: [], jugadores: [], dir: null };
+
+  /* ═══════════ calculador de torneos ═══════════
+     Todo se mide en DÍAS DE JUEGO, no en euros. Un bruto gana ~40 monedas al
+     día (3 peleas), y esa relación es la que usa el equilibrio del juego
+     entero — el precio de un arma, el de una plaza — así que sigue
+     significando lo mismo valga lo que valga el token fuera.
+
+     Los euros son opcional y con un precio que escribe el admin, porque hoy el
+     token NO cotiza: no hay mercado del que sacar un precio. Un panel que
+     enseña "0,00 €" con seguridad es peor que uno que no lo enseña. */
+  const MONEDAS_DIA = 40;        // lo que gana un bruto al día, 3 peleas
+  const POOL_DIARIO = 27397;     // presupuesto de emisión diario
+  const PLAZAS_OPC  = [4, 8, 16, 32];
+
+  function calcTorneo(){
+    const entrada = +el("torEntrada").value;
+    const plazas  = PLAZAS_OPC[+el("torPlazas").value];
+    const p1 = +el("tp1").value || 0, p2 = +el("tp2").value || 0;
+    const p3 = +el("tp3").value || 0, pc = +el("tpc").value || 0;
+    const precio = +el("torPrecio").value || 0;
+
+    el("lblEntrada").textContent = entrada;
+    el("lblPlazas").textContent  = plazas;
+
+    const bote  = entrada * plazas;
+    const suma  = p1 + p2 + p3 + pc;
+    const prem1 = Math.floor(bote * p1 / 100);
+    const prem2 = Math.floor(bote * p2 / 100);
+    const prem3 = Math.floor(bote * p3 / 100 / 2);
+    const casa  = bote - prem1 - prem2 - prem3 * 2;
+
+    const dias = n => (n / MONEDAS_DIA);
+    const eur  = n => precio > 0 ? ` · ${(n * precio).toFixed(2)} €` : "";
+    const linea = (t, v, d, clase) => `<div class="tor-linea ${clase||""}">
+        <span>${t}</span><span><b>${v.toLocaleString("es")}</b>${
+        d !== null ? `<span class="dias">${d.toFixed(1)} días${eur(v)}</span>` : eur(v)}</span></div>`;
+
+    el("torRes").innerHTML =
+      linea("Bote total", bote, dias(bote)) +
+      linea("Entrada", entrada, dias(entrada)) +
+      linea("Premio 1º", prem1, dias(prem1)) +
+      linea("Premio 2º", prem2, dias(prem2)) +
+      linea("Premio 3º y 4º (cada uno)", prem3, dias(prem3)) +
+      linea("A la reserva (sumidero)", casa, dias(casa), "sumidero");
+
+    /* ── el veredicto ──
+       No son opiniones: cada regla compara con un número del juego que ya
+       existe. Lo que gana un bruto al día, el presupuesto de emisión, y lo que
+       pierde de media quien se apunta. */
+    const j = [];
+    const di = (n) => (n / MONEDAS_DIA).toFixed(1);
+
+    if(suma !== 100)
+      j.push(["mal","✕",`El reparto suma <b>${suma}%</b>, no 100. Con esto el torneo ni se guarda.`]);
+
+    const dEnt = entrada / MONEDAS_DIA;
+    if(entrada === 0)
+      j.push(["ojo","!","Entrada gratis: no hay bote, así que no hay premio ni sumidero. Vale para un torneo de estreno, no como norma."]);
+    else if(dEnt < 0.5)
+      j.push(["ojo","!",`La entrada son <b>${di(entrada)} días</b> de juego. Tan barata que no filtra a nadie, y el bote se queda corto.`]);
+    else if(dEnt <= 3)
+      j.push(["ok","✓",`Entrada de <b>${di(entrada)} días</b> de juego. Accesible sin ser gratis: se apunta quien tiene intención.`]);
+    else if(dEnt <= 8)
+      j.push(["ojo","!",`Entrada de <b>${di(entrada)} días</b>. Cara — llenar las ${plazas} plazas va a costar.`]);
+    else
+      j.push(["mal","✕",`Entrada de <b>${di(entrada)} días</b> de juego. Solo entrarán los que ya tienen mucho, que es lo contrario de lo que quieres.`]);
+
+    const dPrem = prem1 / MONEDAS_DIA;
+    if(prem1 > 0 && dPrem < 2)
+      j.push(["ojo","!",`El ganador se lleva <b>${di(prem1)} días</b> de juego. Poco para el esfuerzo de ganar ${Math.log2(plazas)} rondas.`]);
+    else if(dPrem <= 15)
+      j.push(["ok","✓",`El ganador se lleva <b>${di(prem1)} días</b> de juego. Buen incentivo sin desequilibrar el día a día.`]);
+    else if(dPrem <= 40)
+      j.push(["ojo","!",`El ganador se lleva <b>${di(prem1)} días</b>. Fuerte, pero aún sano si el torneo no es muy frecuente.`]);
+    else
+      j.push(["mal","✕",`El ganador se lleva <b>${di(prem1)} días</b> de juego. A partir de aquí el torneo se come el juego diario: pelear a diario deja de tener sentido.`]);
+
+    if(pc === 0)
+      j.push(["mal","✕","Con 0% de casa esto <b>no es un sumidero</b>: no saca ni una moneda de circulación. El torneo pasa a ser solo contenido."]);
+    else if(pc <= 20)
+      j.push(["ok","✓",`Saca <b>${casa.toLocaleString("es")} monedas</b> de circulación, un ${(casa/POOL_DIARIO*100).toFixed(2)}% de la emisión de un día. De media, quien se apunta pierde ${(entrada*pc/100).toFixed(0)} monedas.`]);
+    else
+      j.push(["ojo","!",`La casa se queda el <b>${pc}%</b>. De media cada jugador pierde ${(entrada*pc/100).toFixed(0)} monedas por torneo, y eso se nota y se comenta.`]);
+
+    /* Emisión: cero. Vale la pena decirlo porque es la propiedad que hace que
+       este diseño no rompa la economía por muchos torneos que se hagan. */
+    j.push(["ok","✓","<b>Emisión neta cero</b>: el premio sale del bote, no de la reserva. Puedes hacer todos los torneos que quieras sin tocar el presupuesto diario."]);
+
+    el("torJuicio").innerHTML = j.map(([c,i,t]) =>
+      `<div class="tor-j ${c}"><i>${i}</i><span>${t}</span></div>`).join("");
+  }
 
   function aviso(txt, err){
     el("aviso").textContent = txt || "";
@@ -465,6 +622,10 @@
   const fecha = f => f ? new Date(f).toLocaleDateString("es-ES", { day:"2-digit", month:"2-digit", year:"2-digit" }) : "—";
   /* Los nombres los eligen los jugadores: van escapados sí o sí. */
   const escapar = t => String(t).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+  ["torEntrada","torPlazas","tp1","tp2","tp3","tpc","torPrecio"]
+    .forEach(id => { const n = el(id); if(n) n.oninput = calcTorneo; });
+  calcTorneo();
 
   el("btnEntrar").onclick = entrar;
   el("btnSalir").onclick = () => { SolBruteDB.cerrarSesion(); location.reload(); };
