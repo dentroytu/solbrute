@@ -13,6 +13,22 @@ Los tokens de devnet **no valen nada** y esa es toda la gracia: sirven para
 ensayar el lanzamiento entero —crear, repartir, retirar, atacar— antes de que
 un fallo cueste dinero de alguien.
 
+**La retirada funciona de punta a punta**, verificada en la cadena: el saldo de
+Postgres sale de la wallet operativa y llega a la del jugador. Y el ensayo
+encontró tres cosas que no se ven leyendo código:
+
+1. **La wallet caliente necesita un presupuesto de SOL**, no solo de tokens.
+   Cada envío cuesta comisión de red y, si el jugador retira por primera vez,
+   crearle su cuenta de token cuesta ~0,002 SOL de renta que paga el tesoro.
+   Se quedó seca tras la primera retirada. Con 0,5 SOL van ~245 retiradas.
+   **Si llega a cero, las retiradas paran**: hay que vigilarlo como cualquier
+   otro saldo.
+2. **El RPC público no sirve.** `api.devnet.solana.com` da `429` a la segunda
+   retirada seguida. Antes de mainnet, uno de pago en `SOLANA_RPC`.
+3. **Un fallo al enviar no se adivina, se consulta.** Si la firma no está en la
+   cadena y su blockhash caducó, esa transacción no puede llegar nunca y
+   devolver el saldo es demostrablemente seguro.
+
 ---
 
 ## El modelo: el token ES la moneda del juego

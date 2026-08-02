@@ -38,6 +38,8 @@ experiencia y sube de nivel.
 | `supabase-17-eventos.sql` | Cinco columnas en `fights` para el tablón del ludus | Aplicado |
 | `supabase-18-retirada-cuentas.sql` | La retirada: topes, comisión y estado. **Sin el envío** | Aplicado |
 | `supabase-19-cerrar-simulacro.sql` | Cierra el simulacro y limpia lo que dejó | Aplicado una vez |
+| `supabase-20-cerrar-devnet.sql` | Cierra las pruebas de devnet, por lista blanca | Aplicado una vez |
+| `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
 | `DESPLIEGUE.md` | En qué orden se aplica todo lo de arriba | Guía |
 | `BACKEND.md` | Esquema y contrato de API | Paso 1 hecho a medias |
@@ -469,7 +471,8 @@ aparente. Hay vectores de prueba conocidos; si tocas esa función, compruébalos
 | 1a | Backend: los brutos viven en Supabase y se comparten entre jugadores | Hecho |
 | 1c | Mover `simulate()` al servidor para que arbitre el combate | Hecho |
 | 1d | Economía: tope de emisión, fondo de garantía, reciclaje | Hecho |
-| 1e | La retirada: convertir el saldo en $BRUTE de verdad | ACTUAL |
+| 1e | La retirada: convertir el saldo en $BRUTE de verdad | Hecho en devnet |
+| 2 | Token en mainnet y abrir las retiradas de verdad | ACTUAL |
 | 1b | Wallet como cuenta (Phantom / Solflare + firma SIWS) | Hecho |
 | 2 | Programa Anchor en devnet: personajes y resultados on-chain | Próximamente |
 | 3 | Mainnet, token y mercado entre jugadores | Próximamente |
@@ -927,12 +930,18 @@ dos lados.
       el tablón del ludus las enseña.
 - [x] ~~La retirada: la contabilidad~~ — hecha y atacada (35 comprobaciones)
       con el modo `simulacro`. Ver «La retirada».
-- [ ] **El envío on-chain.** El hueco marcado en la ruta `retirar`. Necesita el
-      token en devnet. El orden correcto (firmar → apuntar → mandar →
-      confirmar) ya está escrito y probado alrededor del hueco.
-- [ ] **Crear el token en devnet** y probar la retirada entera contra él. Se
-      comprobó que la Edge Function **sí** puede firmar transacciones de Solana
-      (ver «Wallet»), así que la arquitectura se sostiene.
+- [x] ~~Crear el token en devnet~~ — hecho. Mint
+      `CQrsHLKWmgBjd1UUi115KzQ3GRfGfM8xafoUeP3ajWqX`, 100M, 9 decimales, las dos
+      autoridades en `null`, repartido en 7 wallets.
+- [x] ~~El envío on-chain~~ — hecho y **probado contra devnet**: el saldo sale de
+      la operativa y llega a la wallet del jugador. Ver «La retirada».
+- [ ] **Antes de mainnet**, y ninguna es código:
+      · las claves las crea el dueño, las frías en papel
+      · un **RPC de pago** en `SOLANA_RPC` — el público da `429` a la segunda
+        retirada seguida
+      · **presupuesto de SOL** para la operativa, y vigilarlo: si llega a cero
+        las retiradas paran
+      · lo **legal**, que sigue pendiente desde el principio
 - [ ] Verificar el dato de `~400ms` de Solana en la landing antes de publicar
 - [ ] Sustituir `REPLACE_WITH_YOUR_DOMAIN` en los meta tags de `index.html`
 - [ ] Subir `og-image.png` (1200×630) a la raíz
@@ -961,9 +970,15 @@ dos lados.
 
 ## La retirada
 
-La contabilidad está escrita y probada (`supabase-18-retirada-cuentas.sql` y la
-ruta `retirar`). **El envío on-chain no**, y hasta que exista `retiradas_abiertas`
-sigue en `false`.
+Funciona de punta a punta y está **probada contra devnet**: el saldo de Postgres
+sale de la wallet operativa y llega a la del jugador. `retiradas_abiertas` sigue
+en `false` porque no existe el token de mainnet, no porque falte código.
+
+**El envío vive en su propia Edge Function** (`supabase-funcion-retirar.ts`), no
+en `auth`. Dos motivos, y el segundo es el que manda: las librerías de Solana
+pesan y metidas en `auth` cada login y cada pelea pagarían su arranque en frío
+(~2 s medidos); y la clave del tesoro compartiría contexto con todo el juego.
+Lo que sí se queda en `auth` es LEER las retiradas — una consulta sin riesgo.
 
 ### El orden, que es lo único que impide cobrar dos veces
 
@@ -1018,6 +1033,63 @@ al día (3 peleas, bruto gratis) y con el mínimo en 100 no llega a retirar nada
 Y para que salte el tope del JUGADOR hay que pedir el saldo entero de una vez:
 si se pide a plazos, salta antes `sin_saldo`, porque la comprobación de fondos
 va antes que la del tope.
+
+### Cuando algo falla al mandar, se le PREGUNTA a la cadena
+
+La primera versión daba por perdida cualquier retirada que fallara después de
+emitir, y el jugador se quedaba sin saldo y sin tokens. Probándola contra devnet
+salió que ese caso es común y tonto: el RPC público limita peticiones,
+`sendRawTransaction` lanza, y la transacción **nunca llegó a la red**.
+
+No hace falta adivinar, porque Solana lo deja demostrar:
+
+| En la cadena | Veredicto | Qué se hace |
+|---|---|---|
+| la firma aparece sin error | llegó | se cobra |
+| aparece con error | no movió tokens | se devuelve |
+| no aparece y el blockhash **caducó** | no puede llegar nunca | se devuelve |
+| no aparece y el blockhash sigue vivo | todavía puede llegar | revisión |
+
+Los tres primeros se resuelven solos y son demostrables. **Solo el cuarto
+necesita a una persona**, y para eso exactamente se apunta la firma antes de
+mandar nada.
+
+### La wallet caliente necesita SOL, y quedarse sin él fallaba en silencio
+
+El hallazgo que justifica el ensayo entero en devnet.
+
+La primera retirada funcionó; todas las siguientes fallaron con errores de red
+genéricos. El motivo no estaba en el código sino en el saldo de la operativa:
+
+```
+SOL de la operativa               0,000956
+crear una cuenta de token cuesta  0,002039
+```
+
+**Los $BRUTE no se mandan solos.** Cada transacción cuesta comisión de red y, si
+el jugador retira por primera vez, hay que CREARLE su cuenta de token — unos
+0,002 SOL de renta. Todo eso lo paga la operativa **en SOL**, no en $BRUTE, y
+nadie lo había presupuestado.
+
+Lo grave no era quedarse sin SOL —se rellena en un minuto— sino que **fallaba
+diciendo otra cosa**. En mainnet habrían sido retiradas cayendo en cascada y
+horas buscando el fallo donde no estaba. Ahora se comprueba antes de tocar el
+saldo de nadie, y el log dice qué wallet recargar.
+
+Con 0,5 SOL alcanza para unas 245 retiradas a jugadores nuevos.
+
+### Atacada contra devnet, con tokens de verdad
+
+| Ataque | Resultado |
+|---|---|
+| Mandar los tokens a otra wallet (`address`, `destino`, `p_owner`, `wallet`) | van a la MÍA; la otra recibe 0 |
+| **Dos retiradas simultáneas** | 200/403 · una fila · el saldo baja UNA vez |
+| Cuadre de la operativa | salieron 25, llegaron 25 |
+| Sin sesión / sesión inventada | 401 |
+| Las cinco funciones con la clave anon | `42501` |
+
+El destino **sale siempre de la sesión**. La ruta no lee ninguna dirección del
+cuerpo, así que mandar la de otro no hace nada.
 
 ---
 
@@ -1141,6 +1213,28 @@ discusión.
 Es distinta de la `VERSION` de `brute-combate.js`, que numera las REGLAS y la
 comprueba el servidor para rechazar clientes viejos. Esta es para humanos;
 aquella es para máquinas.
+
+### El editor de Supabase mangla el UTF-8 al pegar
+
+Los mensajes de la Edge Function que ve el jugador van **en ASCII a propósito**.
+No es descuido: se comprobó mirando los BYTES que devolvía la función
+desplegada y donde debía haber `c3 b3` (ó) había `e2 88 9a e2 89 a5` (√≥). El
+jugador llevaba horas viendo «sesi√≥n no v√°lida» y nadie lo había notado,
+porque en pantalla parece un fallo cualquiera de fuente.
+
+**Los comentarios sí llevan acentos**: su mojibake dentro del editor es fea pero
+no la ve nadie, y el fichero del repositorio es la fuente de verdad.
+
+**Los IDENTIFICADORES también en ASCII, y esto es lo importante.** Una función
+se llamaba `dueñoDe` y el despliegue fallaba entero con
+`UnexpectedChar { c: '√' }`. En un comentario la mojibake es fea; en un nombre
+tumba el despliegue.
+
+Y una advertencia sobre cómo se arregló mal la primera vez: un script que
+de-acentuaba «solo dentro de las cadenas» recorriendo el fichero entero trató
+los apóstrofos de los comentarios como comillas de apertura, se tragó todo hasta
+el siguiente y destrozó el formato — 272 líneas borradas. Para tocar cadenas hay
+que apuntar a un patrón concreto (`error: "..."`), no recorrer el fichero.
 
 ### La caché de `file://` engaña
 
