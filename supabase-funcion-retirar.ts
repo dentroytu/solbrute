@@ -50,6 +50,17 @@
 // un identificador mal codificado tumba el despliegue entero (pasó con
 // `dueñoDe`: `UnexpectedChar { c: '√' }`).
 //
+// ── El RPC público NO vale para mainnet ───────────────────────────────────
+//
+// `api.devnet.solana.com` limita peticiones y lo hace pronto: probando esto
+// contra devnet, dos retiradas seguidas ya devolvían 429 y la transacción no
+// llegaba a salir. Con la reconciliación de arriba eso deja de costarle el
+// saldo al jugador, pero sigue siendo una retirada fallida que hay que
+// reintentar.
+//
+// Antes de mainnet hay que poner un RPC de pago (Helius, QuickNode, Triton) en
+// `SOLANA_RPC`. Es barato y quita de golpe la causa más común de fallo.
+//
 // ── Secretos que necesita ─────────────────────────────────────────────────
 //   SOLANA_TESORO   clave de la wallet OPERATIVA, como array JSON de 64 bytes
 //   SOLANA_MINT     dirección del mint de $BRUTE
@@ -121,6 +132,47 @@ async function duenoDe(token: unknown): Promise<string | null> {
 function pubkey(v: unknown): PublicKey | null {
   if (typeof v !== "string" || v.length < 32 || v.length > 44) return null;
   try { return new PublicKey(v); } catch { return null; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Cuando algo falla después de mandar: PREGUNTARLE A LA CADENA
+   ══════════════════════════════════════════════════════════════════════════
+   La primera versión daba por perdida cualquier retirada que fallara después
+   de emitir, y el jugador se quedaba sin saldo y sin tokens. Probándolo contra
+   devnet salió que eso pasa a menudo por una tontería: el RPC público limita
+   peticiones, `sendRawTransaction` lanza, y la transacción NUNCA llegó a la
+   red. Castigar al jugador por eso es cobrarle un fallo nuestro.
+
+   Y no hace falta adivinar, porque Solana lo deja demostrar:
+
+     · Si la firma aparece en la cadena SIN error → llegó. Se cobra.
+     · Si aparece CON error → la cadena la rechazó y no movió tokens (una
+       transacción fallida no transfiere nada). Devolver es seguro.
+     · Si NO aparece y el blockhash ya CADUCÓ → no puede llegar nunca. Muerta.
+       Devolver es seguro y demostrable.
+     · Si no aparece y el blockhash sigue vivo → todavía puede llegar. Solo
+       aquí se deja en revisión, que es lo honesto.
+
+   Ese último caso es raro y es el único que necesita una persona. */
+type Veredicto = "llego" | "muerta" | "no_se_sabe";
+
+async function resolver(
+  con: Connection, firma: string, ultimoBloqueValido: number,
+): Promise<Veredicto> {
+  /* Ocho vueltas de 1,5 s ≈ 12 s. Un blockhash vive ~60-90 s, así que esto no
+     siempre alcanza a verlo caducar — por eso existe "no_se_sabe" en vez de
+     esperar hasta agotar el tiempo de la función. */
+  for (let i = 0; i < 8; i++) {
+    const st = await con.getSignatureStatus(firma, { searchTransactionHistory: true })
+                        .catch(() => null);
+    if (st?.value?.confirmationStatus) return st.value.err ? "muerta" : "llego";
+
+    const altura = await con.getBlockHeight("confirmed").catch(() => null);
+    if (altura !== null && altura > ultimoBloqueValido) return "muerta";
+
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return "no_se_sabe";
 }
 
 /* base58 a mano, sin dependencias, igual que en `wallet-solana.js`.
@@ -218,11 +270,19 @@ Deno.serve(async (req) => {
     const id = Number(ap.id);
 
     /* LA LÍNEA. Mientras sea false no ha salido nada a la red y devolver el
-       saldo es demostrablemente seguro. En cuanto se pone a true, no lo es. */
+       saldo es demostrablemente seguro. En cuanto se pone a true deja de serlo
+       — pero deja de serlo POR SÍ SOLO: si algo falla después, se le pregunta a
+       la cadena (ver `resolver`) en vez de rendirse. */
     let emitido = false;
 
+    /* Fuera del try para que el catch pueda ir a comprobar la cadena. Sin la
+       firma y sin el bloque límite no hay nada que preguntar, y la retirada se
+       quedaría en revisión para siempre por un fallo de red de dos segundos. */
+    let firma = "";
+    let ultimoBloqueValido = 0;
+    const con = new Connection(RPC, "confirmed");
+
     try {
-      const con = new Connection(RPC, "confirmed");
       const origen  = await getAssociatedTokenAddress(mint, tesoro.publicKey);
       const llegada = await getAssociatedTokenAddress(mint, destino);
 
@@ -241,13 +301,14 @@ Deno.serve(async (req) => {
         BigInt(ap.tokens) * 10n ** DECIMALES));
 
       const bh = await con.getLatestBlockhash("confirmed");
+      ultimoBloqueValido = bh.lastValidBlockHeight;
       tx.recentBlockhash = bh.blockhash;
       tx.feePayer = tesoro.publicKey;
       tx.sign(tesoro);
 
       const firmaBytes = tx.signatures[0]?.signature;
       if (!firmaBytes) throw new Error("la transaccion no quedo firmada");
-      const firma = bs58(firmaBytes);
+      firma = bs58(firmaBytes);
 
       /* ── 3 · apuntar la firma ANTES de mandar ──
          Si esto falla todavía no se ha emitido nada: se cae al catch con
@@ -284,31 +345,68 @@ Deno.serve(async (req) => {
 
     } catch (e) {
       const msg = (e as Error).message || "error desconocido";
-      await db("/rpc/retirada_cerrar", {
-        method: "POST",
-        body: JSON.stringify({ p_id: id, p_ok: false, p_error: msg }),
-      }).catch(() => {});
 
-      if (!emitido) {
-        /* Nada salió a la red. Devolver es seguro y demostrable, así que se
-           hace solo: dejar al jugador sin saldo por un fallo nuestro anterior
-           a emitir nada sería quedarnos su dinero por un error de red. */
+      const devolver = async (motivo: string) =>
         await db("/rpc/retirada_devolver", {
           method: "POST",
-          body: JSON.stringify({
-            p_admin: "sistema", p_id: id,
-            p_motivo: "fallo antes de emitir: " + msg.slice(0, 200),
-          }),
+          body: JSON.stringify({ p_admin: "sistema", p_id: id,
+                                 p_motivo: motivo.slice(0, 250) }),
         }).catch((x) => console.error("no pude devolver la retirada " + id + ": " + x.message));
+
+      const cerrar = async (ok: boolean, err?: string) =>
+        await db("/rpc/retirada_cerrar", {
+          method: "POST",
+          body: JSON.stringify({ p_id: id, p_ok: ok, p_error: err || null }),
+        }).catch(() => {});
+
+      /* ── Caso 1: nada salió a la red ──
+         Demostrable: no se llegó a llamar a `sendRawTransaction`. Devolver es
+         seguro, y no hacerlo sería quedarnos el saldo del jugador por un fallo
+         nuestro. */
+      if (!emitido || !firma) {
+        await cerrar(false, msg);
+        await devolver("fallo antes de emitir: " + msg);
         console.error("retirada " + id + " fallida ANTES de emitir: " + msg);
         return responder({ error: "no se pudo enviar; tu saldo esta intacto",
                            clase: "fallo_previo" }, 502);
       }
 
-      /* Ya se emitió. NO se devuelve nada: puede haber llegado. */
-      console.error("retirada " + id + " fallida DESPUES de emitir - revisar la cadena: " + msg);
-      return responder({ error: "el envio quedo en revision; no se ha perdido nada",
-                         clase: "en_revision", id }, 502);
+      /* ── Caso 2: se emitió y algo falló ──
+         Aquí NO se adivina: se le pregunta a la cadena. Es la diferencia entre
+         dejar al jugador sin saldo y sin tokens por un límite de peticiones del
+         RPC —que es lo que hacía la primera versión— y resolverlo de verdad. */
+      const veredicto = await resolver(con, firma, ultimoBloqueValido);
+      const cluster = RPC.includes("devnet") ? "?cluster=devnet" : "";
+
+      if (veredicto === "llego") {
+        /* Falló la confirmación, no el envío. Los tokens SÍ están en su wallet:
+           lo que había que arreglar era nuestro registro, no su saldo. */
+        await cerrar(true);
+        console.warn("retirada " + id + " confirmada a la segunda: " + msg);
+        return responder({ ...ap, estado: "enviada", firma,
+                           explorador: "https://explorer.solana.com/tx/" + firma + cluster });
+      }
+
+      if (veredicto === "muerta") {
+        /* O la cadena la rechazó —y una transaccion fallida no mueve tokens— o
+           el blockhash caducó sin que apareciera, y entonces ya no puede llegar
+           nunca. En los dos casos devolver es seguro y demostrable. */
+        await cerrar(false, msg);
+        await devolver("comprobado en la cadena: la transaccion no llego. " + msg);
+        console.error("retirada " + id + " muerta, devuelta: " + msg);
+        return responder({ error: "no se pudo enviar; tu saldo esta intacto",
+                           clase: "fallo_previo" }, 502);
+      }
+
+      /* ── Caso 3: el único que necesita a una persona ──
+         El blockhash sigue vivo y la firma aún no aparece: todavía puede
+         llegar. Devolver aquí sería el doble cobro clásico. Queda `fallida` con
+         su firma apuntada, que es exactamente para lo que se guardó antes de
+         mandar nada. */
+      await cerrar(false, "sin resolver: " + msg);
+      console.error("retirada " + id + " SIN RESOLVER, revisar la firma " + firma + ": " + msg);
+      return responder({ error: "el envio esta en revision; no se ha perdido nada",
+                         clase: "en_revision", id, firma }, 502);
     }
 
   } catch (e) {
