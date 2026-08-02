@@ -1,6 +1,17 @@
 # SolBrute — diseño del token
 
-Estado: **modelo decidido, sin crear nada.** Ni en devnet ni en mainnet.
+Estado: **creado y repartido en DEVNET. Nada en mainnet.**
+
+```
+mint devnet   CQrsHLKWmgBjd1UUi115KzQ3GRfGfM8xafoUeP3ajWqX
+suministro    100.000.000 · 9 decimales
+autoridades   mintAuthority null · freezeAuthority null
+reparto       7 wallets, una sola caliente (ver «Suministro»)
+```
+
+Los tokens de devnet **no valen nada** y esa es toda la gracia: sirven para
+ensayar el lanzamiento entero —crear, repartir, retirar, atacar— antes de que
+un fallo cueste dinero de alguien.
 
 ---
 
