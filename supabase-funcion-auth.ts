@@ -870,6 +870,130 @@ async function manejar(req: Request): Promise<Response> {
     });
   }
 
+  /* ══════════ retirar ══════════
+     Convierte saldo del juego en $BRUTE. Es la ruta más delicada del proyecto:
+     todo lo demás protege un número en Postgres, y aquí ese número sale.
+
+     ── El orden importa y es lo único que impide cobrar dos veces ──
+       1. `retirada_abrir` reserva el saldo y crea la fila   (atómico, en SQL)
+       2. se construye y firma la transacción                → ya hay firma
+       3. `retirada_firmar` la GUARDA                         ANTES de mandar
+       4. se manda a la red
+       5. `retirada_cerrar` marca enviada
+
+     Si algo se rompe a partir del 3, la firma está apuntada y se puede ir a la
+     cadena a comprobar si llegó. Y `withdrawals.firma` es único, así que un
+     reintento no puede reclamar el mismo envío otra vez.
+
+     ── Si falla, el saldo NO vuelve solo ──
+     "Falló el envío" y "llegó pero no vi la confirmación" se parecen demasiado
+     desde aquí. Devolver a ciegas es exactamente cómo alguien cobra dos veces.
+     Queda en `fallida` y se revisa a mano con `retirada_devolver`. */
+  if (accion === "retirar") {
+    const monedas = Math.floor(Number(cuerpo.monedas));
+    if (!Number.isFinite(monedas) || monedas <= 0 || monedas > 1e12) {
+      return responder({ error: "cantidad no válida", clase: "cantidad" }, 400);
+    }
+
+    /* ── 0 · ¿hay quien lo envíe? ──
+       Se comprueba ANTES de reservar nada. El envío on-chain todavía no está
+       enchufado, así que en devnet o mainnet esta ruta no puede cumplir lo que
+       promete — y descontar el saldo para dejar una fila pendiente que nadie
+       va a resolver es peor que decir que no.
+
+       Fallar antes de tocar el saldo es la única versión de esto que no deja
+       al jugador a medias. */
+    const eco = await db("/economia?id=eq.1&select=red");
+    const red = (eco && eco[0] && eco[0].red) || "";
+    if (red !== "simulacro") {
+      return responder({ error: "el envío on-chain todavía no está conectado",
+                         clase: "sin_enviador", red }, 503);
+    }
+
+    /* ── 1 · reservar ── */
+    let ap;
+    try {
+      ap = await db("/rpc/retirada_abrir", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_monedas: monedas }),
+      });
+    } catch (e) {
+      const m = (e as Error).message;
+      /* Se traducen los errores de la función. Los mensajes llevan el dato
+         dentro (`minimo:100`) para que la pantalla pueda decir cuánto falta
+         sin tener que consultarlo aparte. */
+      if (m.includes("retiradas_cerradas"))
+        return responder({ error: "las retiradas están cerradas", clase: "cerradas" }, 403);
+      if (m.includes("sin_saldo"))
+        return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
+      if (m.includes("minimo:"))
+        return responder({ error: "por debajo del mínimo", clase: "minimo",
+                           minimo: Number((m.match(/minimo:(\d+)/) || [])[1] || 0) }, 403);
+      if (m.includes("tope_jugador:"))
+        return responder({ error: "has llegado a tu tope de hoy", clase: "tope_jugador",
+                           tope: Number((m.match(/tope_jugador:(\d+)/) || [])[1] || 0) }, 403);
+      if (m.includes("tope_global"))
+        return responder({ error: "el tope global de hoy está lleno; prueba mañana",
+                           clase: "tope_global" }, 429);
+      if (m.includes("cantidad_invalida"))
+        return responder({ error: "cantidad no válida", clase: "cantidad" }, 400);
+      if (m.includes("jugador desconocido"))
+        return responder({ error: "sesión no válida" }, 401);
+      throw e;
+    }
+
+    const id = Number(ap.id);
+
+    /* ── 2 a 5 · el envío ──
+       `red` manda, y la elige la base de datos, no el navegador.
+
+       "simulacro" existe para poder PROBAR toda la contabilidad —los topes, la
+       atomicidad, el doble cobro— sin token y sin SOL. No toca ninguna cadena
+       y se marca con una firma imposible de confundir con una real. Es el modo
+       en el que se ataca esto antes de que exista nada que perder. */
+    if (ap.red === "simulacro") {
+      /* El UUID va ENTERO. Recortado a 18 la firma medía 30 caracteres y
+         `retirada_firmar` exige 32, así que reventaba justo después de haber
+         descontado el saldo: la fila se quedaba en `pendiente` y la petición
+         devolvía un 500.
+
+         Que no se perdiera nada fue suerte del diseño —el estado intermedio
+         existe a propósito y es recuperable—, pero el fallo era mío. Una firma
+         real de Solana son 87-88 caracteres en base58; ésta tiene que
+         parecerse en longitud o la validación la rechaza igual. */
+      const falsa = "SIMULACRO-" + id + "-" + crypto.randomUUID() + crypto.randomUUID();
+      await db("/rpc/retirada_firmar", {
+        method: "POST", body: JSON.stringify({ p_id: id, p_firma: falsa }),
+      });
+      await db("/rpc/retirada_cerrar", {
+        method: "POST", body: JSON.stringify({ p_id: id, p_ok: true }),
+      });
+      apuntar(dueno, "retirada", ap.red, -monedas,
+              { comision: ap.comision, tokens: ap.tokens }, id);
+      return responder({ ...ap, estado: "enviada", firma: falsa, simulacro: true });
+    }
+
+    /* Aquí irá devnet / mainnet cuando exista el token:
+         2. construir y firmar la transferencia SPL
+         3. await db("/rpc/retirada_firmar", { p_id: id, p_firma })   ← antes de mandar
+         4. sendRawTransaction
+         5. await db("/rpc/retirada_cerrar", { p_id: id, p_ok: true })
+       Hasta entonces no se llega aquí: el paso 0 ya lo ha impedido. */
+    return responder({ error: "el envío on-chain todavía no está conectado",
+                       clase: "sin_enviador" }, 503);
+  }
+
+  /* Las retiradas del jugador. Misma regla que el historial: la dirección sale
+     del token, nunca del cuerpo. */
+  if (accion === "retiradas") {
+    const limite = Math.min(Math.max(Math.floor(Number(cuerpo.limite)) || 20, 1), 100);
+    const filas = await db("/rpc/retiradas_de", {
+      method: "POST",
+      body: JSON.stringify({ p_address: dueno, p_limite: limite }),
+    });
+    return responder({ retiradas: filas || [] });
+  }
+
   /* ══════════ historial del jugador ══════════
      Compras y retiradas, solo las suyas.
 

@@ -36,6 +36,8 @@ experiencia y sube de nivel.
 | `supabase-15-reinicio.sql` | Reinicio de la economía. **No repetible** | Aplicado una vez |
 | `supabase-16-limpiar-pruebas.sql` | Borra las cuentas de los ataques, por dirección | Repetible |
 | `supabase-17-eventos.sql` | Cinco columnas en `fights` para el tablón del ludus | Aplicado |
+| `supabase-18-retirada-cuentas.sql` | La retirada: topes, comisión y estado. **Sin el envío** | Aplicado |
+| `supabase-19-cerrar-simulacro.sql` | Cierra el simulacro y limpia lo que dejó | Aplicado una vez |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
 | `DESPLIEGUE.md` | En qué orden se aplica todo lo de arriba | Guía |
 | `BACKEND.md` | Esquema y contrato de API | Paso 1 hecho a medias |
@@ -923,9 +925,11 @@ dos lados.
 - [x] ~~Tope de emisión~~ — hecho y verificado en vivo. Ver «El tope de emisión».
 - [x] ~~Historial de combates por bruto~~ — las peleas se guardan en `fights` y
       el tablón del ludus las enseña.
-- [ ] **La retirada.** Lo único que queda entre el juego y el token. La tabla
-      `withdrawals` existe con la puerta cerrada (`retiradas_abiertas = false`),
-      pero la ruta no está escrita. Va con sus ataques antes de desplegarse.
+- [x] ~~La retirada: la contabilidad~~ — hecha y atacada (35 comprobaciones)
+      con el modo `simulacro`. Ver «La retirada».
+- [ ] **El envío on-chain.** El hueco marcado en la ruta `retirar`. Necesita el
+      token en devnet. El orden correcto (firmar → apuntar → mandar →
+      confirmar) ya está escrito y probado alrededor del hueco.
 - [ ] **Crear el token en devnet** y probar la retirada entera contra él. Se
       comprobó que la Edge Function **sí** puede firmar transacciones de Solana
       (ver «Wallet»), así que la arquitectura se sostiene.
@@ -954,6 +958,68 @@ dos lados.
       dibujan desde `brute-render.js`. (La nota de "bustos con casco" en el hero
       ya era falsa cuando se escribió: el arte estaba portado, lo que quedaba era
       la copia duplicada del código.)
+
+## La retirada
+
+La contabilidad está escrita y probada (`supabase-18-retirada-cuentas.sql` y la
+ruta `retirar`). **El envío on-chain no**, y hasta que exista `retiradas_abiertas`
+sigue en `false`.
+
+### El orden, que es lo único que impide cobrar dos veces
+
+```
+1. retirada_abrir     reserva el saldo y crea la fila   (atómico, en SQL)
+2. construir y firmar la transacción                    → ya existe la firma
+3. retirada_firmar    la GUARDA                          ANTES de mandar
+4. mandarla a la red
+5. retirada_cerrar    marca enviada
+```
+
+El fallo clásico es mandar los tokens, caerse antes de apuntarlo, y al
+reintentar mandarlos otra vez. En Solana **la firma se puede calcular antes de
+mandar la transacción**, así que se apunta en el paso 3: si algo se rompe
+después, la firma está guardada y se puede ir a la cadena a mirar si llegó. No
+hay que adivinar. Y `withdrawals.firma` es único, así que un reintento no puede
+reclamar el mismo envío.
+
+### Un fallo NO devuelve el saldo solo
+
+«Falló el envío» y «llegó pero no vi la confirmación» se parecen demasiado
+desde el servidor. Devolver a ciegas es exactamente cómo alguien cobra dos
+veces: una en tokens y otra en saldo. Queda en `fallida` con su firma, se mira
+la cadena, y si de verdad no llegó se devuelve con `retirada_devolver`, que
+exige motivo y deja el antes y el después en `admin_log`.
+
+### El mínimo de retirada no es un capricho
+
+Cada envío cuesta comisión de red y **la paga el tesoro**, no el jugador. Sin
+mínimo, mil retiradas de 1 moneda vacían el SOL del tesoro sin que nadie haya
+retirado nada apreciable. Es un ataque barato y silencioso.
+
+### Los topes cuentan lo PENDIENTE, no solo lo enviado
+
+Si contaran solo lo enviado, se abren cien retiradas a la vez y el tope no
+existe mientras ninguna ha terminado.
+
+### El modo `simulacro`
+
+`red = 'simulacro'` hace toda la contabilidad y marca la retirada como enviada
+con una firma `SIMULACRO-…`, sin tocar ninguna cadena. Existe para poder atacar
+la parte que puede perder dinero **antes de que haya dinero**: 35
+comprobaciones, ninguna falla, incluidas las dos carreras.
+
+Encontró un fallo real: la firma de simulacro medía 30 caracteres y
+`retirada_firmar` exige 32, así que reventaba justo después de descontar el
+saldo. Y ahí se vio que el diseño aguanta — la fila quedó en `pendiente` con su
+rastro, recuperable, en vez de dejar monedas desaparecidas.
+
+**Para probar los topes hay que bajarlos.** Una cuenta nueva gana ~20 monedas
+al día (3 peleas, bruto gratis) y con el mínimo en 100 no llega a retirar nada.
+Y para que salte el tope del JUGADOR hay que pedir el saldo entero de una vez:
+si se pide a plazos, salta antes `sin_saldo`, porque la comprobación de fondos
+va antes que la del tope.
+
+---
 
 ## Seguridad: qué se comprobó y cómo
 
@@ -997,6 +1063,15 @@ de Postgres con `for update`, no dos escrituras sueltas desde la función.
 **Ese `204` que no cambia nada es la trampa de siempre**, y por eso está aquí
 otra vez: RLS no da error, hace las filas invisibles. Hay que comprobar la fila
 después, nunca el código de estado.
+
+**Y tiene una segunda cara que también engaña: LEER.** Una tabla con RLS y cero
+políticas —`withdrawals`, `movimientos`, `admin_log`— devuelve `200 []` con la
+clave anon, siempre, tenga las filas que tenga. Al atacar la retirada eso me
+hizo dar por bueno «no se creó ninguna fila» cuando en realidad no podía verlas,
+y descuadró la comprobación de los libros porque no veía lo retirado.
+
+Para mirar esas tablas hay que ir por la ruta con sesión de la Edge Function,
+que es la única que las ve. **Un `[]` no es una prueba de que esté vacío.**
 
 ### Dos cosas que se aprendieron atacando
 
