@@ -326,6 +326,7 @@
   }
   .rm-status.live{ background:rgba(20,241,149,0.12); color:var(--sol-teal); border:1px solid rgba(20,241,149,0.3); }
   .rm-status.next{ background:rgba(255,157,66,0.1); color:var(--torch); border:1px solid rgba(255,157,66,0.3); }
+  .rm-status.done{ background:rgba(201,138,58,0.10); color:var(--bronze-light); border:1px solid rgba(201,138,58,0.28); }
   .rm-status.soon{ background:var(--surface-hi); color:var(--muted); border:1px solid var(--line); }
 
   /* ---------- CTA FINAL ---------- */
@@ -501,7 +502,7 @@
       <div class="feature-icon">🔗</div>
       <div>
         <h4 data-i18n="feat1_t">Verifiable combat</h4>
-        <p data-i18n="feat1_p">Every fight's outcome can be verified on-chain, with no central server involved.</p>
+        <p data-i18n="feat1_p">Every fight is decided by a seed the server draws and publishes. Same seed, same fight: anyone can replay it and check.</p>
       </div>
     </div>
     <div class="feature-card">
@@ -537,21 +538,21 @@
     <div class="rm-item">
       <div class="rm-phase" data-i18n="phase0_label">PHASE 0</div>
       <div class="rm-body">
-        <h4><span data-i18n="phase0_t">Playable prototype</span> <span class="rm-status live" data-i18n="phase0_status">CURRENT</span></h4>
+        <h4><span data-i18n="phase0_t">Playable prototype</span> <span class="rm-status done" data-i18n="phase0_status">DONE</span></h4>
         <p data-i18n="phase0_p">Character creation, auto-battles, and progression, with a local account and an off-chain simulated economy.</p>
       </div>
     </div>
     <div class="rm-item">
       <div class="rm-phase" data-i18n="phase1_label">PHASE 1</div>
       <div class="rm-body">
-        <h4><span data-i18n="phase1_t">Your wallet is your account</span> <span class="rm-status next" data-i18n="phase1_status">NEXT</span></h4>
+        <h4><span data-i18n="phase1_t">Your wallet is your account</span> <span class="rm-status done" data-i18n="phase1_status">DONE</span></h4>
         <p data-i18n="phase1_p">Connect Phantom or Solflare and sign in to enter. Your brutes are tied to your address, no passwords.</p>
       </div>
     </div>
     <div class="rm-item">
       <div class="rm-phase" data-i18n="phase2_label">PHASE 2</div>
       <div class="rm-body">
-        <h4><span data-i18n="phase2_t">Devnet program</span> <span class="rm-status soon" data-i18n="phase2_status">COMING SOON</span></h4>
+        <h4><span data-i18n="phase2_t">Devnet program</span> <span class="rm-status live" data-i18n="phase2_status">CURRENT</span></h4>
         <p data-i18n="phase2_p">Anchor contract on Solana's testnet: characters and battle results on-chain.</p>
       </div>
     </div>
@@ -606,16 +607,16 @@
       solana2_t:"Minimal fees", solana2_p:"Fighting, leveling up, or trading shouldn't cost more than the game itself.",
       solana3_t:"Auditable contracts", solana3_p:"Programs written in Rust using Anchor, the industry standard on Solana.",
       features_eyebrow:"Features", features_h2:"What makes SolBrute different",
-      feat1_t:"Verifiable combat", feat1_p:"Every fight's outcome can be verified on-chain, with no central server involved.",
+      feat1_t:"Verifiable combat", feat1_p:"Every fight is decided by a seed the server draws and publishes. Same seed, same fight: anyone can replay it and check.",
       feat2_t:"Player-driven economy", feat2_p:"Arena rewards feed a real economy between the players themselves.",
       feat3_t:"Persistent progression", feat3_p:"Your brute and its fight history are saved for good: nothing is lost between sessions.",
       feat4_t:"Real PvP", feat4_p:"You fight brutes created by other players, not just bots.",
       roadmap_eyebrow:"Roadmap", roadmap_h2:"Where we are and where we're headed",
-      phase0_label:"PHASE 0", phase0_t:"Playable prototype", phase0_status:"CURRENT",
-      phase0_p:"Character creation, auto-battles, and progression, with a local account and an off-chain simulated economy.",
-      phase1_label:"PHASE 1", phase1_t:"Your wallet is your account", phase1_status:"NEXT",
-      phase1_p:"Connect Phantom or Solflare and sign in to enter. Your brutes are tied to your address, no passwords.",
-      phase2_label:"PHASE 2", phase2_t:"Devnet program", phase2_status:"COMING SOON",
+      phase0_label:"PHASE 0", phase0_t:"Playable prototype", phase0_status:"DONE",
+      phase0_p:"Character creation, auto-battles and progression. Playable right now.",
+      phase1_label:"PHASE 1", phase1_t:"Your wallet is your account", phase1_status:"DONE",
+      phase1_p:"Connect Phantom or Solflare and sign once to enter. Your brutes live on a shared server, tied to your address, no passwords — and the server, not your browser, decides every fight.",
+      phase2_label:"PHASE 2", phase2_t:"Devnet program", phase2_status:"CURRENT",
       phase2_p:"Anchor contract on Solana's testnet: characters and battle results on-chain.",
       phase3_label:"PHASE 3", phase3_t:"Mainnet & token", phase3_status:"COMING SOON",
       phase3_p:"Mainnet launch with a game token and an open marketplace between players.",
@@ -645,16 +646,16 @@
       solana2_t:"Comisiones mínimas", solana2_p:"Pelear, subir de nivel o comerciar no debería costar más que el propio juego.",
       solana3_t:"Contratos auditables", solana3_p:"Programas en Rust con el framework Anchor, el estándar de la industria en Solana.",
       features_eyebrow:"Características", features_h2:"Qué hace distinto a SolBrute",
-      feat1_t:"Combate verificable", feat1_p:"El resultado de cada pelea puede verificarse en cadena, sin depender de un servidor central.",
+      feat1_t:"Combate verificable", feat1_p:"Cada pelea la decide una semilla que el servidor sortea y publica. Misma semilla, misma pelea: cualquiera puede recalcularla y comprobarlo.",
       feat2_t:"Economía de jugadores", feat2_p:"Las recompensas de la arena alimentan una economía real entre los propios jugadores.",
       feat3_t:"Progresión persistente", feat3_p:"Tu bruto y su historial de peleas quedan guardados: nada se pierde entre sesiones.",
       feat4_t:"PvP real", feat4_p:"Peleás contra brutos creados por otros jugadores, no solo contra bots.",
       roadmap_eyebrow:"Roadmap", roadmap_h2:"Dónde estamos y hacia dónde vamos",
-      phase0_label:"FASE 0", phase0_t:"Prototipo jugable", phase0_status:"ACTUAL",
-      phase0_p:"Creación de personaje, combate automático y progresión, con cuenta local y economía simulada fuera de cadena.",
-      phase1_label:"FASE 1", phase1_t:"Tu wallet es tu cuenta", phase1_status:"SIGUIENTE",
-      phase1_p:"Conecta Phantom o Solflare y firma para entrar. Tus brutos quedan ligados a tu dirección, sin contraseñas.",
-      phase2_label:"FASE 2", phase2_t:"Programa en devnet", phase2_status:"PRÓXIMAMENTE",
+      phase0_label:"FASE 0", phase0_t:"Prototipo jugable", phase0_status:"HECHO",
+      phase0_p:"Creación de personaje, combate automático y progresión. Ya se puede jugar.",
+      phase1_label:"FASE 1", phase1_t:"Tu wallet es tu cuenta", phase1_status:"HECHO",
+      phase1_p:"Conecta Phantom o Solflare y firma una vez para entrar. Tus brutos viven en un servidor compartido, ligados a tu dirección y sin contraseñas — y cada pelea la decide el servidor, no tu navegador.",
+      phase2_label:"FASE 2", phase2_t:"Programa en devnet", phase2_status:"ACTUAL",
       phase2_p:"Contrato Anchor en la red de pruebas de Solana: personajes y resultados de combate on-chain.",
       phase3_label:"FASE 3", phase3_t:"Mainnet y token", phase3_status:"PRÓXIMAMENTE",
       phase3_p:"Lanzamiento en mainnet con token del juego y mercado abierto entre jugadores.",
@@ -684,16 +685,16 @@
       solana2_t:"Frais minimes", solana2_p:"Combattre, progresser ou échanger ne devrait pas coûter plus cher que le jeu lui-même.",
       solana3_t:"Contrats auditables", solana3_p:"Programmes écrits en Rust avec Anchor, la norme de l'industrie sur Solana.",
       features_eyebrow:"Fonctionnalités", features_h2:"Ce qui rend SolBrute différent",
-      feat1_t:"Combat vérifiable", feat1_p:"Le résultat de chaque combat peut être vérifié on-chain, sans serveur central.",
+      feat1_t:"Combat vérifiable", feat1_p:"Chaque combat est décidé par une graine que le serveur tire et publie. Même graine, même combat : n'importe qui peut le rejouer et vérifier.",
       feat2_t:"Économie des joueurs", feat2_p:"Les récompenses de l'arène alimentent une véritable économie entre les joueurs.",
       feat3_t:"Progression persistante", feat3_p:"Ta brute et son historique de combats sont sauvegardés pour de bon : rien ne se perd entre les sessions.",
       feat4_t:"Vrai PvP", feat4_p:"Tu combats des brutes créées par d'autres joueurs, pas seulement des bots.",
       roadmap_eyebrow:"Feuille de route", roadmap_h2:"Où nous en sommes et où nous allons",
-      phase0_label:"PHASE 0", phase0_t:"Prototype jouable", phase0_status:"ACTUEL",
-      phase0_p:"Création de personnage, combats automatiques et progression, avec un compte local et une économie simulée hors chaîne.",
-      phase1_label:"PHASE 1", phase1_t:"Ton wallet est ton compte", phase1_status:"SUIVANT",
-      phase1_p:"Connecte Phantom ou Solflare et signe pour entrer. Tes brutes sont liées à ton adresse, sans mot de passe.",
-      phase2_label:"PHASE 2", phase2_t:"Programme sur devnet", phase2_status:"BIENTÔT",
+      phase0_label:"PHASE 0", phase0_t:"Prototype jouable", phase0_status:"FAIT",
+      phase0_p:"Création de personnage, combats automatiques et progression. Jouable dès maintenant.",
+      phase1_label:"PHASE 1", phase1_t:"Ton wallet est ton compte", phase1_status:"FAIT",
+      phase1_p:"Connecte Phantom ou Solflare et signe une fois pour entrer. Tes brutes vivent sur un serveur partagé, liées à ton adresse, sans mot de passe — et c'est le serveur, pas ton navigateur, qui décide chaque combat.",
+      phase2_label:"PHASE 2", phase2_t:"Programme sur devnet", phase2_status:"ACTUEL",
       phase2_p:"Contrat Anchor sur le réseau de test de Solana : personnages et résultats de combat on-chain.",
       phase3_label:"PHASE 3", phase3_t:"Mainnet et token", phase3_status:"BIENTÔT",
       phase3_p:"Lancement sur le mainnet avec un token de jeu et un marché ouvert entre joueurs.",

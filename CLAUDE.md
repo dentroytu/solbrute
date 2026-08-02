@@ -20,7 +20,7 @@ experiencia y sube de nivel.
 | `supabase-06-tirada.sql` | `sessions.roll`: la tirada de atributos la guarda el servidor | Aplicado |
 | `supabase-07-peleas.sql` | Tabla `fights` y resumen para el panel | Aplicado |
 | `supabase-08-admin.sql` | Tabla `admin_log` (auditoría) | Aplicado |
-| `supabase-09-armas.sql` | `brutes.arma` y `brutes.armas` | Aplicado |
+| `supabase-09-armas.sql` | `brutes.arma` y `brutes.armas` | Aplicado (`armas` **ya no se usa**, ver paso 14) |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -29,9 +29,23 @@ experiencia y sube de nivel.
 | `prueba-hostil.ts` | Ataca la función con un cliente reescrito. 18 ataques | Herramienta |
 | `prueba-banco.ts` | Base de datos simulada para el banco de ataque | Herramienta |
 | `supabase-10-permisos.sql` | Cierra funciones que quedaron ejecutables por `public` | Aplicado |
+| `supabase-11-retiradas.sql` | Tablas `withdrawals` y `economia`. La puerta empieza cerrada | Aplicado |
+| `supabase-12-emision.sql` | **Tope de emisión**, fondo de garantía y reciclaje | Aplicado |
+| `supabase-13-movimientos.sql` | Tabla `movimientos`: el historial privado del jugador | Aplicado |
+| `supabase-14-inventario.sql` | El inventario pasa del bruto al JUGADOR | Aplicado |
+| `supabase-15-reinicio.sql` | Reinicio de la economía. **No repetible** | Aplicado una vez |
+| `supabase-16-limpiar-pruebas.sql` | Borra las cuentas de los ataques, por dirección | Repetible |
+| `supabase-17-eventos.sql` | Cinco columnas en `fights` para el tablón del ludus | Aplicado |
+| `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
+| `DESPLIEGUE.md` | En qué orden se aplica todo lo de arriba | Guía |
 | `BACKEND.md` | Esquema y contrato de API | Paso 1 hecho a medias |
 | `TOKEN.md` | Diseño económico del token | Modelo decidido, nada creado |
 | `EMPEZAR.md` | Guía de arranque para novato | — |
+
+**Los `.sql` van numerados y en orden.** Varios dependen del anterior —el 12
+añade columnas a la tabla que crea el 11, el 17 a la que crea el 7— y aplicados
+a destiempo fallan con `relation ... does not exist`. Está escrito en
+`DESPLIEGUE.md` con el porqué de cada uno.
 
 Hubo dos bancos de pruebas (`creator.html`, `fight.html`) que se eliminaron al
 integrarse en `app.html`. No los recuperes: contenían arte antiguo con cascos.
@@ -229,6 +243,126 @@ probar un juego que no ha jugado.
 
 ---
 
+## El tope de emisión
+
+**Esto es lo que impide que el juego prometa más $BRUTE de los que existen.**
+Vive en `supabase-12-emision.sql` y está aplicado.
+
+Antes, cada pelea IMPRIMÍA monedas: `12 + turnos`, sin techo. Un bruto saca
+~40 al día y una wallet con las 3 plazas ~120. El presupuesto son 27.397/día
+—los 40 millones de reserva repartidos en 4 años—, así que:
+
+```
+27.397 ÷ 120 = 228 wallets
+```
+
+A partir de 228 jugadores el juego emitía más de lo que la reserva puede pagar,
+y crecía en línea recta: a 10.000 jugadores, los 40 millones se evaporaban en
+**33 días**. El juego se rompía justo al tener éxito.
+
+Se le da la vuelta a quién manda:
+
+```
+ANTES:  las peleas deciden cuántas monedas existen
+AHORA:  la reserva decide cuántas existen, y las peleas cómo se reparten
+```
+
+Lo que gana una pelea son **puntos** (los mismos `12 + turnos`: el equilibrio no
+se toca) y una **tasa** los convierte en monedas. La tasa se recalcula al
+cambiar el día UTC:
+
+```
+tasa = pool_diario ÷ puntos_de_ayer     ...y nunca más de 1,0
+```
+
+### La tasa se topa en 1,0, y esa es la decisión importante
+
+Con pocos jugadores, `pool ÷ puntos_ayer` sale enorme: si ayer hubo 10 puntos,
+la fórmula pura pagaría 2.739 monedas por punto y reventaría los precios
+internos, calibrados sobre «un arma cuesta ~3 monedas por combate sobre las ~40
+que se ganan al día».
+
+Con el tope en 1,0: con pocos jugadores todo el mundo cobra exactamente lo de
+siempre y la reserva simplemente dura más; pasados los ~228 la tasa baja y el
+presupuesto empieza a mandar. **El tope no se nota hasta que hace falta.**
+
+### Lo que arregla de los bots, gratis
+
+Con reparto fijo, meter cuentas falsas **no crea monedas**: reparte las mismas
+entre más cuentas. El tramposo se diluye a sí mismo. La propiedad ya estaba
+escrita en el diseño, pero **solo existe si el reparto es fijo** — y hasta el
+paso 12 no lo era.
+
+### El jugador ve el cambio, y no es por transparencia bonita
+
+La pantalla de victoria enseña `1 pt = 0,94` **solo cuando la tasa baja de 1,0**.
+Si el jugador ve que la misma pelea le paga menos que ayer y nadie se lo
+explica, lo que piensa es que le están robando — y tiene razón en desconfiar.
+Mientras la tasa sea 1,0 no se enseña: sería ruido para explicar algo que no
+está pasando.
+
+### El cortafuegos
+
+Si un día la emisión se dispara —crecimiento repentino, o alguien creando
+cuentas en masa— la tasa se reajusta **en caliente** sin esperar al cambio de
+día. `tope_factor` = 2: se tolera el doble del presupuesto antes de frenar, y
+nadie se queda a cero, cobra menos. Con el reparto bien calibrado no llega a
+activarse nunca.
+
+---
+
+## El fondo de garantía y el reciclaje
+
+**5% del suministro (5.000.000) apartado, que no se emite jugando nunca.**
+`emision_cobrar` solo mira `reserva_restante` y no puede tocarlo ni por error.
+
+**Sale de la tesorería, que baja del 15% al 10%. No de las recompensas.** Si
+saliera del 40% de recompensas lo pagarían los jugadores con menos monedas por
+pelea, y habría que rehacer toda la aritmética del `TOKEN.md`. Saliendo de
+tesorería, la emisión no cambia ni un punto y quien pone la garantía es el
+dueño del proyecto. Que es de quien tiene que salir.
+
+Es para compensar a jugadores si un fallo se come su saldo, cubrir retiradas
+legítimas durante un incidente, y hacer de colchón si la reserva se agota antes
+de lo previsto. **No para gastos del proyecto** — para eso está la tesorería, y
+un fondo que se usa para pagar cosas es tesorería con otro nombre.
+
+Por eso tocarlo no es un `update`: es `seguridad_usar()`, que exige un motivo de
+al menos diez caracteres y lo deja en `admin_log` con el antes y el después.
+**Un fondo que el gestor puede mover sin dejar rastro no es una garantía, es una
+cuenta suya.**
+
+### El reciclaje: lo que se gasta vuelve
+
+90% al pool de recompensas, 10% al fondo. Hasta el paso 12 las monedas de un
+arma comprada simplemente desaparecían y no volvían a ningún sitio.
+
+### La invariante, y el fallo que la rompió el primer día
+
+```
+en circulación  +  reserva restante  =  reserva total
+```
+
+Se rompió a las pocas horas de desplegar. Un jugador tenía 407 monedas de
+**antes** del tope, impresas sin respaldo; al gastarlas, el reciclaje las
+devolvió a la reserva y la dejó en **40.000.117**, por encima de su propio
+techo. La aritmética era correcta: lo que estaba mal era la premisa —devolver
+a la reserva algo que nunca salió de ella—.
+
+El arreglo tiene dos partes y las dos importan:
+
+- `emision_reciclar` **no puede desbordar la reserva**. Lo que no cabe se quema.
+  En régimen normal no se activa jamás: toda moneda en circulación salió de la
+  reserva, así que devolverla no puede desbordarla.
+- El paso 15 **reinició la economía** y descontó de la reserva las monedas
+  conservadas, para que pasaran a estar respaldadas.
+
+**Reiniciar hoy no le cuesta nada a nadie; el día que exista el token, un saldo
+es un derecho a cobrar tokens reales y reiniciar pasa a ser quitarle valor a
+alguien.** Por eso el reinicio va antes del token, no después.
+
+---
+
 ## Wallet: conectar ≠ iniciar sesión
 
 Conectar solo da la dirección pública, y eso es falsificable desde el frontend.
@@ -263,13 +397,30 @@ solo se le impedía tocar filas ajenas: podía mentir cuanto quisiera sobre las
 suyas. Ahora hay un servidor en medio que puede decir que no, y ya rechaza el
 tope de 3 brutos y recorta nivel, atributos y vida a rango.
 
-### Lo que la función NO arregla todavía
+### Lo que la función ya arregla, y lo que no
 
-El combate lo calcula el navegador y el servidor se lo cree. Recorta lo
-imposible pero no arbitra: puedes darte monedas o victorias en tus propios
-brutos. Cerrarlo es mover `simulate()` a la función.
+Arbitra el combate: sortea la semilla, simula y decide las monedas. El
+navegador no puede darse victorias ni saldo.
 
-**Hasta entonces esto no es seguro para dinero real.**
+Lo que **no** existe todavía es la retirada, que es donde el número se
+convierte en dinero. Hasta que esté escrita y atacada, esto no mueve valor
+real — y ese es justamente el orden correcto.
+
+### Comprobado: la Edge Function SÍ puede firmar en Solana
+
+Era la suposición grande sin verificar de todo el `TOKEN.md`, y había motivo
+para dudar: el empaquetador de Supabase ya había rechazado traer
+`brute-combate.js` por URL (`Cannot import from dentroytu.github.io:443`).
+
+Se desplegó una función desechable (`supabase-funcion-prueba-solana.ts`) que
+reproduce una retirada entera. Las cuatro comprobaciones en verde: empaqueta
+`npm:@solana/web3.js@1.98.4` y `spl-token@0.4.15`, construye la instrucción de
+transferencia SPL, firma y `verifySignatures()` cuadra, y habla con un RPC de
+devnet.
+
+**Fija las versiones de las librerías.** Sin versión, `npm:` resuelve a la
+última en cada redespliegue, y una función que cambia de comportamiento según
+el día es imposible de depurar.
 
 ### Comprobado contra el servidor desplegado
 
@@ -314,7 +465,9 @@ aparente. Hay vectores de prueba conocidos; si tocas esa función, compruébalos
 |---|---|---|
 | 0 | Prototipo jugable, estado en navegador | Hecho |
 | 1a | Backend: los brutos viven en Supabase y se comparten entre jugadores | Hecho |
-| 1c | Mover `simulate()` al servidor para que arbitre el combate | ACTUAL |
+| 1c | Mover `simulate()` al servidor para que arbitre el combate | Hecho |
+| 1d | Economía: tope de emisión, fondo de garantía, reciclaje | Hecho |
+| 1e | La retirada: convertir el saldo en $BRUTE de verdad | ACTUAL |
 | 1b | Wallet como cuenta (Phantom / Solflare + firma SIWS) | Hecho |
 | 2 | Programa Anchor en devnet: personajes y resultados on-chain | Próximamente |
 | 3 | Mainnet, token y mercado entre jugadores | Próximamente |
@@ -377,6 +530,23 @@ no se vea monótono. Al cambiar de sexo el peinado vuelve al índice 0, porque l
 
 Las dos leen el mismo `look`. En perfil, la melena, la coleta y la trenza se
 dibujan **detrás de la cabeza**, para que el volumen del pelo se lea de lado.
+
+**El lienzo del perfil empieza en `y = -34`, no en 0** (`viewBox="0 -34 110 164"`).
+Las armas se dibujan por encima de la cabeza —el mandoble llega a `y = -14` y la
+punta de la lanza a `y = -26`— y con el viewBox arrancando en 0 se recortaban
+contra el borde. El síntoma era que **la lanza parecía una tabla**: se veía el
+asta y la punta quedaba fuera.
+
+Ampliar hacia arriba no encoge al bruto: `.fighter` fija el ancho en 116px y
+deja la altura en `auto`, así que el personaje conserva su tamaño y solo aparece
+lienzo nuevo donde antes se cortaba. Y como la figura se posiciona desde abajo
+(`bottom:22px`), los pies no se mueven. **Si algún día entra un arma más larga,
+esto es lo que hay que subir.**
+
+**Cuidado con `⚔` sin selector de variación.** Se dibuja como un glifo de texto
+—una «x» pequeña— y una victoria y una derrota se veían casi igual en el tablón,
+además de dejar el botón de la armería como «x Armoury». Va con `U+FE0F`
+(`⚔️`) para forzar presentación emoji. Los demás (🏆, 📜) ya la traen.
 
 **Todo esto vive en `brute-render.js` y solo ahí.** Estuvo copiado a mano en los
 dos HTML y las copias se desincronizaron. Si tocas una capa, tocas un fichero.
@@ -501,13 +671,65 @@ verdad tenía sus dependencias, y eso le da al juego sensación de lugar.
 | Sala | Qué se hace | Estado |
 |---|---|---|
 | La forja | crear brutos | hecha |
-| La armería | comprar y equipar armas | hecha |
+| La armería | comprar armas y repartirlas entre tus brutos | hecha |
 | La arena | pelear | hecha |
 | La clasificación | ver quién manda | hecha |
+| El historial | tus compras y retiradas, solo tuyas | hecha |
 | **El vivarium** | comprar mascotas | pendiente |
 
 `vivarium` era el recinto donde se guardaban las fieras de la arena. El nombre
 está elegido; el contenido no existe.
+
+El historial se llama «Historial» y no `tabularium` —que era el archivo público
+de Roma y encajaría con el resto— porque lo pidió así el dueño. La clave i18n
+es `hist_h1`, así que cambiarlo es una línea por idioma.
+
+### El tablón del ludus
+
+Debajo de los brutos, no encima: **lo primero que tiene que ver el jugador al
+entrar es su ludus, no un registro.** Enseña las últimas novedades —quién ganó,
+quién cayó, quién subió de nivel y qué le tocó, y qué arma se rompió—.
+
+Sale de `fights`, que desde `supabase-17-eventos.sql` guarda cinco columnas más:
+`subio`, `nivel`, `ganancia`, `arma_rota` y `arma`. Todo eso ya lo calculaba la
+Edge Function en cada pelea y **se tiraba al acabar la petición**, así que el
+tablón solo habría podido decir «ganaste» y «perdiste» — que es la mitad de lo
+interesante. Lo que la gente quiere ver al entrar es que subió de nivel y que se
+le rompió el mandoble.
+
+**Van en `fights` y no en una tabla `eventos` aparte** porque son propiedades DE
+la pelea: subiste de nivel *en* esa pelea, el arma se rompió *en* esa pelea. Una
+tabla separada tendría que apuntar a la pelea igual, y abriría la puerta a que
+las dos versiones se contradigan.
+
+**Se lee directo de la base**, sin pasar por la Edge Function: `fights` tiene
+lectura pública desde el paso 7 y no hay nada que decidir. Es lo contrario que
+el historial de compras. La diferencia no es caprichosa: **una pelea la ve el
+rival igual que tú; lo que gastas, no.**
+
+Sin peleas no se enseña un recuadro vacío: ocupa lo mismo que uno lleno y no
+dice nada.
+
+---
+
+## El historial es privado, y no se puede resolver con RLS
+
+Tabla `movimientos` (`supabase-13-movimientos.sql`), con RLS activo y **cero
+políticas**: desde el navegador esa tabla no existe.
+
+La reacción natural es «política de lectura donde `address` = el usuario». **No
+funciona aquí**, y conviene entender por qué antes de que alguien lo intente: el
+navegador lee con la clave `anon`, así que para Postgres todos los jugadores son
+el mismo usuario. La sesión de SolBrute es un token opaco en `sessions`, no un
+JWT — no hay `auth.uid()` que consultar. Una política de lectura no podría
+distinguir a un jugador de otro y acabaría **enseñando el historial de todos a
+cualquiera**.
+
+Va por la ruta `historial` de la Edge Function, que sí sabe de quién es el
+token. Y esa ruta **no lee `cuerpo.address` en ninguna parte** — ni siquiera
+para comprobarlo, porque lo que no se lee no se puede colar por descuido. Las
+direcciones de wallet son públicas: salen en la clasificación. Si aceptara una
+del navegador, bastaría con copiarla para leer las compras de cualquiera.
 
 ---
 
@@ -563,6 +785,48 @@ faltan. Si nadie compra, están caras; si todos llevan la misma, baratas.
 **Si tocas estos números, vuelve a medir.** La simulación son cincuenta líneas y
 está en el historial del repositorio.
 
+### El inventario es del JUGADOR, no del bruto
+
+Cambiado en `supabase-14-inventario.sql`. Antes vivía en `brutes.armas`, o sea
+que las armas eran del bruto, y se notaba jugando: no se podían pasar de un
+bruto a otro, un bruto nuevo empezaba sin nada aunque tuvieras cinco guardadas,
+y comprar la misma arma dos veces daba «ya la tienes» aunque la quisieras para
+otro.
+
+```
+players.armas   {"daga": 2, "mandoble": 1}    copias LIBRES, en tu bolsa
+brutes.arma     "daga"                         la que ese bruto lleva
+```
+
+**En la bolsa solo están las copias sin asignar.** Al equipar, el arma sale de
+la bolsa; al soltarla o cambiarla, vuelve. Se hace así para que no haya dos
+sitios diciendo lo mismo: si la bolsa guardara todo lo que posees *y además* el
+bruto dijera qué lleva, habría que restar para saber qué está libre — y el día
+que las dos cuentas no cuadren (una petición a medias, una carrera) aparecen
+armas duplicadas o perdidas sin que nadie sepa cuál número era el bueno.
+
+Total poseído = bolsa + lo que llevan puesto tus brutos. **Se cuenta, no se
+guarda.**
+
+**Con cantidades a propósito:** tres brutos pueden llevar tres dagas, y para eso
+hay que comprar tres. Es más natural como inventario y es un sumidero más.
+
+**Comprar y equipar son funciones de Postgres con `for update`, no dos
+escrituras sueltas desde la Edge Function.** Son operaciones de dos pasos que
+tienen que cuadrar —cobrar y dar el arma; quitar de la bolsa y poner en el
+bruto—, y hechas por separado un fallo entre medias deja el arma en los dos
+sitios a la vez, o en ninguno. Sobre un token con valor real, eso es duplicar
+dinero. Está probado: dos compras simultáneas con saldo para una dan 200/403 y
+una sola copia.
+
+**Romperla no la devuelve a la bolsa.** Es lo que hace que el mandoble cueste
+mantenerlo (~11 combates) y que las armas sigan siendo un sumidero en vez de
+una compra única.
+
+`brutes.armas` sigue existiendo pero **está vacía y no significa nada**. Se dejó
+por no romper la función desplegada en el hueco entre aplicar el SQL y
+redesplegar.
+
 ---
 
 ## Clasificación
@@ -605,6 +869,22 @@ sobrevive al doble clic sobre `file://`. Hoy la dirección es inventada por
 `fakeAddr()`; en la Fase 1 la pondrá la wallet. La casilla es la misma, así que
 no habrá migración.
 
+### El arma que se perdía al traducir
+
+`aBruto()` en `supabase-cliente.js` convierte la fila de la base en objeto de
+juego, y no copiaba `arma` ni `armas`. La fila sí las traía (`select=*`), pero
+`spriteProfile` recibía `undefined` y dibujaba los puños.
+
+Lo que lo hacía difícil de ver: **la armería SÍ funcionaba**, porque al comprar
+la respuesta del servidor escribe `active.arma` a mano. O sea que el arma se
+veía hasta que recargabas la página, y entonces desaparecía sin motivo. El
+jugador lo reportó como «se me ha perdido la daga y no me deja comprar» — lo
+segundo era el servidor respondiendo `409 ya la tienes`, porque sí la tenía.
+
+**Cada campo nuevo en una tabla hay que añadirlo también al traductor.** El
+comentario de `aBruto` dice «se traduce en un solo sitio para que un cambio de
+esquema no se esparza», y precisamente por eso ese sitio no se puede olvidar.
+
 **Nombres de bruto únicos en todo el juego**, no solo dentro de tu ludus: lo
 impone `brutes_name_key`. La forja lo comprueba **antes** de cobrar la plaza y
 avisa con `name_taken`.
@@ -618,10 +898,14 @@ era el nombre.
 
 ### Lo que todavía no es seguro
 
-**El navegador ya no escribe**, pero sigue calculando el combate. La función
-recorta lo imposible y ata cada fila a su dueño; lo que no puede es saber si
-de verdad ganaste esa pelea. Mover `simulate()` al servidor es lo que falta.
-Ver «Wallet» y `BACKEND.md`.
+**El navegador ya no escribe ni calcula el combate.** La ruta `pelear` sortea la
+semilla, llama a `simulate()` en el servidor y devuelve el registro; el
+navegador solo lo reproduce. El cliente ya no dice «he ganado, dame 20
+monedas»: dice «quiero pelear contra el rival 3 de mi lista» y el resto lo
+decide la función.
+
+Lo que queda abierto es la **retirada**: no existe todavía, y es donde el número
+en Postgres se convierte en dinero. Ver `TOKEN.md` y `BACKEND.md`.
 
 **Un detalle de diseño, no un fallo:** al pelear, el historial del rival no
 cambia. Peleas contra una copia de su bruto, como en el género. Cuando el combate
@@ -633,16 +917,21 @@ dos lados.
 ## Pendientes
 
 - [x] ~~Login con firma (SIWS)~~ — hecho. Ver «Wallet».
-- [ ] Mover `simulate()` al servidor para que el navegador deje de decidir quién
-      gana. Antes conviene sacarlo a un fichero compartido, como se hizo con
-      `brute-render.js`, para no acabar con dos copias divergentes de las
-      fórmulas — esta vez sobre dinero.
+- [x] ~~Mover `simulate()` al servidor~~ — hecho. Vive en `brute-combate.js`,
+      que cargan el navegador y la Edge Function, y la ruta `pelear` sortea la
+      semilla y simula allí.
+- [x] ~~Tope de emisión~~ — hecho y verificado en vivo. Ver «El tope de emisión».
+- [x] ~~Historial de combates por bruto~~ — las peleas se guardan en `fights` y
+      el tablón del ludus las enseña.
+- [ ] **La retirada.** Lo único que queda entre el juego y el token. La tabla
+      `withdrawals` existe con la puerta cerrada (`retiradas_abiertas = false`),
+      pero la ruta no está escrita. Va con sus ataques antes de desplegarse.
+- [ ] **Crear el token en devnet** y probar la retirada entera contra él. Se
+      comprobó que la Edge Function **sí** puede firmar transacciones de Solana
+      (ver «Wallet»), así que la arquitectura se sostiene.
 - [ ] Verificar el dato de `~400ms` de Solana en la landing antes de publicar
 - [ ] Sustituir `REPLACE_WITH_YOUR_DOMAIN` en los meta tags de `index.html`
 - [ ] Subir `og-image.png` (1200×630) a la raíz
-- [ ] Quitar la barra de maqueta de `app.html` antes de publicar
-- [x] ~~Historial de combates por bruto~~ — las peleas se guardan en `fights`.
-      Falta la pantalla que lo enseñe al jugador.
 - [ ] **Mascotas (el vivarium)** — decidido el nombre y el enfoque, no el
       contenido. Idea de partida: la mascota tiene **vida propia y muere en
       combate**, y morir la pierde para siempre. Eso le da el mismo equilibrio
@@ -682,6 +971,47 @@ las rutas de admin. **18 ataques, ninguno funciona.**
 **Si añades una ruta a la función, añádele aquí su ataque antes de
 desplegarla.** Esto aguanta porque se prueba, no porque el código sea bonito.
 
+### La economía y el inventario, atacados contra el servidor real
+
+No con la base simulada: con `curl` y con logins SIWS de verdad, generando
+claves ed25519 desechables. Ninguno funciona.
+
+| Ataque | Resultado |
+|---|---|
+| `emision_cobrar`, `emision_reciclar`, `seguridad_usar` con la clave anon | `42501` |
+| `arma_comprar`, `arma_equipar`, `arma_dar`, `arma_romper` con la clave anon | `42501` |
+| `PATCH economia` para vaciar el fondo | 204 **y la fila no cambia** |
+| `POST emision` con tasa 1000 | `401` |
+| Crearse un jugador con `POST /players` y monedas | `401`, RLS lo bloquea |
+| Subirse el saldo con `PATCH /players` | 204 **y sigue igual** |
+| Comprar sin saldo / mandando tu propio precio / un arma inventada | 403 · 403 · 400 |
+| Equipar un arma que no tienes / el bruto de otro | 403 · 403 |
+| Pedir el historial de otra dirección | devuelve el tuyo |
+| **Dos compras simultáneas con saldo para una** | 200/403, **una copia** |
+| **Dos equipados simultáneos de la misma copia** | la bolsa acaba vacía, no duplicada |
+
+Las dos últimas son las que importan de verdad: son las únicas que podían
+**duplicar dinero**. Pasan porque `arma_comprar` y `arma_equipar` son funciones
+de Postgres con `for update`, no dos escrituras sueltas desde la función.
+
+**Ese `204` que no cambia nada es la trampa de siempre**, y por eso está aquí
+otra vez: RLS no da error, hace las filas invisibles. Hay que comprobar la fila
+después, nunca el código de estado.
+
+### Dos cosas que se aprendieron atacando
+
+**Cloudflare corta antes de llegar.** Un `arma` con `'; drop table players; --`
+devuelve **HTML y 403**, no JSON: es el WAF que hay delante de Supabase, no el
+código. Defensa de sobra, pero cuidado al interpretar resultados — ese ataque
+no estaba midiendo lo que parecía. El que sí mide es un nombre inofensivo que
+no existe (`excalibur` → 400), que prueba la lista blanca de verdad.
+
+**Un banco de pruebas también se equivoca.** Varias "vulnerabilidades" de las
+primeras pasadas eran fallos míos: la forja espera `bruto:{name,look}` y no los
+campos sueltos, `arena` exige `version`, y `PGRST202` significa "no encuentro
+esa firma" —porque mandé `{}` sin parámetros— y no "la función no existe".
+Antes de dar por bueno un fallo, comprueba que el ataque está bien escrito.
+
 ### Lo que se encontró en la revisión y por qué apareció
 
 | Agujero | Causa |
@@ -711,6 +1041,31 @@ mismo número de entradas en `es`, `en` y `fr`.
 Si tocas `brute-render.js`, **abre los dos ficheros con doble clic**, no por un
 servidor: es la única forma de detectar que has roto la carga sobre `file://`.
 Con un servidor delante, un `type="module"` mal puesto pasa desapercibido.
+
+### Las pestañas del SQL Editor también engañan
+
+Es la misma trampa con otra cara, y costó dos rondas. **Supabase guarda el texto
+de cada pestaña**, así que volver a darle a Run ejecuta lo que había escrito, no
+la versión nueva del fichero. Se corrigió un fallo en `supabase-12`, se volvió a
+pasar «el 12», y corrió el viejo: la reserva siguió desbordada y `arma_dar` no
+llegó a crearse.
+
+**Pestaña nueva y `cat fichero.sql | pbcopy` cada vez.** Y comprueba el
+resultado en la base, no el mensaje de éxito.
+
+Lo mismo vale para el editor de la Edge Function: después de desplegar, busca
+dentro del código algo que solo esté en la versión nueva.
+
+### La versión a la vista, para no adivinar
+
+`VERSION_JUEGO` en `app.html` se pinta en la cabecera (`beta · v0.1.0`). No es
+decoración: cuando alguien dice que un fallo corregido le sigue pasando, lo
+primero es preguntar qué versión ve. Si es la anterior, es caché, y se acabó la
+discusión.
+
+Es distinta de la `VERSION` de `brute-combate.js`, que numera las REGLAS y la
+comprueba el servidor para rechazar clientes viejos. Esta es para humanos;
+aquella es para máquinas.
 
 ### La caché de `file://` engaña
 
