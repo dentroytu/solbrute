@@ -1060,7 +1060,11 @@ dos lados.
         las retiradas paran
       · lo **legal**, que sigue pendiente desde el principio
 - [ ] Verificar el dato de `~400ms` de Solana en la landing antes de publicar
-- [ ] Sustituir `REPLACE_WITH_YOUR_DOMAIN` en los meta tags de `index.html`
+- [x] ~~Dominio propio~~ — `solbrute.io`. Los meta tags apuntan ahí y hay
+      `CNAME` en la raíz. **El dominio va tambien en `DOMINIOS_OK` de la Edge
+      Function, y eso se despliega ANTES de tocar el DNS** — el navegador manda
+      `location.host` dentro de lo firmado, así que sin esa línea el login
+      responde «dominio no autorizado» a todo el mundo.
 - [ ] Subir `og-image.png` (1200×630) a la raíz
 - [x] ~~Mascotas (el vivarium)~~ — hechas. Ver «Mascotas». La duda que las
       frenaba —«dos contra dos alarga las peleas»— se midió: no se alarga.

@@ -68,8 +68,22 @@ const C = (globalThis as any).BruteCombate;
 /* Dominios desde los que se acepta un login. El mensaje firmado lleva dentro
    el dominio; si no se comprobara, una web fraudulenta podría hacerte firmar
    "malaweb.com quiere que inicies sesión" y reutilizar esa firma aquí.
-   Añade aquí tu dominio propio cuando lo tengas. */
+
+   ── AL CAMBIAR DE DOMINIO, ESTO VA PRIMERO ────────────────────────────────
+   El navegador manda `location.host`, así que en cuanto el DNS apunte al
+   dominio nuevo la firma llegará con `solbrute.io` dentro. Si no está en esta
+   lista, la respuesta es "dominio no autorizado" y NADIE puede entrar — ni
+   siquiera quien ya tenía cuenta.
+
+   Por eso el orden correcto es: añadir el dominio aquí, desplegar, y DESPUÉS
+   tocar el DNS. Al revés son horas de web caída con un error que habla de
+   dominios y parece un problema de red.
+
+   Se deja `dentroytu.github.io` puesto: mientras el DNS propaga conviven las
+   dos direcciones, y quitarlo ahora rompería a quien llegue por la vieja. */
 const DOMINIOS_OK = [
+  "solbrute.io",
+  "www.solbrute.io",
   "dentroytu.github.io",
   "localhost:8777",
   "127.0.0.1:8777",
