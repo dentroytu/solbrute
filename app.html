@@ -319,6 +319,12 @@
                   background:linear-gradient(180deg,#d1554f,#6d1a17);
                   transition:width .32s cubic-bezier(.2,.8,.3,1); }
   .pet-hp{ font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; min-width:14px; }
+  /* El dano que hace LA MASCOTA, aparte del del bruto. Sin esto el jugador no
+     tiene forma de saber si su lobo aporta algo o es un adorno caro: los dos
+     numeros iban sumados en la barra del bruto y no se distinguian. */
+  .pet-dmg{ font-size:10px; color:var(--bronze-light); font-variant-numeric:tabular-nums;
+            min-width:22px; opacity:.9; }
+  .pet-dmg::before{ content:"\2694\FE0F "; font-size:9px; opacity:.8; }
   /* Caida: se queda a la vista, apagada. Quitarla del HUD haria pensar que
      nunca estuvo. */
   .pet-row.down{ opacity:.34; filter:grayscale(1); }
@@ -586,14 +592,14 @@
         <div class="hud-name" id="nameA">—</div><div class="hud-sub" id="subA"></div>
         <div class="bar"><div class="fill" id="fillA"></div></div>
         <div class="hud-hp"><span id="hpA">0</span> / <span id="hpMaxA">0</span></div>
-        <div class="pet-row" id="petA" hidden><span id="petIcoA"></span><div class="pet-bar"><div class="fill" id="petFillA"></div></div><span class="pet-hp" id="petHpA">0</span></div>
+        <div class="pet-row" id="petA" hidden><span id="petIcoA"></span><div class="pet-bar"><div class="fill" id="petFillA"></div></div><span class="pet-hp" id="petHpA">0</span><span class="pet-dmg" id="petDmgA">0</span></div>
       </div>
       <div class="turn-badge"><span id="turnLbl">TURNO</span><b id="turnOut">0</b></div>
       <div class="hud right">
         <div class="hud-name" id="nameB">—</div><div class="hud-sub" id="subB"></div>
         <div class="bar"><div class="fill" id="fillB"></div></div>
         <div class="hud-hp"><span id="hpB">0</span> / <span id="hpMaxB">0</span></div>
-        <div class="pet-row" id="petB" hidden><span id="petIcoB"></span><div class="pet-bar"><div class="fill" id="petFillB"></div></div><span class="pet-hp" id="petHpB">0</span></div>
+        <div class="pet-row" id="petB" hidden><span id="petIcoB"></span><div class="pet-bar"><div class="fill" id="petFillB"></div></div><span class="pet-hp" id="petHpB">0</span><span class="pet-dmg" id="petDmgB">0</span></div>
       </div>
     </div>
     <div class="arena" id="arena">
@@ -764,6 +770,7 @@
       back:"‹ Volver al ludus", to_ludus:"Volver al ludus", turn:"TURNO",
       skip:"Ver resultado", seed:"semilla", seed_note:"el mismo número reproduce el mismo combate",
       win:"VICTORIA", lose:"DERROTA", points:"POR PUNTOS", coins:"monedas",
+      lg_through:"te llegan", lg_all:"lo para entero",
       lg_disarm:"pierde el arma:", lg_bite:"muerde a", lg_petmiss:"no acierta a",
       lg_cover:"se interpone y encaja el golpe de", lg_petdown:"cae y ya no se levanta en este combate",
       lg_petdead:"cae, y esta vez no se levanta nunca mas",
@@ -843,7 +850,7 @@
       rank_empty:"Todavía no hay ningún bruto forjado. El primero serás tú.",
       o:{
         bichos: { ninguna:"Ninguna", perro:"Perro de guerra", lobo:"Lobo", oso:"Oso" },
-        viv_como: { ninguna:"Peleas solo. Vas a tu velocidad y no tienes nada que perder.", perro:"Muerde a menudo, pero flojo, y se pone delante. El equilibrado. Cae cada ~6 peleas y muere cada ~23.", lobo:"El que pega más fuerte, pero apenas te cubre y aguanta nada. Muere cada ~19 peleas.", oso:"Muerde flojo: está para comerse los golpes por ti. El que más dura, muere cada ~32 peleas." },
+        viv_como: { ninguna:"Peleas solo. Vas a tu velocidad y no tienes nada que perder.", perro:"Muerde a menudo, pero flojo, y se pone delante. El equilibrado. Cae cada ~2 peleas y muere cada ~21.", lobo:"El que pega más fuerte. Aguanta menos y muere cada ~20 peleas.", oso:"Muerde flojo: está para comerse los golpes por ti. El que más dura, muere cada ~32 peleas." },
           armas:{ ninguna:"Puños", daga:"Daga", mandoble:"Mandoble", lanza:"Lanza", escudo:"Escudo" },
           como:{ ninguna:"Equilibrado y no se rompe nunca. No llevar nada es una opción de verdad.",
                daga:"Dos golpes rápidos y flojos. Cada uno se esquiva por separado, así que sufre contra rivales ágiles.",
@@ -876,6 +883,7 @@
       back:"‹ Back to the ludus", to_ludus:"Back to the ludus", turn:"TURN",
       skip:"Skip to result", seed:"seed", seed_note:"the same number replays the same fight",
       win:"VICTORY", lose:"DEFEAT", points:"ON POINTS", coins:"coins",
+      lg_through:"gets through:", lg_all:"stops it all",
       lg_disarm:"loses the", lg_bite:"bites", lg_petmiss:"misses",
       lg_cover:"steps in and takes the hit from", lg_petdown:"goes down for the rest of this fight",
       lg_petdead:"goes down, and this time for good",
@@ -955,7 +963,7 @@
       rank_empty:"No brute has been forged yet. You could be the first.",
       o:{
         bichos: { ninguna:"None", perro:"War dog", lobo:"Wolf", oso:"Bear" },
-        viv_como: { ninguna:"You fight alone. Full speed, nothing to lose.", perro:"Bites often but softly, and steps in front. The balanced one. Goes down every ~6 fights, dies every ~23.", lobo:"Hits hardest, but barely shields you and takes nothing. Dies every ~19 fights.", oso:"Bites softly: it is there to take the hits for you. The longest-lived, dies every ~32 fights." },
+        viv_como: { ninguna:"You fight alone. Full speed, nothing to lose.", perro:"Bites often but softly, and steps in front. The balanced one. Goes down every ~2 fights, dies every ~21.", lobo:"Hits hardest. Takes less punishment and dies every ~20 fights.", oso:"Bites softly: it is there to take the hits for you. The longest-lived, dies every ~32 fights." },
           armas:{ ninguna:"Bare fists", daga:"Dagger", mandoble:"Greatsword", lanza:"Spear", escudo:"Shield" },
           como:{ ninguna:"Balanced, and never breaks. Carrying nothing is a real option.",
                daga:"Two quick, weak strikes. Each is dodged separately, so it struggles against nimble opponents.",
@@ -988,6 +996,7 @@
       back:"‹ Retour au ludus", to_ludus:"Retour au ludus", turn:"TOUR",
       skip:"Voir le résultat", seed:"graine", seed_note:"le même nombre rejoue le même combat",
       win:"VICTOIRE", lose:"DÉFAITE", points:"AUX POINTS", coins:"pièces",
+      lg_through:"t\u2019arrive :", lg_all:"tout bloque",
       lg_disarm:"perd son arme :", lg_bite:"mord", lg_petmiss:"rate",
       lg_cover:"s\u2019interpose et encaisse le coup de", lg_petdown:"tombe pour le reste de ce combat",
       lg_petdead:"tombe, et cette fois pour de bon",
@@ -1067,7 +1076,7 @@
       rank_empty:"Aucune brute forgée pour l'instant. Tu peux être le premier.",
       o:{
         bichos: { ninguna:"Aucun", perro:"Chien de guerre", lobo:"Loup", oso:"Ours" },
-        viv_como: { ninguna:"Tu combats seul. Pleine vitesse, rien à perdre.", perro:"Mord souvent mais faiblement, et se met devant. L\u2019equilibre. Tombe tous les ~6 combats, meurt tous les ~23.", lobo:"Celui qui frappe le plus fort, mais te couvre à peine et n\u2019encaisse rien. Meurt tous les ~19 combats.", oso:"Mord faiblement : il est là pour encaisser à ta place. Le plus durable, meurt tous les ~32 combats." },
+        viv_como: { ninguna:"Tu combats seul. Pleine vitesse, rien à perdre.", perro:"Mord souvent mais faiblement, et se met devant. L\u2019equilibre. Tombe tous les ~2 combats, meurt tous les ~21.", lobo:"Celui qui frappe le plus fort. Encaisse moins et meurt tous les ~20 combats.", oso:"Mord faiblement : il est là pour encaisser à ta place. Le plus durable, meurt tous les ~32 combats." },
           armas:{ ninguna:"Poings nus", daga:"Dague", mandoble:"Espadon", lanza:"Lance", escudo:"Bouclier" },
           como:{ ninguna:"Équilibré, et ne casse jamais. Ne rien porter est une vraie option.",
                daga:"Deux coups rapides et faibles. Chacun s'esquive séparément : difficile contre les agiles.",
@@ -2032,7 +2041,7 @@
     else if(e.type === "disarm"){ cls += " dodge"; txt = `<b>${esc(e.att)}</b> ${t("lg_disarm")} <b>${esc(e.arma)}</b>`; }
     else if(e.type === "muerde"){ cls += " pet"; txt = `<b>${esc(bicho)}</b> ${t("lg_bite")} <b>${esc(e.def)}</b> — ${e.dmg} ${t("lg_dmg")}`; }
     else if(e.type === "mascota_falla"){ cls += " dodge"; txt = `<b>${esc(bicho)}</b> ${t("lg_petmiss")} <b>${esc(e.def)}</b>`; }
-    else if(e.type === "cubre"){ cls += " pet"; txt = `<b>${esc(bicho)}</b> ${t("lg_cover")} <b>${esc(e.att)}</b> — ${e.dmg} ${t("lg_dmg")}`; }
+    else if(e.type === "cubre"){ cls += " pet"; txt = `<b>${esc(bicho)}</b> ${t("lg_cover")} <b>${esc(e.att)}</b> — ${e.dmg}` + (e.pasa > 0 ? `, ${t("lg_through")} ${e.pasa}` : ` (${t("lg_all")})`); }
     else if(e.type === "cae_mascota"){ cls += " ko"; txt = `<b>${esc(bicho)}</b> ${t(e.definitiva ? "lg_petdead" : "lg_petdown")}`; }
     else if(e.type === "ko"){ cls += " ko"; txt = `<b>${esc(e.def)}</b> ${t("lg_ko")}`; }
     else return;
@@ -2057,7 +2066,7 @@
   /* La vida de la mascota se lleva EN EL NAVEGADOR mientras se reproduce, no
      viene en cada evento: el registro solo dice cuanto encajo. Es un contador
      de reproduccion, no una fuente de verdad — quien decide es `simulate()`. */
-  let petHp = { A:0, B:0 }, petMax = { A:0, B:0 };
+  let petHp = { A:0, B:0 }, petMax = { A:0, B:0 }, petDmg = { A:0, B:0 };
   function montarMascota(side, id){
     const fila = el("pet"+side);
     fila.classList.remove("down");
@@ -2065,9 +2074,20 @@
     if(!m || !m.hp){ fila.hidden = true; petMax[side] = 0; return; }
     fila.hidden = false;
     petMax[side] = petHp[side] = m.hp;
+    petDmg[side] = 0;
     el("petIco"+side).innerHTML = iconoMascota(id);
     el("petFill"+side).style.width = "100%";
     el("petHp"+side).textContent = m.hp;
+    el("petDmg"+side).textContent = "0";
+  }
+  /* `side` es el que RECIBE el mordisco, asi que quien lo da es la mascota del
+     otro lado. Apuntarlo al reves haria que tu contador subiera cuando te
+     muerden a ti, que es justo lo contrario de lo que dice. */
+  function apuntarMordisco(sideRecibe, dmg){
+    const s = sideRecibe === "A" ? "B" : "A";
+    if(!petMax[s]) return;
+    petDmg[s] += dmg;
+    el("petDmg"+s).textContent = petDmg[s];
   }
   function danarMascota(side, dmg){
     if(!petMax[side]) return;
@@ -2116,14 +2136,24 @@
         floatDmg(e.side, t("dodge_txt"), "miss"); addLog(e);
         await wait(230); defFig.classList.remove("hop-r","hop-l");
       }else if(e.type === "cubre"){
-        /* El golpe se lo come la mascota: el bruto NO parpadea ni pierde vida,
-           y el numero sale en bronce para que se distinga de un golpe encajado. */
+        /* La mascota encaja el golpe ENTERO y al bruto le llega lo que no
+           absorbe. Son dos numeros distintos y salen a alturas distintas: el
+           suyo en bronce abajo, el tuyo en rojo arriba. Si saliera uno solo,
+           el jugador creeria que se ha librado del golpe — y no. */
         floatDmg(e.side, "−"+e.dmg, "pet");
-        danarMascota(e.side, e.dmg); addLog(e);
-        await wait(240);
+        danarMascota(e.side, e.dmg);
+        if(e.pasa > 0){
+          defFig.classList.add("flash", attLeft ? "knock-r" : "knock-l");
+          floatDmg(e.side, "−"+e.pasa, "");
+          if(typeof e.hp === "number") setHp(e.side, e.hp, e.hpMax);
+        }
+        addLog(e);
+        await wait(260);
+        defFig.classList.remove("flash","knock-r","knock-l");
       }else{
         defFig.classList.add("flash", attLeft ? "knock-r" : "knock-l");
         floatDmg(e.side, "−"+e.dmg, e.type === "crit" ? "crit" : e.type === "muerde" ? "pet" : "");
+        if(e.type === "muerde") apuntarMordisco(e.side, e.dmg);
         setHp(e.side, e.hp, e.hpMax); addLog(e);
         await wait(e.type === "crit" ? 330 : 230);
         defFig.classList.remove("flash","knock-r","knock-l");
@@ -2188,7 +2218,11 @@
     fight.log.forEach(e => {
       addLog(e);
       if(e.type === "hit" || e.type === "crit" || e.type === "muerde") setHp(e.side, e.hp, e.hpMax);
-      if(e.type === "cubre") danarMascota(e.side, e.dmg);
+      if(e.type === "muerde") apuntarMordisco(e.side, e.dmg);
+      if(e.type === "cubre"){
+        danarMascota(e.side, e.dmg);
+        if(e.pasa > 0 && typeof e.hp === "number") setHp(e.side, e.hp, e.hpMax);
+      }
       if(e.type === "cae_mascota") caerMascota(e.side);
       if(e.type === "ko") el("fig"+e.side).classList.add("down");
     });

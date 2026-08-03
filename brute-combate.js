@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 8;   // 7: mascotas · 8: turno propio, caer != morir
+  const VERSION = 9;   // 8: turno propio, caer != morir · 9: golpe partido, mascotas mas duras
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -99,7 +99,33 @@
   /* Curva empinada: el primer nivel llega en dos peleas —engancha— y a partir
      de ahí cuesta cada vez más. Con 3 peleas al día, el nivel 5 son ~8 días y
      el nivel 10 unos ~54. Antes eran 6 y 27. */
-  const xpNeed = lv => Math.round(80 * Math.pow(lv, 1.5));
+  /* ── Cuanta XP cuesta el siguiente nivel ──────────────────────────────────
+     Antes era `80 * nivel^1.5`, y ese exponente 1.5 hacia el juego inalcanzable
+     sin que se notara: jugando las 3 peleas TODOS los dias, un ano entero te
+     dejaba en el nivel 18, y llegar al tope habrian sido 68 anos. Todo lo que
+     se pusiera por encima del nivel 20 era contenido que no iba a ver nadie.
+
+     Con `52 * nivel^0.7`:
+
+         nivel  5 -> 3 dias      nivel 20 ->  37 dias
+         nivel 10 -> 11          nivel 30 ->  76
+         nivel 15 -> 22          nivel 50 -> 182
+                                 nivel 75 -> 365   <- un ano
+
+     El 75 no es un numero redondo: es donde el bruto se ACABA. Ahi ya tiene
+     los tres atributos a 10 y los 300 de vida, asi que del 76 al 100 no gana
+     nada. Subir mas alla solo mueve un numero en la ficha.
+
+     ── Lo que esto cuesta, y hay que vigilarlo ──────────────────────────────
+     Los combates se alargan con el nivel: 6 turnos de mediana a nivel 1, 10 a
+     nivel 25, 18 a nivel 75 (p95 22). Sigue por debajo del tope de 40, pero
+     antes casi nadie pasaba de nivel 18 y las peleas duraban 8 turnos SIEMPRE.
+     Ahora un veterano ve peleas que duran el triple.
+
+     Y el emparejamiento es de +-1 nivel: con la poblacion repartida entre 75
+     niveles en vez de 18, hace falta MAS gente para que te toquen rivales
+     reales en vez de brutos de la casa. */
+  const xpNeed = lv => Math.round(52 * Math.pow(lv, 0.7));
 
   function rollStats(){
     return { str: STAT_INI + ri(STAT_VAR), agi: STAT_INI + ri(STAT_VAR),
@@ -178,27 +204,90 @@
 
      Si tocas estos números, vuelve a medir. La simulación está en el historial
      del proyecto y son cincuenta líneas. */
+  /* ── Las armas son una ESCALERA, no cinco alternativas ────────────────────
+     Hasta la v9 las cinco estaban empatadas al 50% a proposito, incluidos los
+     punos: llevar arma no daba ninguna ventaja, solo cambiaba como peleabas.
+     Medido, la lanza y el mandoble hasta PERDIAN contra los punos.
+
+     Ahora quien reinvierte gana un poco mas. La ventaja sobre pelear a puno
+     limpio esta medida y es DELIBERADAMENTE pequena:
+
+         daga     +2.8     nivel 1  (dia 0)     130 mon   ~33 combates  3.9/comb
+         escudo   +4.0     nivel 2  (dia 0.4)   100       ~20           5.0/comb
+         lanza    +4.8     nivel 4  (dia 2)     110       ~17           6.6/comb
+         mandoble +6.3     nivel 7  (dia 6)      90       ~11           8.1/comb
+
+     Estas cuatro son el EQUIPO DE SALIDA: la primera semana las tienes todas.
+     Los huecos de arriba estan vacios A PROPOSITO, y con la curva de XP nueva
+     son sitios donde de verdad llega la gente:
+
+         niveles 12-15    15-22 dias    primer escalon nuevo
+         niveles 25-30    55-76 dias    el de los veteranos
+         nivel  50        6 meses       el de muy pocos
+
+     Poner algo por encima del 50 es escribirlo para nadie.
+
+     ╔════════════════════════════════════════════════════════════════════╗
+     ║  EL TECHO: NINGUN ARMA PUEDE PASAR DE +8 SOBRE LOS PUNOS.          ║
+     ║                                                                     ║
+     ║  Esto no es una preferencia, es lo que mantiene el juego vivo. Si   ║
+     ║  cada arma nueva mejora a la anterior sin limite, en un ano un      ║
+     ║  bruto sin equipo no gana NUNCA, el que no paga se va, y el juego   ║
+     ║  se queda solo con quien paga — que es exactamente como murieron    ║
+     ║  Axie y StepN. Ver TOKEN.md.                                        ║
+     ║                                                                     ║
+     ║  A +8, quien va a puno limpio gana ~42 de cada 100. Ese es el       ║
+     ║  suelo, y no se baja.                                               ║
+     ╚════════════════════════════════════════════════════════════════════╝
+
+     Entonces, si no pueden ser mas fuertes, ¿que aporta un arma de nivel 20?
+     COSAS QUE NO SON PODER:
+
+     · Mecanicas nuevas — tres golpes, robar vida, ignorar el escudo del
+       rival, contraatacar al esquivar. Cambian COMO peleas, no cuanto ganas.
+     · Piedra-papel-tijera — algo que destroza al mandoble y sufre contra la
+       daga. Eso da profundidad sin subir el techo.
+     · Aspecto. El mejor sumidero que existe y el que no toca el equilibrio.
+
+     Y el precio por combate sigue subiendo con el tier, asi que lo de arriba
+     cuesta mantenerlo aunque no gane mas.
+
+     COMO SE ANADE UNA ARMA NUEVA (no te lo saltes):
+       1. entrada aqui con su `nivel` y su `fragil`
+       2. dibujarla en brute-render.js (`spriteProfile` y `iconoArma`)
+       3. anadirla a la lista blanca de los cuatro `.sql` de armas
+       4. MEDIRLA contra las que ya hay y contra los punos. Si pasa de +8, no
+          entra. Se ajusta hasta que quepa.
+       5. subir VERSION y repegar este fichero en la Edge Function */
   const ARMAS = {
-    ninguna:  { id:"ninguna",  nombre:"Puños",    golpes:1, dmg:1.00, crit:0.00, esq:0.00, ini:0,  def:1.00, perder:0,     fragil:0    },
-    daga:     { id:"daga",     nombre:"Daga",     golpes:2, dmg:0.46, crit:0.05, esq:0.02, ini:2,  def:1.00, perder:0.015, fragil:0.03 },
-    mandoble: { id:"mandoble", nombre:"Mandoble", golpes:1, dmg:1.29, crit:0.00, esq:-0.05,ini:-2, def:1.12, perder:0.055, fragil:0.09 },
-    lanza:    { id:"lanza",    nombre:"Lanza",    golpes:1, dmg:1.03, crit:0.02, esq:0.00, ini:1,  def:1.06, perder:0.035, fragil:0.06 },
-    escudo:   { id:"escudo",   nombre:"Escudo",   golpes:1, dmg:0.74, crit:0.00, esq:0.01, ini:-1, def:0.72, perder:0.025, fragil:0.05 },
+    ninguna:  { id:"ninguna",  nombre:"Puños",    nivel:1,  golpes:1, dmg:1.000, crit:0.00, esq:0.00, ini:0,  def:1.00, perder:0,     fragil:0    },
+    daga:     { id:"daga",     nombre:"Daga",     nivel:1,  golpes:2, dmg:0.470, crit:0.05, esq:0.02, ini:2,  def:1.00, perder:0.015, fragil:0.03 },
+    escudo:   { id:"escudo",   nombre:"Escudo",   nivel:2,  golpes:1, dmg:0.782, crit:0.00, esq:0.01, ini:-1, def:0.72, perder:0.025, fragil:0.05 },
+    lanza:    { id:"lanza",    nombre:"Lanza",    nivel:4,  golpes:1, dmg:1.123, crit:0.02, esq:0.00, ini:1,  def:1.06, perder:0.035, fragil:0.06 },
+    mandoble: { id:"mandoble", nombre:"Mandoble", nivel:7, golpes:1, dmg:1.422, crit:0.00, esq:-0.05,ini:-2, def:1.12, perder:0.055, fragil:0.09 },
   };
   const PUNOS = ARMAS.ninguna;
 
   /* ── Precios ──
-     Puestos para que el coste POR COMBATE sea parecido en todas: como las
-     cinco están equilibradas, lo único que cambia entre ellas es cuánto duran.
-     Sale a unas 3 monedas por pelea, sobre las ~40 que se ganan al día.
+     Ya NO son todos iguales por combate: cuanto mas ventaja da el arma, mas
+     cara sale de mantener. Es lo que impide que la mejor sea ademas la mas
+     rentable, que es como se rompe una economia de este tipo.
+
+         daga     130 / 33 combates  =  4.0 monedas por pelea
+         escudo   100 / 20           =  5.0
+         lanza    110 / 17           =  6.5
+         mandoble  90 / 11           =  8.0
+
+     Sobre las ~40 que gana un bruto al dia. El mandoble se lleva una quinta
+     parte de lo que ganas, y por eso su +5 no es gratis.
 
      Es un primer número, no una verdad. Cuando haya jugadores, el panel dirá
      si sobra o falta: si nadie compra, están caras; si todo el mundo lleva
      siempre la misma, están baratas. */
-  ARMAS.daga.precio     = 100;   // ~33 combates
-  ARMAS.escudo.precio   =  60;   // ~20
-  ARMAS.lanza.precio    =  50;   // ~17
-  ARMAS.mandoble.precio =  35;   // ~11
+  ARMAS.daga.precio     = 130;   // ~33 combates
+  ARMAS.escudo.precio   = 100;   // ~20
+  ARMAS.lanza.precio    = 110;   // ~17
+  ARMAS.mandoble.precio =  90;   // ~11
   ARMAS.ninguna.precio  =   0;
 
   /* Cuántos combates aguanta de media, para poder enseñarlo en la armería:
@@ -232,10 +321,10 @@
        hp      su vida; a cero muere y se pierde
        ini     lo que te resta de iniciativa por llevarla */
   const MASCOTAS = {
-    ninguna: { nombre:"ninguna", ataca:0,    dmg:0, cubre:0,    hp:0,  mortal:0,    ini:0, precio:0 },
-    perro:   { nombre:"perro",   ataca:0.45, dmg:1, cubre:0.07, hp:14, mortal:0.25, ini:2, precio:80  },
-    lobo:    { nombre:"lobo",    ataca:0.32, dmg:3, cubre:0.03, hp:5,  mortal:0.30, ini:2, precio:70  },
-    oso:     { nombre:"oso",     ataca:0.30, dmg:1, cubre:0.09, hp:17, mortal:0.20, ini:2, precio:110 },
+    ninguna: { nombre:"ninguna", nivel:1,  ataca:0,    dmg:0, cubre:0,    absorbe:0,    hp:0,  mortal:0,    ini:0, precio:0 },
+    perro:   { nombre:"perro",   nivel:1,  ataca:0.45, dmg:1, cubre:0.38, absorbe:0.30, hp:30, mortal:0.10, ini:5, precio:115 },
+    lobo:    { nombre:"lobo",    nivel:4,  ataca:0.32, dmg:2, cubre:0.38, absorbe:0.30, hp:26, mortal:0.09, ini:5, precio:105 },
+    oso:     { nombre:"oso",     nivel:8,  ataca:0.30, dmg:1, cubre:0.38, absorbe:0.30, hp:38, mortal:0.09, ini:5, precio:175 },
   };
   const MASCOTAS_REALES = ["perro","lobo","oso"];
   const mascota = id => MASCOTAS[id] || MASCOTAS.ninguna;
@@ -340,13 +429,32 @@
           dmg = Math.max(1, Math.round(dmg * def.w.def));
 
           /* ── la mascota se interpone ──
-             Se come el golpe entero. Si la mata, muere para siempre: no vuelve
-             a la bolsa ni se cura entre combates. Es lo que hace que llevarla
-             sea una decisión que se repite y no una compra única. */
+             Se lleva el golpe ENTERO, pero al bruto le llega rozado, no cero:
+             lo que se le quita es `absorbe`.
+
+             Esto es lo que hace posible que la mascota reciba daño a menudo.
+             Con absorcion total, cada golpe parado era supervivencia
+             TRANSFERIDA —ella encaja, tu no— y eso vale tantisimo que subir
+             `cubre` para que la barra de vida se moviera disparaba la ventaja
+             a +15 y la mascota pasaba a comprar el combate. Medido.
+
+             Partiendo el golpe, `cubre` y ventaja dejan de estar atados: se
+             puede interponer en casi todos los combates y seguir valiendo poco.
+             Y narrativamente es lo que pasa: el perro se mete, el mandoble le
+             alcanza a el, pero a ti te llega igual de refilon. */
           if(def.m && def.m.viva && rnd() < def.m.cubre){
             def.m.hp -= dmg;
-            log.push({ turn, type:"cubre", att:att.name, def:def.name, side:def.side,
-                       dmg, mascota:def.m.nombre });
+            /* lo que NO absorbe le llega al bruto igualmente */
+            const pasa = Math.max(0, Math.round(dmg * (1 - def.m.absorbe)));
+            if(pasa > 0){
+              def.hp = Math.max(0, def.hp - pasa);
+              log.push({ turn, type:"cubre", att:att.name, def:def.name, side:def.side,
+                         dmg, pasa, mascota:def.m.nombre, hp:def.hp, hpMax:def.hpMax });
+            }else{
+              log.push({ turn, type:"cubre", att:att.name, def:def.name, side:def.side,
+                         dmg, pasa:0, mascota:def.m.nombre });
+            }
+            if(def.hp <= 0){ log.push({ turn, type:"ko", def:def.name, side:def.side }); }
             if(def.m.hp <= 0){
               def.m.viva = false;
               /* CAE: deja de ayudar el resto del combate, y se anota para que
