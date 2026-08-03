@@ -331,6 +331,21 @@
   .pet-row.down .pet-bar .fill{ width:0 !important; }
   .turn-badge{ flex-shrink:0; align-self:center; text-align:center; font-family:'Cinzel',serif; font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.08em; min-width:52px; }
   .turn-badge b{ display:block; font-size:18px; color:var(--blood-bright); }
+  /* ── El candado de nivel en la tienda ──
+     Lo bloqueado NO se esconde. Saber que existe un mandoble a nivel 7 es la
+     mitad del motivo para subir de nivel; esconderlo deja la tienda pareciendo
+     vacia y al jugador sin nada que perseguir. Se apaga, no se borra. */
+  .arm.bloqueada{ opacity:.48; }
+  .arm.bloqueada .arm-icono{ filter:grayscale(1); }
+  .arm-nv{ font-family:'Cinzel',serif; font-size:10px; letter-spacing:.06em; white-space:nowrap;
+           color:var(--bronze); border:1px solid var(--line); border-radius:3px;
+           padding:1px 6px; text-transform:uppercase; }
+  .arm-nv.falta{ color:var(--blood-bright); border-color:rgba(224,69,63,.4); }
+  /* Linea propia. Pegado a un boton, "necesita nivel 4" y "+1 · 110" se leen
+     como una sola frase rota: «This brute needs level 4+1 · 110». */
+  .arm-bloq{ display:block; font-size:11.5px; color:var(--blood-bright);
+             opacity:.9; margin-bottom:7px; }
+  .arm-bloq b{ font-family:'Cinzel',serif; }
   .arena{ position:relative; height:250px; border-radius:16px; overflow:hidden; border:1px solid var(--line); margin-bottom:15px; background:radial-gradient(ellipse 60% 42% at 50% 96%, rgba(255,157,66,.2), transparent 70%), linear-gradient(180deg,#1a1409,#241b0d 62%,#2e2412); }
   .arena::after{ content:""; position:absolute; left:50%; bottom:26px; transform:translateX(-50%); width:74%; height:60px; border-radius:50%; border:2px solid rgba(239,231,216,.08); }
   .fighter{ position:absolute; bottom:22px; width:116px; transition:transform .16s cubic-bezier(.3,1.4,.5,1); }
@@ -499,8 +514,8 @@
       <div><h1 data-i18n="ludus_h1">Your ludus</h1><p id="slotInfo"></p></div>
       <nav class="salas">
         <button class="btn btn-ghost btn-sm" id="btnArm" data-i18n="arm_open">⚔️ Armoury</button>
-        <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
         <button class="btn btn-ghost btn-sm" id="btnViv" data-i18n="viv_open">🐺 Vivarium</button>
+        <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
         <button class="btn btn-ghost btn-sm" id="btnTor" data-i18n="tor_open">🏛️ Tournaments</button>
         <button class="btn btn-ghost btn-sm" id="btnHist" data-i18n="hist_open">📜 History</button>
       </nav>
@@ -521,7 +536,7 @@
       <div><h1 data-i18n="arm_h1">The armoury</h1><p id="armSub"></p></div>
     </div>
     <div class="arm-quien" id="armQuien"></div>
-    <p class="match-note" data-i18n="arm_note">Weapons don't make you stronger: they change how you fight. Each one wins about half its matchups — even bare fists. And they break, so carrying one is a choice you make again and again.</p>
+    <p class="match-note" data-i18n="arm_note">A weapon gives you an edge, but a small one: the best in the game wins 6 more fights out of 100 than bare fists. And the better it is, the sooner it breaks — the edge is rented, not bought.</p>
     <div class="arm-lista" id="armLista"></div>
   </section>
 
@@ -530,7 +545,7 @@
     <div class="page-head">
       <div><h1 data-i18n="viv_h1">The vivarium</h1><p id="vivSub"></p></div>
     </div>
-    <p class="match-note" data-i18n="viv_note">A pet does help you fight — unlike weapons, which are alternatives. But it slows you down, it dies for good when it runs out of health, and it never earns you more coins or XP. Someone without one still wins 43 fights out of 100.</p>
+    <p class="match-note" data-i18n="viv_note">A pet steps in front and takes hits for you, but it does not save you entirely: whatever it does not absorb still reaches you. It slows you down, it goes down almost every fight, and now and then it does not get up — and then it is gone for good.</p>
     <div class="arm-quien" id="vivQuien"></div>
     <div class="arm-lista" id="vivLista"></div>
   </section>
@@ -771,6 +786,7 @@
       skip:"Ver resultado", seed:"semilla", seed_note:"el mismo número reproduce el mismo combate",
       win:"VICTORIA", lose:"DERROTA", points:"POR PUNTOS", coins:"monedas",
       lg_through:"te llegan", lg_all:"lo para entero",
+      arm_nivel_min:"Se abre en el nivel", arm_nivel_eq:"Este bruto necesita el nivel",
       lg_disarm:"pierde el arma:", lg_bite:"muerde a", lg_petmiss:"no acierta a",
       lg_cover:"se interpone y encaja el golpe de", lg_petdown:"cae y ya no se levanta en este combate",
       lg_petdead:"cae, y esta vez no se levanta nunca mas",
@@ -821,7 +837,7 @@
       tor_final:"Final", tor_semis:"Semifinales", tor_ronda:"Ronda", tor_descanso:"descansa",
       arm_guardar:"Guardar", arm_libres:"libres en tu bolsa",
       viv_open:"🐺 Vivarium", viv_h1:"El vivarium",
-      viv_note:"Una mascota SÍ te ayuda a pelear, a diferencia de las armas, que son alternativas. Pero te hace ir más lento, muere para siempre cuando se le acaba la vida, y nunca te da más monedas ni más XP. Quien no lleva ninguna sigue ganando 43 de cada 100 combates.",
+      viv_note:"Una mascota se pone delante y encaja golpes por ti, pero no te libra del todo: lo que no absorbe te llega igual. Te hace ir más lento, cae casi cada combate, y de vez en cuando no se levanta — y entonces la pierdes para siempre.",
       viv_para:"Para", viv_puesta:"Te acompaña", viv_vida:"Vida", viv_lento:"Iniciativa",
       ev_h2:"Últimas novedades", ev_gana:"venció a", ev_pierde:"cayó ante",
       ev_nivel:"subió al nivel", ev_rota:"perdió para siempre su", ev_con:"con",
@@ -836,7 +852,7 @@
       g_notinstalled:"Esa wallet no está en este navegador.",
       arm_sin_brutos:"Todavía no tienes ningún bruto. Fórjalo primero en la forja.",
       arm_h1:"La armería", arm_open:"⚔️ Armería",
-      arm_note:"Las armas no te hacen más fuerte: cambian cómo peleas. Cada una gana la mitad de sus enfrentamientos — los puños incluidos. Y se rompen, así que llevar una es una decisión que tomas una y otra vez.",
+      arm_note:"Un arma te da algo de ventaja, pero poca: con la mejor del juego ganas 6 de cada 100 más que a puño limpio. Y cuanto mejor es, antes se rompe — así que la ventaja se alquila, no se compra.",
       arm_para:"Armería de", arm_puesta:"Equipada", arm_equipar:"Equipar", arm_comprar:"Comprar",
       arm_dura:"aguanta", arm_combates:"combates", arm_cae:"se cae", arm_turno:"por turno",
       arm_sin:"Sin arma", arm_caro:"No te llegan las monedas", arm_ya:"Ya la tienes",
@@ -884,6 +900,7 @@
       skip:"Skip to result", seed:"seed", seed_note:"the same number replays the same fight",
       win:"VICTORY", lose:"DEFEAT", points:"ON POINTS", coins:"coins",
       lg_through:"gets through:", lg_all:"stops it all",
+      arm_nivel_min:"Unlocks at level", arm_nivel_eq:"This brute needs level",
       lg_disarm:"loses the", lg_bite:"bites", lg_petmiss:"misses",
       lg_cover:"steps in and takes the hit from", lg_petdown:"goes down for the rest of this fight",
       lg_petdead:"goes down, and this time for good",
@@ -934,7 +951,7 @@
       tor_final:"Final", tor_semis:"Semi-finals", tor_ronda:"Round", tor_descanso:"bye",
       arm_guardar:"Stow", arm_libres:"free in your bag",
       viv_open:"🐺 Vivarium", viv_h1:"The vivarium",
-      viv_note:"A pet does help you fight — unlike weapons, which are alternatives. But it slows you down, it dies for good when it runs out of health, and it never earns you more coins or XP. Someone without one still wins 43 fights out of 100.",
+      viv_note:"A pet steps in front and takes hits for you, but it does not save you entirely: whatever it does not absorb still reaches you. It slows you down, it goes down almost every fight, and now and then it does not get up — and then it is gone for good.",
       viv_para:"For", viv_puesta:"At your side", viv_vida:"Health", viv_lento:"Initiative",
       ev_h2:"Latest news", ev_gana:"beat", ev_pierde:"fell to",
       ev_nivel:"reached level", ev_rota:"lost for good their", ev_con:"with",
@@ -949,7 +966,7 @@
       g_notinstalled:"That wallet isn't in this browser.",
       arm_sin_brutos:"You have no brutes yet. Forge one first.",
       arm_h1:"The armoury", arm_open:"⚔️ Armoury",
-      arm_note:"Weapons don't make you stronger: they change how you fight. Each one wins about half its matchups — bare fists included. And they break, so carrying one is a choice you make again and again.",
+      arm_note:"A weapon gives you an edge, but a small one: the best in the game wins 6 more fights out of 100 than bare fists. And the better it is, the sooner it breaks — the edge is rented, not bought.",
       arm_para:"Armoury for", arm_puesta:"Equipped", arm_equipar:"Equip", arm_comprar:"Buy",
       arm_dura:"lasts", arm_combates:"fights", arm_cae:"dropped", arm_turno:"per turn",
       arm_sin:"No weapon", arm_caro:"Not enough coins", arm_ya:"You already have it",
@@ -997,6 +1014,7 @@
       skip:"Voir le résultat", seed:"graine", seed_note:"le même nombre rejoue le même combat",
       win:"VICTOIRE", lose:"DÉFAITE", points:"AUX POINTS", coins:"pièces",
       lg_through:"t\u2019arrive :", lg_all:"tout bloque",
+      arm_nivel_min:"Debloque au niveau", arm_nivel_eq:"Cette brute a besoin du niveau",
       lg_disarm:"perd son arme :", lg_bite:"mord", lg_petmiss:"rate",
       lg_cover:"s\u2019interpose et encaisse le coup de", lg_petdown:"tombe pour le reste de ce combat",
       lg_petdead:"tombe, et cette fois pour de bon",
@@ -1047,7 +1065,7 @@
       tor_final:"Finale", tor_semis:"Demi-finales", tor_ronda:"Tour", tor_descanso:"exempt",
       arm_guardar:"Ranger", arm_libres:"libres dans votre sac",
       viv_open:"🐺 Vivarium", viv_h1:"Le vivarium",
-      viv_note:"Un familier t'aide vraiment à combattre, contrairement aux armes, qui sont des alternatives. Mais il te ralentit, il meurt définitivement quand il n'a plus de vie, et il ne rapporte jamais plus de pièces ni d'XP. Sans familier on gagne encore 43 combats sur 100.",
+      viv_note:"Un familier se met devant et encaisse des coups a ta place, mais il ne te sauve pas tout a fait : ce qu\u2019il n\u2019absorbe pas t\u2019arrive quand meme. Il te ralentit, il tombe presque a chaque combat, et de temps en temps il ne se releve pas — et la, tu le perds pour de bon.",
       viv_para:"Pour", viv_puesta:"À tes côtés", viv_vida:"Vie", viv_lento:"Initiative",
       ev_h2:"Dernières nouvelles", ev_gana:"a battu", ev_pierde:"est tombé face à",
       ev_nivel:"atteint le niveau", ev_rota:"a perdu à jamais son", ev_con:"avec",
@@ -1062,7 +1080,7 @@
       g_notinstalled:"Ce wallet n'est pas dans ce navigateur.",
       arm_sin_brutos:"Tu n'as encore aucune brute. Forge-en une d'abord.",
       arm_h1:"L'armurerie", arm_open:"⚔️ Armurerie",
-      arm_note:"Les armes ne te rendent pas plus fort : elles changent ta façon de combattre. Chacune gagne environ la moitié de ses duels — poings nus compris. Et elles cassent, donc en porter une est un choix qui se répète.",
+      arm_note:"Une arme te donne un avantage, mais petit : la meilleure du jeu gagne 6 combats sur 100 de plus que les poings nus. Et meilleure elle est, plus vite elle casse — l\u2019avantage se loue, il ne s\u2019achete pas.",
       arm_para:"Armurerie de", arm_puesta:"Équipée", arm_equipar:"Équiper", arm_comprar:"Acheter",
       arm_dura:"tient", arm_combates:"combats", arm_cae:"tombe", arm_turno:"par tour",
       arm_sin:"Sans arme", arm_caro:"Pas assez de pièces", arm_ya:"Tu l'as déjà",
@@ -1511,10 +1529,22 @@
        brutos no cuentan: están ocupadas. */
     const libres = id => Number(bolsa[id] || 0);
 
+    /* ── El candado de nivel, con DOS reglas distintas ──
+       Comprar mira tu MEJOR bruto: es para tu ludus, y guardarla en la bolsa
+       vale aunque el bruto de turno no llegue. Equipar mira ESTE bruto: el
+       arma la empuna el gladiador, no el jugador.
+
+       Esto es solo la pantalla. El candado de verdad esta en Postgres
+       (supabase-25-niveles.sql), porque un boton escondido se salta con curl. */
+    const mejorNivel = Math.max(...brutes.map(b => b.lv || 1));
+
     const tarjeta = id => {
       const w = ARMAS[id];
       const llevo = puesta === id;
       const n = libres(id);
+      const min = w.nivel || 1;
+      const puedeEquipar = active.lv >= min;
+      const puedeComprar = mejorNivel >= min;
       let pie;
       if(llevo){
         /* Se puede desequipar: el arma vuelve a la bolsa y desde ahí va a otro
@@ -1523,8 +1553,14 @@
               (id === "ninguna" ? "" :
                `<button class="btn btn-ghost btn-sm js-eq" data-a="ninguna">${t("arm_guardar")}</button>`);
       }
+      /* Ya la tienes en la bolsa pero ESTE bruto no llega: se dice cual es el
+         bruto que si puede, no un "no puedes" seco. */
+      else if(n > 0 && !puedeEquipar)
+                     pie = `<div class="arm-bloq">${t("arm_nivel_eq")} <b>${min}</b></div>`;
       else if(id === "ninguna" || n > 0)
                      pie = `<button class="btn btn-ghost btn-sm js-eq" data-a="${id}">${t("arm_equipar")}</button>`;
+      else if(!puedeComprar)
+                     pie = `<div class="arm-bloq">${t("arm_nivel_min")} <b>${min}</b></div>`;
       else if(balance >= w.precio)
                      pie = `<button class="btn btn-primary btn-sm js-comp" data-a="${id}">${t("arm_comprar")} · ${w.precio}</button>`;
       else           pie = `<div class="arm-tengo" style="color:var(--muted)">${t("arm_caro")} (${w.precio})</div>`;
@@ -1532,7 +1568,7 @@
       /* Comprar sigue disponible aunque ya tengas una: tres brutos pueden
          llevar tres dagas, y para eso hacen falta tres. Antes decía "ya la
          tienes" aunque la quisieras para otro bruto. */
-      if(id !== "ninguna" && !llevo && n > 0 && balance >= w.precio){
+      if(id !== "ninguna" && !llevo && n > 0 && puedeComprar && balance >= w.precio){
         pie += `<button class="btn btn-ghost btn-sm js-comp" data-a="${id}">+1 · ${w.precio}</button>`;
       }
 
@@ -1543,10 +1579,14 @@
           <span>${t("arm_cae")} <b>${(w.perder*100).toFixed(1)}%</b> ${t("arm_turno")}</span>
         </div>`;
 
-      return `<div class="arm${llevo ? " puesta" : ""}">
+      /* La tarjeta entera se apaga si ni siquiera puedes comprarla: sigue a la
+         vista —saber que existe algo mejor es la mitad del incentivo de subir
+         de nivel— pero no compite con lo que si puedes usar. */
+      return `<div class="arm${llevo ? " puesta" : ""}${!puedeComprar ? " bloqueada" : ""}">
         <div class="arm-top">
           <span class="arm-icono">${iconoArma(id)}</span>
           <span class="arm-nom">${nombres[id]}</span>
+          ${min > 1 ? `<span class="arm-nv${puedeEquipar ? "" : " falta"}">${t("lvl")} ${min}</span>` : ""}
           ${n > 0 ? `<span class="arm-n" title="${t("arm_libres")}">×${n}</span>` : ""}
           ${id === "ninguna" ? "" : `<span class="arm-precio">${w.precio} $BRUTE</span>`}
         </div>
@@ -1662,23 +1702,34 @@
     const libres = id => Number(bichos[id] || 0);
     const comos = O("viv_como");
 
+    /* Mismas dos reglas que la armeria: comprar mira tu mejor bruto, equipar
+       mira este. Y esto es la pantalla, no el candado: ese vive en Postgres. */
+    const mejorNivel = Math.max(...brutes.map(b => b.lv || 1));
+
     const tarjeta = id => {
       const m = MASCOTAS[id];
       const llevo = puesta === id;
       const n = libres(id);
+      const min = m.nivel || 1;
+      const puedeEquipar = active.lv >= min;
+      const puedeComprar = mejorNivel >= min;
       let pie;
       if(llevo){
         pie = `<div class="arm-tengo">✓ ${t("viv_puesta")}</div>` +
               (id === "ninguna" ? "" :
                `<button class="btn btn-ghost btn-sm js-veq" data-m="ninguna">${t("arm_guardar")}</button>`);
       }
+      else if(n > 0 && !puedeEquipar)
+                     pie = `<div class="arm-bloq">${t("arm_nivel_eq")} <b>${min}</b></div>`;
       else if(id === "ninguna" || n > 0)
                      pie = `<button class="btn btn-ghost btn-sm js-veq" data-m="${id}">${t("arm_equipar")}</button>`;
+      else if(!puedeComprar)
+                     pie = `<div class="arm-bloq">${t("arm_nivel_min")} <b>${min}</b></div>`;
       else if(balance >= m.precio)
                      pie = `<button class="btn btn-primary btn-sm js-vcom" data-m="${id}">${t("arm_comprar")} · ${m.precio}</button>`;
       else           pie = `<div class="arm-tengo" style="color:var(--muted)">${t("arm_caro")} (${m.precio})</div>`;
 
-      if(id !== "ninguna" && !llevo && n > 0 && balance >= m.precio)
+      if(id !== "ninguna" && !llevo && n > 0 && puedeComprar && balance >= m.precio)
         pie += `<button class="btn btn-ghost btn-sm js-vcom" data-m="${id}">+1 · ${m.precio}</button>`;
 
       /* Se enseña lo que aguanta y lo que estorba. Los dos números importan y
@@ -1689,10 +1740,11 @@
           <span>${t("viv_lento")} <b>−${m.ini}</b></span>
         </div>`;
 
-      return `<div class="arm${llevo ? " puesta" : ""}">
+      return `<div class="arm${llevo ? " puesta" : ""}${!puedeComprar ? " bloqueada" : ""}">
         <div class="arm-top">
           <span class="arm-icono">${id === "ninguna" ? "" : iconoMascota(id)}</span>
           <span class="arm-nom">${nombres[id]}</span>
+          ${min > 1 ? `<span class="arm-nv${puedeEquipar ? "" : " falta"}">${t("lvl")} ${min}</span>` : ""}
           ${n > 0 ? `<span class="arm-n" title="${t("arm_libres")}">×${n}</span>` : ""}
           ${id === "ninguna" ? "" : `<span class="arm-precio">${m.precio} $BRUTE</span>`}
         </div>
