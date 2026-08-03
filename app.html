@@ -382,10 +382,30 @@
   .arena > .fighter, .arena > .banner, .arena > .dmg{ z-index:2; }
   .arena{ position:relative; height:250px; border-radius:16px; overflow:hidden; border:1px solid var(--line); margin-bottom:15px; background:radial-gradient(ellipse 60% 42% at 50% 96%, rgba(255,157,66,.2), transparent 70%), linear-gradient(180deg,#1a1409,#241b0d 62%,#2e2412); }
   .arena::after{ content:""; position:absolute; left:50%; bottom:26px; transform:translateX(-50%); width:74%; height:60px; border-radius:50%; border:2px solid rgba(239,231,216,.08); }
-  .fighter{ position:absolute; bottom:22px; width:116px; transition:transform .16s cubic-bezier(.3,1.4,.5,1); }
+  /* ── EL MOVIMIENTO ──
+     Antes el bruto entero se deslizaba 56px con `translateX` y ya. Ahora
+     CAMINA hasta el rival y le pega: el cuerpo se desplaza y las piernas y los
+     brazos giran sobre sus articulaciones.
+
+     Las articulaciones viven en el SVG (`j-pieI`, `j-brazoA`…) con su pivote
+     puesto en `transform-origin`. Aqui solo se les cambia el angulo: NO se
+     vuelve a dibujar el sprite en cada fotograma. Redibujarlo serian 3,8 KB de
+     SVG por cuadro y a 60 fps eso no va en un movil.
+
+     `transform-box: view-box` hace que el pivote se lea en unidades del SVG y
+     no en la caja del elemento; sin eso, cada articulacion gira sobre su
+     propio centro y el bruto se desmonta. */
+  .fighter{ position:absolute; bottom:22px; width:116px;
+            transition:transform var(--paso, .30s) cubic-bezier(.33,.9,.35,1); }
+  .fighter [class^="j-"]{ transform-box:view-box;
+                          transition:transform var(--art, .14s) cubic-bezier(.3,1.1,.4,1); }
   .fighter svg{ width:100%; height:auto; display:block; }
   .fighter.left{ left:11%; } .fighter.right{ right:11%; }
-  .fighter.lunge-r{ transform:translateX(56px); } .fighter.lunge-l{ transform:translateX(-56px); }
+  /* La distancia ya no es fija: se mide entre los dos en `medirAlcance()`,
+     porque la arena cambia de ancho con la ventana y 56px se quedaba a medio
+     camino en pantalla grande y se pasaba en movil. */
+  .fighter.lunge-r{ transform:translateX(var(--alcance,56px)); }
+  .fighter.lunge-l{ transform:translateX(calc(var(--alcance,56px) * -1)); }
   .fighter.knock-r{ transform:translateX(15px); } .fighter.knock-l{ transform:translateX(-15px); }
   .fighter.hop-r{ transform:translateX(25px) translateY(-13px); } .fighter.hop-l{ transform:translateX(-25px) translateY(-13px); }
   .fighter.down{ transform:rotate(-74deg) translateY(25px); opacity:.55; transition:transform .7s ease, opacity .7s ease; }
@@ -2142,6 +2162,7 @@
     el("figB").innerHTML = sprite(foe, false);
     el("figA").className = "fighter left"; el("figB").className = "fighter right";
     montarMascota("A", active.mascota); montarMascota("B", foe.mascota);
+    pose("A", "guardia"); pose("B", "guardia");
     montarArena(r.seed);
     show("scFight"); play();
   }
@@ -2166,6 +2187,48 @@
     d.className = cls; d.innerHTML = `<span class="tn">T${e.turn}</span>${txt}`;
     box.appendChild(d); box.scrollTop = box.scrollHeight;
   }
+  /* ═══════════ las poses ═══════════
+     Un angulo por articulacion, en grados. El sprite NO se redibuja: se le
+     cambia el `transform` a los cinco grupos que ya trae dentro.
+
+     Las poses son pocas y a proposito. Un juego de lucha de verdad tendria
+     veinte; aqui el combate ya esta decidido antes de animarse y lo unico que
+     hace falta es que se ENTIENDA quien pega, quien esquiva y quien encaja. */
+  const POSES = {
+    guardia: { pieI:  0, pieD:  0, brazoB:   0, brazoA:   0, cabeza:  0 },
+    paso1:   { pieI: 17, pieD:-13, brazoB:  16, brazoA:  -6, cabeza: -2 },
+    paso2:   { pieI:-15, pieD: 17, brazoB: -12, brazoA:   5, cabeza:  2 },
+    carga:   { pieI:-14, pieD: 10, brazoB: -22, brazoA: -30, cabeza: -5 },
+    golpe:   { pieI: 14, pieD:-16, brazoB:  26, brazoA:  46, cabeza:  6 },
+    esquiva: { pieI: -8, pieD: -8, brazoB: -18, brazoA: -14, cabeza:-10 },
+    encaja:  { pieI:  6, pieD:  9, brazoB:  22, brazoA:  16, cabeza: 12 },
+  };
+  function pose(side, nombre){
+    const p = POSES[nombre] || POSES.guardia;
+    const fig = el("fig"+side);
+    for(const [j, ang] of Object.entries(p)){
+      const g = fig.querySelector(".j-"+j);
+      if(g) g.style.transform = "rotate(" + ang + "deg)";
+    }
+  }
+  /* Las dos piernas alternan mientras el bruto se desplaza. Es lo unico que
+     convierte un deslizamiento en un paso: sin esto parece que patina. */
+  function caminar(side, veces, paso){
+    let i = 0;
+    const t = setInterval(() => { pose(side, i++ % 2 ? "paso2" : "paso1"); }, paso);
+    setTimeout(() => { clearInterval(t); }, veces * paso);
+  }
+
+  /* La distancia hasta el rival se MIDE, no se supone: la arena cambia de
+     ancho con la ventana, y los 56px fijos de antes se quedaban a medio camino
+     en pantalla grande y se pasaban de largo en movil. Se deja un hueco para
+     que no se solapen los cuerpos. */
+  function medirAlcance(){
+    const a = el("figA").getBoundingClientRect(), b = el("figB").getBoundingClientRect();
+    const hueco = Math.max(0, b.left - a.right);
+    el("arena").style.setProperty("--alcance", Math.round(hueco * .82) + "px");
+  }
+
   function floatDmg(side, text, kind){
     const s = document.createElement("div");
     s.className = "dmg" + (kind ? " "+kind : "");
@@ -2244,13 +2307,21 @@
   }
   async function play(){
     playing = true; abort = false;
+    /* Se mide AQUI y no al montar: al montar la pantalla todavia esta oculta,
+       `getBoundingClientRect()` devuelve ceros y el alcance salia 0px — el
+       bruto se quedaba clavado en su sitio. Un elemento con `display:none` no
+       tiene medidas, solo lo parece. */
+    medirAlcance();
     await wait(400);
     for(const e of fight.log){
       if(abort) return;
       el("turnOut").textContent = e.turn;
       const attSide = e.side === "A" ? "B" : "A";
       const attFig = el("fig"+attSide), defFig = el("fig"+e.side), attLeft = attSide === "A";
-      if(e.type === "ko"){ defFig.classList.add("down"); addLog(e); await wait(700); continue; }
+      if(e.type === "ko"){
+        pose(e.side, "encaja");
+        defFig.classList.add("down"); addLog(e); await wait(700); continue;
+      }
 
       /* Estos dos NO son un ataque, y ademas en `disarm` el `side` es el del
          ATACANTE, no el del que recibe. Metidos en el flujo de abajo el juego
@@ -2268,12 +2339,31 @@
         continue;
       }
 
-      attFig.classList.add(attLeft ? "lunge-r" : "lunge-l");
+      /* ── EL ACERCAMIENTO ──
+         El atacante CAMINA hasta el rival: el cuerpo se desplaza la distancia
+         medida y las piernas alternan mientras dura. Solo se acerca quien
+         golpea de verdad; la mascota muerde desde su sitio, que para eso tiene
+         cuatro patas y esta al lado.
+
+         El paso dura mas que el golpe a proposito: acercarse es lo que se ve,
+         y si va tan rapido como el impacto no se lee como un paso. */
+      const seAcerca = e.type !== "muerde" && e.type !== "mascota_falla";
+      if(seAcerca){
+        pose(attSide, "paso1");
+        caminar(attSide, 4, 78);
+        attFig.classList.add(attLeft ? "lunge-r" : "lunge-l");
+        await wait(300);
+        pose(attSide, "carga");
+        await wait(90);
+        pose(attSide, "golpe");
+      }
       await wait(170);
       if(e.type === "dodge" || e.type === "mascota_falla"){
         defFig.classList.add(attLeft ? "hop-r" : "hop-l");
+        pose(e.side, "esquiva");
         floatDmg(e.side, t("dodge_txt"), "miss"); addLog(e);
         await wait(230); defFig.classList.remove("hop-r","hop-l");
+        pose(e.side, "guardia");
       }else if(e.type === "cubre"){
         /* La mascota encaja el golpe ENTERO y al bruto le llega lo que no
            absorbe. Son dos numeros distintos y salen a alturas distintas: el
@@ -2291,14 +2381,25 @@
         defFig.classList.remove("flash","knock-r","knock-l");
       }else{
         defFig.classList.add("flash", attLeft ? "knock-r" : "knock-l");
+        pose(e.side, "encaja");
         floatDmg(e.side, "−"+e.dmg, e.type === "crit" ? "crit" : e.type === "muerde" ? "pet" : "");
         if(e.type === "muerde") apuntarMordisco(e.side, e.dmg);
         setHp(e.side, e.hp, e.hpMax); addLog(e);
         await wait(e.type === "crit" ? 330 : 230);
         defFig.classList.remove("flash","knock-r","knock-l");
+        pose(e.side, "guardia");
       }
-      attFig.classList.remove("lunge-r","lunge-l");
-      await wait(190);
+      /* ── LA VUELTA ──
+         Vuelve andando a su sitio. Sin esto el bruto reaparece de golpe donde
+         estaba, y el siguiente turno empieza con un salto que no ha hecho
+         nadie. */
+      if(seAcerca){
+        caminar(attSide, 3, 78);
+        attFig.classList.remove("lunge-r","lunge-l");
+        await wait(240);
+        pose(attSide, "guardia");
+      }
+      await wait(120);
     }
     finish();
   }
@@ -2362,6 +2463,11 @@
   el("btnSkip").onclick = () => {
     if(!playing) return;
     abort = true;
+    /* Sin esto los brutos se quedan congelados a media zancada, con una pierna
+       en el aire, mientras se lee el resultado. */
+    pose("A", "guardia"); pose("B", "guardia");
+    el("figA").classList.remove("lunge-r","lunge-l");
+    el("figB").classList.remove("lunge-r","lunge-l");
     fight.log.forEach(e => {
       addLog(e);
       if(e.type === "hit" || e.type === "crit" || e.type === "muerde") setHp(e.side, e.hp, e.hpMax);
@@ -2643,6 +2749,9 @@
     avisoPuerta(""); pintarWallets();
     show("scGate");
   };
+  /* La arena cambia de ancho al girar el movil o redimensionar; si no se
+     vuelve a medir, el bruto se queda corto o se pasa de largo. */
+  window.addEventListener("resize", () => { if(el("scFight").classList.contains("active")) medirAlcance(); });
   el("btnLudus").onclick = () => show("scRoster");
   el("btnRank").onclick = openRank;
   el("btnArm").onclick = () => openArmeria();

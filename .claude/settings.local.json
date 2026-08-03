@@ -171,7 +171,11 @@
       "Bash(deno check *)",
       "Bash(curl -sS -m 15 https://solbrute.io/app.html)",
       "Bash(node --experimental-strip-types prueba-hostil.ts)",
-      "Bash(curl -sS -m 15 https://solbrute.io/app.html?x=__TRACKED_VAR__)"
+      "Bash(curl -sS -m 15 https://solbrute.io/app.html?x=__TRACKED_VAR__)",
+      "Bash(curl -sS -m 20 https://solbrute.io/app.html?x=__TRACKED_VAR__ -o /tmp/vivo.html)",
+      "Bash(grep -i \"const\\\\|function\\\\|= \\\\`\")",
+      "Bash(grep -c 'P.pIzq\\\\|P.pDer\\\\|P.brazoAtras' __TRACKED_VAR__/brute-render.js)",
+      "Bash(grep -n \"const legs\\\\|const shieldArm\\\\|const bareTorso\\\\|const head\\\\|armaSVG\\\\|const brazo\\\\|return \\\\`<svg\" brute-render.js)"
     ]
   }
 }

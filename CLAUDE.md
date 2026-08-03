@@ -923,6 +923,49 @@ puesta. Comprar y equipar son funciones de Postgres con `for update`.
 
 ---
 
+## Los brutos caminan, y las articulaciones ya estaban ahí
+
+Hasta la v0.2 el combate era el sprite entero deslizándose 56px con
+`translateX`. Ahora **el atacante camina hasta el rival, le pega y vuelve**,
+moviendo las piernas y los brazos.
+
+No hizo falta comprar sprites, y esa es la parte importante. El SVG ya se
+ensamblaba por piezas con sus articulaciones dentro —`legs` sale de la cadera
+(`g.hipY`), `shieldArm` del hombro en (46,54), `weaponArm` de (62,52)—, así que
+animarlo fue **envolver cinco piezas en un `<g>` con su pivote**.
+
+Se miró comprar personajes animados. No sirven: los packs son «tres personajes,
+cada uno con su estilo», fijos. Comprarlos sería cambiar la forja y los diez
+enteros que caben en una cuenta de Solana por tres aspectos para todo el mundo.
+
+### El sprite NO se redibuja en cada cuadro
+
+`pose()` cambia el `transform` de los cinco grupos que ya están en el DOM.
+Redibujar serían 3,8 KB de SVG por fotograma y a 60 fps eso no va en un móvil.
+
+Y llevan `transform-box: view-box`, que hace que el pivote se lea en unidades
+del SVG. **Sin eso cada articulación gira sobre su propio centro y el bruto se
+desmonta.**
+
+### La distancia se MIDE, no se supone
+
+`medirAlcance()` lee el hueco real entre los dos y guarda el 82% en
+`--alcance`. Los 56px fijos de antes se quedaban a medio camino en pantalla
+grande y se pasaban de largo en móvil. Se vuelve a medir al redimensionar.
+
+**Y se mide al arrancar `play()`, no al montar la pantalla.** Al montar todavía
+está oculta, `getBoundingClientRect()` devuelve ceros y el alcance salía 0px —
+el bruto se quedaba clavado. Un elemento con `display:none` no tiene medidas,
+solo lo parece.
+
+### Lo que cuesta
+
+Medido: de 14,4 s a 15,0 s por combate a 1×. Casi nada, porque el flujo viejo
+tenía esperas muertas que se han ido. La mascota **no se acerca**: muerde desde
+su sitio, que para eso está al lado.
+
+---
+
 ## La arena pinta los eventos, o no existen
 
 `addLog` terminaba en un `else` que convertía **cualquier evento desconocido en

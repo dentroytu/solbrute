@@ -502,12 +502,14 @@
 
     /* ── piernas ── */
     const legs = `
+        <g class="j-pieI" style="transform-origin:50px ${g.hipY}px">
       <path d="M50 ${g.hipY} L34 100 L24 118" fill="none" stroke="${OL}" stroke-width="${g.legW}" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M50 ${g.hipY} L34 100 L24 118" fill="none" stroke="${sh}" stroke-width="${g.legW-4.5}" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M24 118 L15 120" stroke="${OL}" stroke-width="12" stroke-linecap="round"/>
+        </g><g class="j-pieD" style="transform-origin:56px ${g.hipY}px">
       <path d="M56 ${g.hipY} L72 98 L68 118" fill="none" stroke="${OL}" stroke-width="${g.legW+.5}" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M56 ${g.hipY} L72 98 L68 118" fill="none" stroke="${s}" stroke-width="${g.legW-4}" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M68 118 L78 120" stroke="${OL}" stroke-width="12" stroke-linecap="round"/>`;
+      <path d="M68 118 L78 120" stroke="${OL}" stroke-width="12" stroke-linecap="round"/></g>`;
 
     /* ── brazo de atrás ──
        El escudo solo aparece si el bruto lo lleva equipado. Antes lo llevaba
@@ -515,13 +517,14 @@
        el que de verdad afecta al combate. */
     const llevaEscudo = (b.arma === "escudo");
     const shieldArm = `
+        <g class="j-brazoB" style="transform-origin:46px 54px">
       <path d="M46 54 L34 62 L36 74" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M46 54 L34 62 L36 74" fill="none" stroke="${sh}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
       ${llevaEscudo ? `
         <circle cx="32" cy="64" r="15" fill="#4a3a22" stroke="${OL}" stroke-width="3"/>
         <circle cx="32" cy="64" r="15" fill="none" stroke="${m}" stroke-width="2.6"/>
         <circle cx="32" cy="64" r="9" fill="none" stroke="${m}" stroke-width="1.6" opacity=".7"/>
-        <circle cx="32" cy="64" r="4" fill="${m}" stroke="${OL}" stroke-width="1.6"/>` : ""}`;
+        <circle cx="32" cy="64" r="4" fill="${m}" stroke="${OL}" stroke-width="1.6"/>` : ""}</g>`;
 
     /* ── torso desnudo (piel) ── */
     const bust = g.chest ? `<path d="M65 56 Q71 60 65 64" fill="${s}" stroke="${OL}" stroke-width="2.2" stroke-linejoin="round"/>` : "";
@@ -595,10 +598,11 @@
       escudo: "",
     };
     const weaponArm = `
+        <g class="j-brazoA" style="transform-origin:62px 52px">
       <path d="M62 52 L78 40 L84 24" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M62 52 L78 40 L84 24" fill="none" stroke="${s}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
       ${tatBody}
-      ${filos[armaId] !== undefined ? filos[armaId] : filos.ninguna}`;
+      ${filos[armaId] !== undefined ? filos[armaId] : filos.ninguna}</g>`;
 
     /* ── hombrera ── */
     const pauldron = `
@@ -637,7 +641,7 @@
       });
     }
 
-    const headBlock = headSkin + faceProfile + tatFace + hairTop;
+    const headBlock = `<g class="j-cabeza" style="transform-origin:54px 38px">` + headSkin + faceProfile + tatFace + hairTop + `</g>`;
 
     /* El lienzo empieza en y = -34, no en 0, y por eso mide 164 de alto.
        Las armas se dibujan por encima de la cabeza —el mandoble llega a y=-14
