@@ -43,6 +43,7 @@ experiencia y sube de nivel.
 | `supabase-23-mascotas.sql` | Mascotas: bolsa del jugador y muerte permanente | Aplicado |
 | `supabase-24-limpiar-pruebas-mascotas.sql` | Borra las cuentas de las pruebas de la v0.2.0 | Repetible |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
+| `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
 | `DESPLIEGUE.md` | En qué orden se aplica todo lo de arriba | Guía |
@@ -1066,7 +1067,9 @@ dos lados.
       Function, y eso se despliega ANTES de tocar el DNS** — el navegador manda
       `location.host` dentro de lo firmado, así que sin esa línea el login
       responde «dominio no autorizado» a todo el mundo.
-- [ ] Subir `og-image.png` (1200×630) a la raíz
+- [x] ~~`og-image.png`~~ — hecha con el arte del propio juego. La genera
+      `og-image.html` con Chrome headless; se guarda el generador porque un
+      PNG suelto no se puede rehacer cuando cambie la paleta.
 - [x] ~~Mascotas (el vivarium)~~ — hechas. Ver «Mascotas». La duda que las
       frenaba —«dos contra dos alarga las peleas»— se midió: no se alarga.
 - [ ] **Torneos semanales** — anotado, sin construir. Lo que hay que decidir:

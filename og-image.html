@@ -1,0 +1,118 @@
+<!-- ══════════════════════════════════════════════════════════════════════
+     SolBrute · el generador de og-image.png
+     ══════════════════════════════════════════════════════════════════════
+     No es parte del juego. Es la fuente de la tarjeta que se ve al compartir
+     el enlace en Twitter, Telegram o Discord.
+
+     Se guarda porque un PNG suelto es un callejon sin salida: el dia que
+     cambie la paleta, el titular o el arte, nadie sabria como rehacerlo y la
+     tarjeta se quedaria mintiendo. Los brutos se dibujan con el
+     `brute-render.js` de verdad, asi que la tarjeta siempre ensena el arte
+     que el jugador va a ver.
+
+     Para rehacerla (1200x630 exactos, con las fuentes cargadas):
+
+       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+         --headless=new --disable-gpu --hide-scrollbars \
+         --force-device-scale-factor=1 --virtual-time-budget=8000 \
+         --window-size=1200,630 --screenshot=og-image.png \
+         "file://$PWD/og-image.html"
+
+     ── El numero que se me escapo, y que hay que recordar ────────────────
+     El sprite conserva la proporcion de su viewBox (110x164), asi que
+     `width:224px` NO mide 224 de alto: mide 334. Puse 252 de ancho, el
+     sprite crecio a 376, y las armas —que se dibujan por ENCIMA de la
+     cabeza— se subieron a tachar el subtitulo. Si tocas el tamano, calcula
+     el alto: ancho x 1.49, y comprueba que el borde de arriba queda por
+     debajo de y=236.
+     ══════════════════════════════════════════════════════════════════════ -->
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#0c0a07; --surface:#1c1710; --line:#3a2e1c;
+    --blood:#b3312c; --blood-bright:#e0453f;
+    --bronze:#c98a3a; --bronze-light:#e5ab5c; --torch:#ff9d42;
+    --sol-teal:#14f195; --muted:#9a8b73;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ width:1200px; height:630px; overflow:hidden; background:var(--bg-deep); }
+  .card{
+    position:relative; width:1200px; height:630px; background:var(--bg-deep);
+    font-family:'Space Grotesk',sans-serif; overflow:hidden;
+  }
+  /* El resplandor de antorcha sale del suelo de la arena, no del centro
+     geometrico: es lo que da sensacion de que la luz esta EN el sitio. */
+  .glow{
+    position:absolute; left:50%; top:74%; transform:translate(-50%,-50%);
+    width:1400px; height:760px; border-radius:50%;
+    background:radial-gradient(ellipse at center,
+      rgba(255,157,66,.20) 0%, rgba(201,138,58,.10) 38%, rgba(12,10,7,0) 68%);
+  }
+  .frame{
+    position:absolute; inset:22px; border:2px solid var(--line); border-radius:6px;
+    box-shadow:inset 0 0 0 1px rgba(201,138,58,.14);
+  }
+  .top{ position:absolute; left:0; right:0; top:74px; text-align:center; }
+  h1{
+    font-family:'Cinzel',serif; font-weight:900; font-size:96px; line-height:1;
+    letter-spacing:7px; color:var(--bronze-light);
+    text-shadow:0 3px 0 rgba(0,0,0,.55), 0 0 46px rgba(255,157,66,.28);
+  }
+  h1 span{ color:var(--blood-bright); }
+  .sub{
+    margin-top:22px; font-size:29px; font-weight:500; color:#d8cbb4; letter-spacing:.2px;
+  }
+  .sub b{ color:var(--bronze-light); font-weight:600; }
+  .sub i{ color:var(--blood-bright); font-style:normal; font-weight:600; }
+  /* El suelo: la misma elipse que la arena del juego. */
+  .floor{
+    position:absolute; left:50%; bottom:46px; transform:translateX(-50%);
+    width:940px; height:132px; border-radius:50%;
+    background:radial-gradient(ellipse at center,
+      rgba(201,138,58,.17) 0%, rgba(201,138,58,.06) 52%, rgba(12,10,7,0) 76%);
+    border-bottom:1px solid rgba(201,138,58,.10);
+  }
+  .fighters{
+    position:absolute; left:0; right:0; bottom:56px;
+    display:flex; align-items:flex-end; justify-content:center; gap:210px;
+  }
+  .fighters svg{ width:224px; height:auto; display:block;
+                 filter:drop-shadow(0 8px 16px rgba(0,0,0,.55)); }
+  .tag{
+    position:absolute; left:50%; bottom:84px; transform:translateX(-50%);
+    font-family:'Cinzel',serif; font-weight:700; font-size:22px; letter-spacing:6px;
+    color:var(--bronze); opacity:.9;
+  }
+  .foot{
+    position:absolute; left:0; right:0; bottom:36px; text-align:center;
+    font-size:19px; color:var(--muted); letter-spacing:.4px;
+  }
+  .foot em{ color:var(--sol-teal); font-style:normal; }
+</style>
+<div class="card">
+  <div class="glow"></div>
+  <div class="floor"></div>
+  <div class="fighters"><div id="A"></div><div id="B"></div></div>
+  <div class="tag">VS</div>
+  <div class="frame"></div>
+  <div class="top">
+    <h1>SOL<span>BRUTE</span></h1>
+    <div class="sub">Forge your <b>brute</b>. Fight <i>on-chain</i>. Rule the arena.</div>
+  </div>
+  <div class="foot">Turn-based auto-battles on <em>Solana</em> · solbrute.io</div>
+</div>
+<script src="brute-render.js"></script>
+<script>
+  const { spriteProfile } = window.BruteRender;
+  const izq = { look:{ sex:0, skin:2, hair:1, hairC:2, cloth:1, clothC:3, face:1, eyeC:2, tat:0, tatC:1 },
+                arma:"mandoble", mascota:"ninguna", hp:100, hpMax:100 };
+  /* Sin tatuaje facial: a 216px el `tat` se come los ojos y parece un fallo
+     de renderizado, no un tatuaje. La cara es el personaje. */
+  const der = { look:{ sex:1, skin:1, hair:0, hairC:3, cloth:2, clothC:0, face:2, eyeC:3, tat:0, tatC:0 },
+                arma:"lanza", mascota:"lobo", hp:100, hpMax:100 };
+  document.getElementById("A").innerHTML = spriteProfile(izq, true);
+  document.getElementById("B").innerHTML = spriteProfile(der, false);
+  document.title = "listo";
+</script>
