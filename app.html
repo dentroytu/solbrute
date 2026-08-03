@@ -2166,7 +2166,13 @@
      Sale de la semilla, asi que el rival ve el mismo sitio que tu y una pelea
      guardada se puede reproducir entera. Si no hay imagen subida todavia, se
      queda el degradado de siempre en vez de un hueco negro. */
-  const ARENA_BASE = "";   // ej: "https://xxxx.supabase.co/storage/v1/object/public/arenas/"
+  /* Las imagenes viven en Supabase Storage, NO en el repositorio: este es
+     publico y la licencia de craftpix prohibe redistribuir los ficheros. Aqui
+     la web los usa; el repositorio no los reparte.
+
+     Si esta constante se vacia, la arena vuelve al degradado de siempre en vez
+     de quedarse en negro. */
+  const ARENA_BASE = "https://ihrcvartuuyvftxdxztt.supabase.co/storage/v1/object/public/arenas/";
   function montarArena(seed){
     const a = arenaDe(seed);
     const caja = el("arena");
