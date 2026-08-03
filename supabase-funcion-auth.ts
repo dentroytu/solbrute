@@ -869,8 +869,15 @@ async function manejar(req: Request): Promise<Response> {
     }
 
     /* ── la mascota ──
-       Si `simulate()` dice que murio, se va PARA SIEMPRE: no vuelve a la bolsa
-       ni se cura entre combates. Lo decide el servidor por lo mismo que romper
+       CAER y MORIR son dos cosas distintas, y aqui solo importa la segunda.
+
+         · cayoA  se quedo sin vida en ESTE combate y dejo de ayudar. Pasa cada
+                  ~6 peleas, se ve en el registro y no cuesta nada. No se toca
+                  la base de datos: la mascota vuelve entera a la siguiente.
+         · murioA de esa caida no se levanto. Pasa cada ~19-32 peleas y se va
+                  PARA SIEMPRE: no vuelve a la bolsa ni se cura.
+
+       Las dos las decide `simulate()` con la semilla, por lo mismo que romper
        un arma — si lo decidiera el navegador, no se moriria ninguna. */
     let mascotaMuerta = "";
     if (fight.murioA) {

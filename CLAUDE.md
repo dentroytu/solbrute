@@ -41,7 +41,7 @@ experiencia y sube de nivel.
 | `supabase-20-cerrar-devnet.sql` | Cierra las pruebas de devnet, por lista blanca | Aplicado una vez |
 | `supabase-21-torneos.sql` | Torneos: cuadro, inscripción y reparto del bote | Aplicado |
 | `supabase-23-mascotas.sql` | Mascotas: bolsa del jugador y muerte permanente | Aplicado |
-| `prueba-mascotas.mjs` | Simula el combate con mascota. Se valida contra `simulate()` | Herramienta |
+| `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
 | `DESPLIEGUE.md` | En qué orden se aplica todo lo de arriba | Guía |
@@ -841,24 +841,61 @@ redesplegar.
 ## Mascotas (el vivarium)
 
 **Una mascota SÍ es una ventaja, a diferencia de las armas.** Quien lleva una
-gana ~57% contra quien no. Eso es deliberado, y lo que impide que sea comprar
-victorias son tres frenos:
+gana **+7 puntos** sobre quien no. Eso es deliberado, y lo que impide que sea
+comprar victorias son tres frenos:
 
 - **Estorba:** resta 2 de iniciativa. Sin eso la ventaja sube al 63%.
 - **Muere y no vuelve**, como el arma que se rompe.
 - **No da más monedas ni más XP.**
 
-Al 57%, quien no lleva gana 43 de cada 100: molesto, no excluyente. Ese era el
+A +7, quien no lleva gana 43 de cada 100: molesto, no excluyente. Ese era el
 límite buscado.
 
-| | contra quien no lleva | dura | precio |
-|---|---|---|---|
-| perro | 56,6% | ~18 combates | 80 |
-| lobo | 57,8% | ~17 | 70 |
-| oso | 57,1% | ~27 | 110 |
+| | ventaja | cae cada | muere cada | monedas/combate | precio |
+|---|---|---|---|---|---|
+| perro | +6,7 | 5,6 | 22 | 3,6 | 80 |
+| lobo | +7,0 | 5,7 | 20 | 3,6 | 70 |
+| oso | +7,0 | 5,8 | 30 | 3,6 | 110 |
 
-Las tres dentro de **1,2 puntos** y equilibradas entre ellas (45-54%). La
-duración del combate **no se mueve**: mediana 8, igual que sin mascota.
+Las tres dentro de **0,3 puntos**, equilibradas entre ellas (48,9-51,5%) y con
+el **mismo coste por combate** — que es el número que de verdad las compara,
+igual que con las armas. La duración no se mueve: mediana 8, p95 12.
+
+### Caer y morir son dos cosas distintas
+
+Es el par que ya tenían las armas y que allí funcionaba:
+
+```
+arma      perder   la sueltas el resto del combate
+          fragil   se rompe para siempre
+
+mascota   hp a 0   CAE: deja de ayudarte y sale de la arena     cada ~6 peleas
+          mortal   de esas caídas, la que no se levanta          cada ~20-30
+```
+
+Antes quedarse sin vida **era** morir. El sumidero funcionaba, pero el jugador
+veía desaparecer a su lobo cada veinte y pico peleas sin haberlo visto caer
+nunca: una sorpresa desagradable y, sobre todo, invisible. Ahora cae a menudo y
+a la vista, y solo a veces no se levanta.
+
+**El servidor solo mira `murioA`.** `cayoA` es informativo y no toca la base de
+datos. Llamar a `mascota_morir` con la caída borraría la mascota cada seis
+peleas y el vivarium sería un agujero, no un sumidero.
+
+Las dos las decide `simulate()` **con la semilla**, así que la muerte es
+reproducible como el resto del combate.
+
+### La mascota tiene turno propio
+
+Es un actor más en el orden del turno —hasta cuatro: los dos brutos y las dos
+mascotas— y va justo después de su dueño. Antes mordía al final del turno del
+bruto, sin paso propio, y el efecto era que **el jugador pagaba 80 monedas por
+un número que subía en algún sitio**. Actúa **6,4-6,9 veces por combate** entre
+mordiscos y fallos, y todo queda en el registro.
+
+Darle turno propio cambió el equilibrio entero: hubo que rehacer las seis
+constantes de las tres. Un mordisco dentro del turno ajeno y un mordisco propio
+no son la misma mecánica aunque la probabilidad sea la misma.
 
 ### Se midió ANTES de escribirlas, y menos mal
 
@@ -866,28 +903,51 @@ El diseño de partida —mordisco fuerte y mucha cobertura— daba **73-82% de
 victorias y +25% de duración**. Comprar mascota era comprar el combate. Se
 descartó por medirlo, no por opinar.
 
-**`prueba-mascotas.mjs` no reimplementa el combate:** copia el bucle de
-`simulate()` y comprueba que sin mascota da **idéntico al original en 5.000
-peleas** antes de medir nada. El primer intento sí lo reimplementó por libre y
-daba mediana 25 turnos cuando el juego tiene 8. **Si tocas estos números,
-vuelve a pasarlo.**
+**`prueba-mascotas.mjs` ya no copia el combate: llama a `simulate()` tal cual**
+y lo único que toca es la tabla `MASCOTAS` en memoria. Antes sí lo copiaba, con
+una validación que comprobaba que sin mascota diera idéntico al original — y
+esa validación **no sirvió de nada** el día que la mascota tuvo turno propio,
+porque sin mascota los dos seguían dando idéntico y la copia medía el juego
+viejo sin avisar. Una copia validada solo por el caso que no la ejercita es una
+copia sin validar. **Si tocas estos números, vuelve a pasarlo.**
 
 ### El modelo es el de las armas
 
 `players.mascotas` es la bolsa (copias libres), `brutes.mascota` la que lleva
-puesta. Comprar y equipar son funciones de Postgres con `for update`. La muerte
-la decide `simulate()` en el servidor y la ejecuta `mascota_morir`: si la
-decidiera el navegador, no se moriría ninguna.
+puesta. Comprar y equipar son funciones de Postgres con `for update`.
 
-### Pendiente, pedido por el dueño
+---
 
-- **El arte no convence.** Quiere registro anime, más trabajado. Lo que hay
-  ahora son tres siluetas planas que se distinguen a 44px pero no tienen el
-  nivel del resto del juego.
-- **La mascota debe atacar en su PROPIO turno**, visible en el registro del
-  combate. Hoy muerde en silencio dentro del turno del bruto, así que el
-  jugador no la ve hacer nada.
-- Y que su vida se vea durante la pelea, como la del bruto.
+## La arena pinta los eventos, o no existen
+
+`addLog` terminaba en un `else` que convertía **cualquier evento desconocido en
+un KO**. Y `disarm` ya lo era desde que existen las armas: aparecía como
+«*undefined* queda fuera de combate» —porque un desarme no tiene `def`— y
+además `setHp` recibía `undefined` y mandaba la barra de vida a `NaN%`.
+
+No era raro: **1.201 de cada 3.000 combates** con arma tienen un desarme.
+
+Dos cosas que conviene no repetir:
+
+- **Lo desconocido no se pinta.** Ahora cada tipo se nombra y el resto se
+  descarta. Un evento sin dibujar es un hueco; un evento dibujado como otra
+  cosa es una mentira.
+- **`side` no siempre es el que recibe.** En `disarm` es el del ATACANTE, así
+  que el código que deducía «el otro es quien pega» animaba al bruto
+  equivocado. En `cubre`, el que pega es `att` y `def` es el cubierto — se
+  escribió al revés la primera vez y el registro decía «el oso encaja el golpe
+  de Galba», que era su propio dueño.
+
+**Comprobación barata que encontró todo esto:** enumerar los tipos que produce
+`simulate()` en unos miles de combates y comprobar que `addLog` y `play()`
+nombran cada uno. Nueve tipos hoy. Si añades un evento al combate, pásala.
+
+La vida de la mascota se lleva **en el navegador** mientras se reproduce: el
+registro solo dice cuánto encajó. Es un contador de reproducción, no una fuente
+de verdad — quien decide sigue siendo `simulate()`.
+
+Y al caer **se redibuja el sprite sin ella**. Si solo cambiara una barra, el
+jugador seguiría viendo a su lobo peleando después de haberlo perdido.
 
 ---
 
@@ -1002,14 +1062,8 @@ dos lados.
 - [ ] Verificar el dato de `~400ms` de Solana en la landing antes de publicar
 - [ ] Sustituir `REPLACE_WITH_YOUR_DOMAIN` en los meta tags de `index.html`
 - [ ] Subir `og-image.png` (1200×630) a la raíz
-- [ ] **Mascotas (el vivarium)** — decidido el nombre y el enfoque, no el
-      contenido. Idea de partida: la mascota tiene **vida propia y muere en
-      combate**, y morir la pierde para siempre. Eso le da el mismo equilibrio
-      que a las armas: ayuda de verdad mientras vive, y llevarla es una decisión
-      que se repite. Candidatas: perro de guerra (muerde poco, frágil), lobo
-      (pega y esquiva, poca vida), oso (mucha vida, lento, encaja golpes por ti).
-      **Antes de construirlas hay que simular la duración del combate**: dos
-      contra dos alarga las peleas, y ya se vio lo rápido que eso se descontrola.
+- [x] ~~Mascotas (el vivarium)~~ — hechas. Ver «Mascotas». La duda que las
+      frenaba —«dos contra dos alarga las peleas»— se midió: no se alarga.
 - [ ] **Torneos semanales** — anotado, sin construir. Lo que hay que decidir:
       · ¿Te apuntas o entran todos? Apuntarse da menos gente y más intención.
       · Cuadro de 8 o 16, eliminatorias. El servidor puede resolverlas de golpe,

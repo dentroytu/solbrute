@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 7;   // 7: mascotas
+  const VERSION = 8;   // 7: mascotas · 8: turno propio, caer != morir
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -232,10 +232,10 @@
        hp      su vida; a cero muere y se pierde
        ini     lo que te resta de iniciativa por llevarla */
   const MASCOTAS = {
-    ninguna: { nombre:"ninguna", ataca:0,    dmg:0, cubre:0,    hp:0,  ini:0, precio:0 },
-    perro:   { nombre:"perro",   ataca:0.15, dmg:3, cubre:0.06, hp:22, ini:2, precio:80  },
-    lobo:    { nombre:"lobo",    ataca:0.25, dmg:4, cubre:0.03, hp:15, ini:2, precio:70  },
-    oso:     { nombre:"oso",     ataca:0.08, dmg:2, cubre:0.09, hp:34, ini:2, precio:110 },
+    ninguna: { nombre:"ninguna", ataca:0,    dmg:0, cubre:0,    hp:0,  mortal:0,    ini:0, precio:0 },
+    perro:   { nombre:"perro",   ataca:0.45, dmg:1, cubre:0.07, hp:14, mortal:0.25, ini:2, precio:80  },
+    lobo:    { nombre:"lobo",    ataca:0.32, dmg:3, cubre:0.03, hp:5,  mortal:0.30, ini:2, precio:70  },
+    oso:     { nombre:"oso",     ataca:0.30, dmg:1, cubre:0.09, hp:17, mortal:0.20, ini:2, precio:110 },
   };
   const MASCOTAS_REALES = ["perro","lobo","oso"];
   const mascota = id => MASCOTAS[id] || MASCOTAS.ninguna;
@@ -278,14 +278,42 @@
     const iniA = F.A.spd + F.A.w.ini - (F.A.m ? F.A.m.ini : 0);
     const iniB = F.B.spd + F.B.w.ini - (F.B.m ? F.B.m.ini : 0);
     const first = iniA > iniB ? "A" : iniB > iniA ? "B" : (rnd() < .5 ? "A" : "B");
-    const order = first === "A" ? ["A","B"] : ["B","A"];
+    /* ── Quien actua en un turno ──────────────────────────────────────────
+       Cuatro actores como mucho: los dos brutos y las dos mascotas, y cada uno
+       con su paso. La mascota va JUSTO DESPUES de su bruto, no dentro de el.
+
+       Antes mordia al final del turno de su dueno, sin paso propio, y el efecto
+       era que el jugador no la veia hacer nada: pagaba 80 monedas por un numero
+       que subia en algun sitio. Darle turno no es adorno — es lo unico que hace
+       que se note que esta ahi. */
+    const lados = first === "A" ? ["A","B"] : ["B","A"];
+    const order = [];
+    for(const k of lados){ order.push({ k, bicho:false }); order.push({ k, bicho:true }); }
     const log = []; let turn = 0;
 
     while(F.A.hp > 0 && F.B.hp > 0 && turn < TOPE_TURNOS){
       turn++;
-      for(const k of order){
+      for(const paso of order){
         if(F.A.hp <= 0 || F.B.hp <= 0) break;
-        const att = F[k], def = F[k === "A" ? "B" : "A"];
+        const att = F[paso.k], def = F[paso.k === "A" ? "B" : "A"];
+
+        /* ── el turno de la mascota ──
+           Solo si sigue en pie. Una mascota caida no vuelve a actuar en este
+           combate, aunque no haya muerto del todo. */
+        if(paso.bicho){
+          if(!att.m || !att.m.viva) continue;
+          if(rnd() >= att.m.ataca){
+            log.push({ turn, type:"mascota_falla", side:def.side,
+                       def:def.name, mascota:att.m.nombre });
+            continue;
+          }
+          const d = att.m.dmg;
+          def.hp = Math.max(0, def.hp - d);
+          log.push({ turn, type:"muerde", side:def.side, def:def.name, dmg:d,
+                     hp:def.hp, hpMax:def.hpMax, mascota:att.m.nombre });
+          if(def.hp <= 0) log.push({ turn, type:"ko", def:def.name, side:def.side });
+          continue;
+        }
 
         /* ¿se le va el arma de las manos? El resto del combate, a puño limpio.
            Es lo que impide que llevar arma sea una ventaja segura. */
@@ -321,7 +349,15 @@
                        dmg, mascota:def.m.nombre });
             if(def.m.hp <= 0){
               def.m.viva = false;
-              log.push({ turn, type:"muere_mascota", side:def.side, mascota:def.m.nombre });
+              /* CAE: deja de ayudar el resto del combate, y se anota para que
+                 se vea en la arena. Una mascota que desaparece en silencio es
+                 una mascota que el jugador cree que no hace nada.
+
+                 Si ademas muere del todo se decide AQUI, con la semilla, para
+                 que sea reproducible como el resto del combate. */
+              def.m.muerta = rnd() < def.m.mortal;
+              log.push({ turn, type:"cae_mascota", side:def.side,
+                         mascota:def.m.nombre, definitiva:def.m.muerta });
             }
             continue;
           }
@@ -331,17 +367,6 @@
           if(def.hp <= 0){ log.push({ turn, type:"ko", def:def.name, side:def.side }); break; }
         }
 
-        /* ── el mordisco ──
-           Después de los golpes del bruto y solo si el rival sigue en pie. No
-           puede rematar por su cuenta antes de que el bruto haya atacado: la
-           mascota acompaña, no sustituye. */
-        if(att.m && att.m.viva && def.hp > 0 && rnd() < att.m.ataca){
-          const d = att.m.dmg;
-          def.hp = Math.max(0, def.hp - d);
-          log.push({ turn, type:"muerde", side:def.side, def:def.name, dmg:d,
-                     hp:def.hp, hpMax:def.hpMax, mascota:att.m.nombre });
-          if(def.hp <= 0) log.push({ turn, type:"ko", def:def.name, side:def.side });
-        }
       }
     }
 
@@ -354,7 +379,10 @@
     return { log, winner, timeout, turns: turn, seed,
              armaA: a.arma || "ninguna", perdioA: F.A.sinArma,
              mascotaA: a.mascota || "ninguna",
-             murioA: !!(F.A.m && !F.A.m.viva) };
+             /* `cayoA` es informativo; `murioA` es lo que hace que el servidor
+                se la quite. Caer pasa a menudo, morir no. */
+             cayoA: !!(F.A.m && !F.A.m.viva),
+             murioA: !!(F.A.m && F.A.m.muerta) };
   }
 
   /* ¿Se rompe el arma tras este combate? Lo decide el servidor, nunca el

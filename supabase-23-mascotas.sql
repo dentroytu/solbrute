@@ -21,12 +21,30 @@
 --   · MUERE, y no vuelve. Como el arma que se rompe.
 --   · Y NO da más monedas ni más XP.
 --
--- Los números salen de `prueba-mascotas.mjs`, que copia el bucle de
--- `simulate()` y comprueba que sin mascota da idéntico antes de medir nada.
+-- ── CAER y MORIR son dos cosas, y solo la segunda toca la base de datos ───
+--
+-- Es el mismo par que ya tenían las armas y que allí funcionaba: `perder` te
+-- deja sin arma el resto del combate, `fragil` la rompe para siempre.
+--
+--     cae    se queda sin vida, deja de ayudarte y sale de la arena.
+--            Cada ~6 peleas. No cuesta nada: vuelve entera a la siguiente.
+--     muere  de esa caída no se levanta. Cada ~20-30 peleas. Se va del mundo.
+--
+-- Antes quedarse sin vida era morir, y la mascota desaparecía sin aviso cada
+-- veinte y pico peleas — una sorpresa desagradable y, sobre todo, invisible.
+-- Ahora cae a menudo y a la vista, y solo a veces no se levanta.
+--
+--   perro  ~57%  cae/5.6  muere/22   3.6 mon/combate   el equilibrado
+--   lobo   ~57%  cae/5.7  muere/20   3.6 mon/combate   pega fuerte, no aguanta
+--   oso    ~57%  cae/5.8  muere/30   3.6 mon/combate   encaja por ti, dura
+--
+-- Los números salen de `prueba-mascotas.mjs`, que ya NO copia el combate:
+-- llama a `simulate()` tal cual y solo muta la tabla en memoria.
 --
 -- ── La muerte NO la decide el navegador ───────────────────────────────────
 -- Igual que romper un arma: si la decidiera el cliente, no se moriría ninguna.
--- La calcula `simulate()` en el servidor y la ejecuta `mascota_morir`.
+-- La calcula `simulate()` con la semilla y la ejecuta `mascota_morir`, que se
+-- llama SOLO con `murioA` — nunca con `cayoA`, que es cosa de un combate.
 -- ══════════════════════════════════════════════════════════════════════════
 
 alter table players add column if not exists mascotas jsonb  not null default '{}'::jsonb;
@@ -144,6 +162,10 @@ $$;
 -- NO vuelve a la bolsa. Es lo que hace que llevarla sea una decisión que se
 -- repite y no una compra única — y lo que la convierte en un sumidero, que es
 -- la mitad de lo que le falta a esta economía.
+--
+-- OJO: esto es la muerte DEFINITIVA, no la caída. La Edge Function la llama
+-- con `murioA`, no con `cayoA`. Llamarla con la caída borraría la mascota cada
+-- seis peleas y el vivarium sería un agujero, no un sumidero.
 --
 -- La decide `simulate()` en el servidor. Si la decidiera el navegador, no se
 -- moriría ninguna.
