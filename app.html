@@ -230,6 +230,20 @@
   .tor-elige button small{ display:block; font-size:10px; color:var(--muted); }
 
   .salas{ display:flex; gap:8px; flex-wrap:wrap; }
+  .salas-fija{ position:sticky; top:0; z-index:40; background:rgba(12,10,7,.94);
+               backdrop-filter:blur(6px); border-bottom:1px solid var(--line); }
+  .salas-inner{ max-width:1080px; margin:0 auto; padding:8px 24px;
+                display:flex; gap:6px; flex-wrap:wrap; }
+  .sala{ background:none; border:1px solid transparent; border-radius:5px;
+         color:var(--muted); font-family:inherit; font-size:12.5px; cursor:pointer;
+         padding:6px 11px; white-space:nowrap; transition:color .15s, border-color .15s; }
+  .sala:hover{ color:var(--bronze-light); border-color:var(--line); }
+  /* La sala en la que estas se marca. Un menu que no dice donde estas obliga a
+     mirar el titulo de la pagina para saberlo. */
+  .sala.aqui{ color:var(--bronze-light); border-color:var(--bronze);
+              background:rgba(201,138,58,.10); }
+  @media(max-width:620px){ .salas-inner{ padding:6px 12px; gap:4px; }
+                           .sala{ font-size:11.5px; padding:5px 8px; } }
 
   /* ── historial ──
      Una fila por movimiento. El signo manda en el color: rojo sangre lo que
@@ -487,6 +501,24 @@
   </div>
 </nav>
 
+<!-- ── Las salas, siempre a la vista ──
+     Antes vivian DENTRO de la pantalla del ludus, asi que para ir de la
+     armeria al vivarium habia que volver atras primero. Un menu que solo
+     existe en una pantalla no es un menu, es un indice.
+
+     Va fuera de <main> para que no la mueva ninguna pantalla, y `show()` la
+     esconde en la puerta: sin sesion no hay ludus al que ir. -->
+<nav class="salas-fija" id="salas" hidden>
+  <div class="salas-inner">
+    <button class="sala" id="btnLudus" data-sc="scRoster"   data-i18n="ludus_open">🛡️ Ludus</button>
+    <button class="sala" id="btnArm"   data-sc="scArmeria"  data-i18n="arm_open">⚔️ Armoury</button>
+    <button class="sala" id="btnViv"   data-sc="scVivarium" data-i18n="viv_open">🐺 Vivarium</button>
+    <button class="sala" id="btnRank"  data-sc="scRank"     data-i18n="rank_open">🏆 Leaderboard</button>
+    <button class="sala" id="btnTor"   data-sc="scTorneos"  data-i18n="tor_open">🏛️ Tournaments</button>
+    <button class="sala" id="btnHist"  data-sc="scHist"     data-i18n="hist_open">📜 History</button>
+  </div>
+</nav>
+
 <main>
   <!-- 1 · GATE -->
   <section class="screen active" id="scGate">
@@ -533,13 +565,6 @@
   <section class="screen" id="scRoster">
     <div class="page-head">
       <div><h1 data-i18n="ludus_h1">Your ludus</h1><p id="slotInfo"></p></div>
-      <nav class="salas">
-        <button class="btn btn-ghost btn-sm" id="btnArm" data-i18n="arm_open">⚔️ Armoury</button>
-        <button class="btn btn-ghost btn-sm" id="btnViv" data-i18n="viv_open">🐺 Vivarium</button>
-        <button class="btn btn-ghost btn-sm" id="btnRank" data-i18n="rank_open">🏆 Leaderboard</button>
-        <button class="btn btn-ghost btn-sm" id="btnTor" data-i18n="tor_open">🏛️ Tournaments</button>
-        <button class="btn btn-ghost btn-sm" id="btnHist" data-i18n="hist_open">📜 History</button>
-      </nav>
     </div>
     <div class="roster" id="roster"></div>
 
@@ -552,7 +577,6 @@
   </section>
 
   <section class="screen" id="scArmeria">
-    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
     <div class="page-head">
       <div><h1 data-i18n="arm_h1">The armoury</h1><p id="armSub"></p></div>
     </div>
@@ -562,7 +586,6 @@
   </section>
 
   <section class="screen" id="scVivarium">
-    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
     <div class="page-head">
       <div><h1 data-i18n="viv_h1">The vivarium</h1><p id="vivSub"></p></div>
     </div>
@@ -572,7 +595,6 @@
   </section>
 
   <section class="screen" id="scRank">
-    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
     <div class="page-head">
       <div><h1 data-i18n="rank_h1">Leaderboard</h1><p data-i18n="rank_sub">The strongest brutes in the game.</p></div>
       <button class="btn btn-ghost btn-sm" id="btnRankRefresh" data-i18n="rank_refresh">↻ Refresh</button>
@@ -582,7 +604,6 @@
   </section>
 
   <section class="screen" id="scTorneos">
-    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
     <div class="page-head">
       <div><h1 data-i18n="tor_h1">Tournaments</h1><p data-i18n="tor_sub">Single elimination. The whole bracket is resolved at once, and every fight can be replayed.</p></div>
     </div>
@@ -600,7 +621,6 @@
   </section>
 
   <section class="screen" id="scHist">
-    <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
     <div class="page-head">
       <div><h1 data-i18n="hist_h1">History</h1><p data-i18n="hist_sub">Everything you've bought and withdrawn.</p></div>
       <button class="btn btn-ghost btn-sm" id="btnHistRefresh" data-i18n="rank_refresh">↻ Refresh</button>
@@ -877,6 +897,7 @@
       g_fail:"No he podido conectar con la wallet.",
       g_notinstalled:"Esa wallet no está en este navegador.",
       arm_sin_brutos:"Todavía no tienes ningún bruto. Fórjalo primero en la forja.",
+      ludus_open:"🛡️ Ludus",
       arm_h1:"La armería", arm_open:"⚔️ Armería",
       arm_note:"Un arma te da algo de ventaja, pero poca: con la mejor del juego ganas 6 de cada 100 más que a puño limpio. Y cuanto mejor es, antes se rompe — así que la ventaja se alquila, no se compra.",
       arm_para:"Armería de", arm_puesta:"Equipada", arm_equipar:"Equipar", arm_comprar:"Comprar",
@@ -994,6 +1015,7 @@
       g_fail:"Couldn't reach the wallet.",
       g_notinstalled:"That wallet isn't in this browser.",
       arm_sin_brutos:"You have no brutes yet. Forge one first.",
+      ludus_open:"🛡️ Ludus",
       arm_h1:"The armoury", arm_open:"⚔️ Armoury",
       arm_note:"A weapon gives you an edge, but a small one: the best in the game wins 6 more fights out of 100 than bare fists. And the better it is, the sooner it breaks — the edge is rented, not bought.",
       arm_para:"Armoury for", arm_puesta:"Equipped", arm_equipar:"Equip", arm_comprar:"Buy",
@@ -1111,6 +1133,7 @@
       g_fail:"Impossible de joindre le wallet.",
       g_notinstalled:"Ce wallet n'est pas dans ce navigateur.",
       arm_sin_brutos:"Tu n'as encore aucune brute. Forge-en une d'abord.",
+      ludus_open:"🛡️ Ludus",
       arm_h1:"L'armurerie", arm_open:"⚔️ Armurerie",
       arm_note:"Une arme te donne un avantage, mais petit : la meilleure du jeu gagne 6 combats sur 100 de plus que les poings nus. Et meilleure elle est, plus vite elle casse — l\u2019avantage se loue, il ne s\u2019achete pas.",
       arm_para:"Armurerie de", arm_puesta:"Équipée", arm_equipar:"Équiper", arm_comprar:"Acheter",
@@ -2502,6 +2525,12 @@
     const inApp = id !== "scGate";
     el("walletChip").classList.toggle("show", inApp);
     el("balBox").classList.toggle("show", inApp);
+    el("salas").hidden = !inApp;
+    /* El cuadro de un torneo concreto cuenta como Torneos. La arena y la forja
+       no son salas: en esas no se marca ninguna, y es correcto. */
+    const aqui = id === "scTorneo" ? "scTorneos" : id;
+    document.querySelectorAll("#salas .sala").forEach(b =>
+      b.classList.toggle("aqui", b.dataset.sc === aqui));
     if(id === "scRoster") renderRoster();
     window.scrollTo({ top:0, behavior:"instant" });
   }
@@ -2614,6 +2643,7 @@
     avisoPuerta(""); pintarWallets();
     show("scGate");
   };
+  el("btnLudus").onclick = () => show("scRoster");
   el("btnRank").onclick = openRank;
   el("btnArm").onclick = () => openArmeria();
   el("btnViv").onclick = () => openVivarium();
