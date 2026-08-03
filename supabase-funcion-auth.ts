@@ -664,6 +664,20 @@ async function manejar(req: Request): Promise<Response> {
 
      El precio sale de `brute-combate.js`, aquí en el servidor. Nunca del
      navegador: mandarlo sería dejar que el cliente ponga el suyo. */
+  /* ── El candado de nivel ──
+     La funcion de Postgres lanza `nivel_insuficiente:N`. Se traduce aqui a un
+     403 con el numero, para que la pantalla pueda decir "te falta el nivel 7"
+     y no un "no puedes" mudo.
+
+     El nivel minimo lo pone el SERVIDOR desde su copia de `brute-combate.js`,
+     igual que el precio. Si viniera del navegador, mandar `p_nivel_min: 1`
+     abriria el mandoble a un bruto de nivel 1 — que es exactamente el ataque
+     que esto tiene que parar. */
+  const faltaNivel = (m: string) => {
+    const g = /nivel_insuficiente:(\d+)/.exec(m);
+    return g ? Number(g[1]) : 0;
+  };
+
   if (accion === "comprar") {
     const id = String(cuerpo.arma || "");
     const w = C.ARMAS[id];
@@ -676,10 +690,13 @@ async function manejar(req: Request): Promise<Response> {
     try {
       r = await db("/rpc/arma_comprar", {
         method: "POST",
-        body: JSON.stringify({ p_owner: dueno, p_arma: id, p_precio: w.precio }),
+        body: JSON.stringify({ p_owner: dueno, p_arma: id, p_precio: w.precio,
+                               p_nivel_min: w.nivel || 1 }),
       });
     } catch (e) {
       const m = (e as Error).message;
+      const nv = faltaNivel(m);
+      if (nv) return responder({ error: "te falta nivel", clase: "nivel", nivel: nv }, 403);
       if (m.includes("sin_saldo")) {
         return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
       }
@@ -716,13 +733,16 @@ async function manejar(req: Request): Promise<Response> {
     try {
       r = await db("/rpc/arma_equipar", {
         method: "POST",
-        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_arma: quiere }),
+        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_arma: quiere,
+                               p_nivel_min: (C.ARMAS[quiere] || {}).nivel || 1 }),
       });
     } catch (e) {
       const m = (e as Error).message;
       /* La comprobación de propiedad vive DENTRO de la función (busca por id y
          por dueño a la vez), así que aquí solo se traduce el error. Mandar el
          id de un bruto ajeno no lo toca. */
+      const nv = faltaNivel(m);
+      if (nv) return responder({ error: "te falta nivel", clase: "nivel", nivel: nv }, 403);
       if (m.includes("no es tuyo")) return responder({ error: "ese bruto no es tuyo" }, 403);
       if (m.includes("no tienes ninguna")) {
         return responder({ error: "no tienes esa arma", clase: "sin_arma" }, 403);
@@ -1043,10 +1063,13 @@ async function manejar(req: Request): Promise<Response> {
     try {
       r = await db("/rpc/mascota_comprar", {
         method: "POST",
-        body: JSON.stringify({ p_owner: dueno, p_id: id, p_precio: m.precio }),
+        body: JSON.stringify({ p_owner: dueno, p_id: id, p_precio: m.precio,
+                               p_nivel_min: m.nivel || 1 }),
       });
     } catch (e) {
       const t = (e as Error).message;
+      const nv = faltaNivel(t);
+      if (nv) return responder({ error: "te falta nivel", clase: "nivel", nivel: nv }, 403);
       if (t.includes("sin_saldo")) return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
       if (t.includes("jugador desconocido")) return responder({ error: "sesion no valida" }, 401);
       throw e;
@@ -1064,10 +1087,13 @@ async function manejar(req: Request): Promise<Response> {
     try {
       r = await db("/rpc/mascota_equipar", {
         method: "POST",
-        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_id: quiere }),
+        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_id: quiere,
+                               p_nivel_min: (C.MASCOTAS[quiere] || {}).nivel || 1 }),
       });
     } catch (e) {
       const t = (e as Error).message;
+      const nv = faltaNivel(t);
+      if (nv) return responder({ error: "te falta nivel", clase: "nivel", nivel: nv }, 403);
       if (t.includes("no es tuyo"))   return responder({ error: "ese bruto no es tuyo" }, 403);
       if (t.includes("no tienes ningun")) return responder({ error: "no tienes esa mascota", clase: "sin_mascota" }, 403);
       if (t.includes("desconocida"))  return responder({ error: "esa mascota no existe" }, 400);
