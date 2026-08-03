@@ -61,12 +61,32 @@ delete from auth_nonces where address not in (select address from _conservar);
 
 -- ── Cuadrar la reserva ────────────────────────────────────────────────────
 -- Las monedas de las cuentas borradas dejan de existir, asi que la reserva
--- vuelve a ser todo lo que no esta en manos de nadie. Sin esto, la invariante
---     en circulacion + reserva restante = reserva total
--- se queda corta y el panel diria que faltan monedas.
+-- vuelve a ser todo lo que no esta en manos de nadie.
+--
+-- ── OJO: la invariante NO es la que parece ────────────────────────────────
+-- La primera version de este fichero escribia
+--     reserva_restante = reserva_total - en_circulacion
+-- y esta MAL, porque no ve el fondo de garantia. Cuando un jugador gasta,
+-- `emision_reciclar` manda el 90% al pool y el 10% AL FONDO. Ese 10% sale del
+-- circuito de recompensas y no puede volver a la reserva.
+--
+-- La invariante de verdad es:
+--
+--     en circulacion + reserva restante + (fondo - 5.000.000) = 40.000.000
+--
+-- Comprobado en vivo antes de escribir esto: 494 + 39.999.499 + 7 = 40.000.000,
+-- y esos 7 son el 10% del lobo de 70 monedas que se compro el dueño.
+--
+-- Con la formula ingenua la reserva habria acabado 7 monedas por encima: siete
+-- monedas creadas de la nada. Es calderilla, pero es EXACTAMENTE el error que
+-- dejo la reserva en 40.000.117 en su dia — devolver a la reserva algo que no
+-- salio de ella. Ver «La invariante, y el fallo que la rompio el primer dia».
+--
+-- El fondo NO se toca: esos 7 son reales y tienen que seguir ahi.
 update economia
    set reserva_restante = reserva_total
-                          - (select coalesce(sum(coins),0) from players),
+                          - (select coalesce(sum(coins),0) from players)
+                          - (reserva_seguridad - 5000000),
        actualizado = now()
  where id = 1;
 
@@ -78,10 +98,14 @@ select 'DESPUES' as momento,
        (select count(*) from players) as jugadores,      -- debe dar 4
        (select count(*) from brutes)  as brutos,         -- debe dar 4
        (select coalesce(sum(coins),0) from players) as en_circulacion,
-       (select reserva_restante from economia where id=1) as reserva,
-       -- Tiene que dar EXACTAMENTE 40.000.000.
+       (select reserva_restante  from economia where id=1) as reserva,
+       (select reserva_seguridad from economia where id=1) as fondo,
+       -- Tiene que dar EXACTAMENTE 40.000.000. Si da 39.999.99x o 40.000.00x,
+       -- el fondo se ha quedado fuera de la cuenta: no lo redondees, miralo.
        (select coalesce(sum(coins),0) from players)
-         + (select reserva_restante from economia where id=1) as suma_debe_dar_40M;
+         + (select reserva_restante from economia where id=1)
+         + (select reserva_seguridad - 5000000 from economia where id=1)
+         as suma_debe_dar_40M;
 
 -- Y que no quede ningun bruto de prueba: cero filas.
 select id, name, owner from brutes
