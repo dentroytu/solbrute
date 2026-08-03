@@ -346,6 +346,26 @@
   .arm-bloq{ display:block; font-size:11.5px; color:var(--blood-bright);
              opacity:.9; margin-bottom:7px; }
   .arm-bloq b{ font-family:'Cinzel',serif; }
+  /* ── LAS ARENAS ──
+     El escenario lo decide la semilla (`arenaDe` en brute-render.js). La
+     imagen se pone en una capa DEBAJO de todo y el velo encima de ella, para
+     que los luchadores, los numeros de dano y el cartel final queden por
+     delante de los dos.
+
+     Mientras no haya imagen, `--fondo` no existe y se ve el degradado de
+     siempre: la arena no se rompe por no tener las imagenes subidas. */
+  .arena-fondo{ position:absolute; inset:0; z-index:0; pointer-events:none;
+                background-image:var(--fondo, none);
+                background-size:cover; background-repeat:no-repeat;
+                background-position:center var(--foco, 66%); }
+  .arena-nom{ color:var(--bronze); margin-right:6px; }
+  .arena-velo{ position:absolute; inset:0; z-index:1; pointer-events:none;
+               background:linear-gradient(180deg,
+                 rgba(12,10,7,calc(var(--velo,.34) + .18)) 0%,
+                 rgba(12,10,7,calc(var(--velo,.34) - .08)) 34%,
+                 rgba(12,10,7,var(--velo,.34)) 74%,
+                 rgba(12,10,7,calc(var(--velo,.34) + .30)) 100%); }
+  .arena > .fighter, .arena > .banner, .arena > .dmg{ z-index:2; }
   .arena{ position:relative; height:250px; border-radius:16px; overflow:hidden; border:1px solid var(--line); margin-bottom:15px; background:radial-gradient(ellipse 60% 42% at 50% 96%, rgba(255,157,66,.2), transparent 70%), linear-gradient(180deg,#1a1409,#241b0d 62%,#2e2412); }
   .arena::after{ content:""; position:absolute; left:50%; bottom:26px; transform:translateX(-50%); width:74%; height:60px; border-radius:50%; border:2px solid rgba(239,231,216,.08); }
   .fighter{ position:absolute; bottom:22px; width:116px; transition:transform .16s cubic-bezier(.3,1.4,.5,1); }
@@ -619,6 +639,8 @@
       </div>
     </div>
     <div class="arena" id="arena">
+      <div class="arena-fondo" id="arenaFondo"></div>
+      <div class="arena-velo"></div>
       <div class="fighter left" id="figA"></div>
       <div class="fighter right" id="figB"></div>
       <div class="banner" id="banner">
@@ -632,7 +654,7 @@
       <button class="btn btn-ghost btn-sm" id="btnSkip" data-i18n="skip">Skip to result</button>
       <div class="spd" id="spd"><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button></div>
     </div>
-    <div class="seedline"><span data-i18n="seed">seed</span> <b id="seedOut">—</b> · <span data-i18n="seed_note">the same number replays the same fight</span></div>
+    <div class="seedline"><span data-i18n="seed">seed</span> <b id="seedOut">—</b> · <b id="arenaNom" class="arena-nom"></b> <span data-i18n="seed_note">the same number replays the same fight</span></div>
     <div class="log" id="log"></div>
   </section>
 
@@ -733,7 +755,8 @@
   const { OL, SKIN, HAIRC, CLOTHC, INK, EYEC, HAIRS, CLOTHS, FACES, TATS, HD, OUT, IN, PB,
           shade, torsoPath, HEADP,
           drawBody, drawTat, drawCloth, drawFace, drawHair,
-          bust, spriteProfile, iconoArma, iconoMascota } = window.BruteRender;
+          bust, spriteProfile, iconoArma, iconoMascota,
+          arenaDe } = window.BruteRender;
 
   /* Reglas del combate y del equilibrio — ver brute-combate.js.
      El servidor carga ESE MISMO fichero, así que aquí no hay ninguna fórmula:
@@ -868,6 +891,7 @@
       reroll_none:"Ya has cambiado la lista hoy. Vuelve mañana para otra tanda de rivales.",
       rank_empty:"Todavía no hay ningún bruto forjado. El primero serás tú.",
       o:{
+        arenas: { cueva:"La cueva", yermo:"El yermo", osario:"El osario", bosque:"El bosque", hielo:"El hielo", averno:"El averno" },
         bichos: { ninguna:"Ninguna", perro:"Perro de guerra", lobo:"Lobo", oso:"Oso" },
         viv_como: { ninguna:"Peleas solo. Vas a tu velocidad y no tienes nada que perder.", perro:"Muerde a menudo, pero flojo, y se pone delante. El equilibrado. Cae cada ~2 peleas y muere cada ~21.", lobo:"El que pega más fuerte. Aguanta menos y muere cada ~20 peleas.", oso:"Muerde flojo: está para comerse los golpes por ti. El que más dura, muere cada ~32 peleas." },
           armas:{ ninguna:"Puños", daga:"Daga", mandoble:"Mandoble", lanza:"Lanza", escudo:"Escudo" },
@@ -984,6 +1008,7 @@
       reroll_none:"You already swapped the list today. Come back tomorrow for a fresh set.",
       rank_empty:"No brute has been forged yet. You could be the first.",
       o:{
+        arenas: { cueva:"The cave", yermo:"The badlands", osario:"The ossuary", bosque:"The grove", hielo:"The ice", averno:"The inferno" },
         bichos: { ninguna:"None", perro:"War dog", lobo:"Wolf", oso:"Bear" },
         viv_como: { ninguna:"You fight alone. Full speed, nothing to lose.", perro:"Bites often but softly, and steps in front. The balanced one. Goes down every ~2 fights, dies every ~21.", lobo:"Hits hardest. Takes less punishment and dies every ~20 fights.", oso:"Bites softly: it is there to take the hits for you. The longest-lived, dies every ~32 fights." },
           armas:{ ninguna:"Bare fists", daga:"Dagger", mandoble:"Greatsword", lanza:"Spear", escudo:"Shield" },
@@ -1100,6 +1125,7 @@
       reroll_none:"Tu as déjà changé la liste aujourd'hui. Reviens demain pour d'autres adversaires.",
       rank_empty:"Aucune brute forgée pour l'instant. Tu peux être le premier.",
       o:{
+        arenas: { cueva:"La grotte", yermo:"Les terres arides", osario:"L\u2019ossuaire", bosque:"Le bois", hielo:"La glace", averno:"L\u2019averne" },
         bichos: { ninguna:"Aucun", perro:"Chien de guerre", lobo:"Loup", oso:"Ours" },
         viv_como: { ninguna:"Tu combats seul. Pleine vitesse, rien à perdre.", perro:"Mord souvent mais faiblement, et se met devant. L\u2019equilibre. Tombe tous les ~2 combats, meurt tous les ~21.", lobo:"Celui qui frappe le plus fort. Encaisse moins et meurt tous les ~20 combats.", oso:"Mord faiblement : il est là pour encaisser à ta place. Le plus durable, meurt tous les ~32 combats." },
           armas:{ ninguna:"Poings nus", daga:"Dague", mandoble:"Espadon", lanza:"Lance", escudo:"Bouclier" },
@@ -2093,6 +2119,7 @@
     el("figB").innerHTML = sprite(foe, false);
     el("figA").className = "fighter left"; el("figB").className = "fighter right";
     montarMascota("A", active.mascota); montarMascota("B", foe.mascota);
+    montarArena(r.seed);
     show("scFight"); play();
   }
   function addLog(e){
@@ -2135,6 +2162,21 @@
      viene en cada evento: el registro solo dice cuanto encajo. Es un contador
      de reproduccion, no una fuente de verdad — quien decide es `simulate()`. */
   let petHp = { A:0, B:0 }, petMax = { A:0, B:0 }, petDmg = { A:0, B:0 };
+  /* ── El escenario ──
+     Sale de la semilla, asi que el rival ve el mismo sitio que tu y una pelea
+     guardada se puede reproducir entera. Si no hay imagen subida todavia, se
+     queda el degradado de siempre en vez de un hueco negro. */
+  const ARENA_BASE = "";   // ej: "https://xxxx.supabase.co/storage/v1/object/public/arenas/"
+  function montarArena(seed){
+    const a = arenaDe(seed);
+    const caja = el("arena");
+    caja.style.setProperty("--velo", a.velo);
+    caja.style.setProperty("--foco", a.foco);
+    caja.style.setProperty("--fondo", ARENA_BASE ? `url("${ARENA_BASE}${a.id}.jpg")` : "none");
+    el("arenaFondo").style.filter = a.filtro || "";
+    el("arenaNom").textContent = O("arenas")[a.id] || "";
+  }
+
   function montarMascota(side, id){
     const fila = el("pet"+side);
     fila.classList.remove("down");

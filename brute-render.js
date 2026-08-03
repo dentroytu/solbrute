@@ -665,11 +665,60 @@
       </g></svg>`;
   }
 
+
+  /* ═══════════ las arenas ═══════════
+     El escenario de un combate NO lo elige nadie: lo decide la SEMILLA, igual
+     que el resto de la pelea. La misma semilla reproduce la misma pelea en el
+     mismo sitio, y el rival ve exactamente lo que ves tu — sin tener que
+     decidir "de quien" es la arena.
+
+     ── Por que vive AQUI y no en brute-combate.js ─────────────────────────
+     Aquel fichero esta versionado y el servidor rechaza clientes cuya VERSION
+     no coincida. Si la arena viviera alli, anadir un escenario obligaria a
+     redesplegar la Edge Function y tumbaria las peleas mientras tanto — todo
+     por un fondo. La arena no toca el combate, asi que no puede romperlo.
+
+     ── El velo NO es decoracion ──────────────────────────────────────────
+     La arena mide 250px y los brutos ocupan de y=55 a y=228: solo hay 55px de
+     aire sobre sus cabezas y el fondo esta DETRAS de la pelea todo el rato.
+     Sin oscurecerlo, un critico o una mascota cayendo se pierden encima del
+     dibujo. Cada arena lleva su `velo` calibrado: las claras (el prado, el
+     desierto) piden mas que la cueva, que ya es negra.
+
+     Si anades una arena y no se lee bien la pelea, lo que hay que subir es el
+     velo, no bajar el brillo de la imagen: la imagen es de otro y puede
+     cambiar; el velo es tuyo. */
+  const ARENAS = [
+    { id:"cueva",  velo:.30, foco:"66%", filtro:"" },
+    { id:"yermo",  velo:.48, foco:"64%", filtro:"" },
+    { id:"osario", velo:.28, foco:"70%", filtro:"" },
+    { id:"bosque", velo:.34, foco:"70%", filtro:"saturate(.75)" },
+    { id:"hielo",  velo:.40, foco:"70%", filtro:"saturate(.8) sepia(.12)" },
+    /* El averno viene rojo chillon, y el bruto de rojo sangre desaparecia
+       encima. Desaturado se vuelve granate oscuro y vuelve a leerse. Se
+       corrige AQUI y no en el fichero: la imagen es de otro y puede cambiar;
+       el filtro es nuestro. */
+    { id:"averno", velo:.50, foco:"70%", filtro:"saturate(.45) hue-rotate(-12deg)" },
+  ];
+  const ARENA_IDS = ARENAS.map(a => a.id);
+
+  /* Deriva el escenario de la semilla. Se mezcla antes de repartir porque el
+     servidor sortea semillas seguidas, y sin mezclar una tarde de peleas se
+     veria como un carrusel en orden en vez de como sitios distintos. */
+  function arenaDe(seed){
+    let x = (seed >>> 0) ^ 0x9e3779b9;
+    x = Math.imul(x ^ (x >>> 16), 0x85ebca6b);
+    x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35);
+    x = (x ^ (x >>> 16)) >>> 0;
+    return ARENAS[x % ARENAS.length];
+  }
+
   /* ═══════════ lo que ven index.html y app.html ═══════════ */
   window.BruteRender = {
     OL, SKIN, HAIRC, CLOTHC, INK, EYEC, HAIRS, CLOTHS, FACES, TATS, HD, OUT, IN, PB,
     shade, torsoPath, HEADP,
     drawBody, drawTat, drawCloth, drawFace, drawHair,
-    bust, spriteProfile, iconoArma, iconoMascota, dibujoMascota
+    bust, spriteProfile, iconoArma, iconoMascota, dibujoMascota,
+    ARENAS, ARENA_IDS, arenaDe
   };
 })();

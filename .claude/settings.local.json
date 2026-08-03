@@ -170,7 +170,8 @@
       "Bash(echo \"── el navegador NO puede mandar el nivel: ¿se lee de `cuerpo` en algún sitio? ──\")",
       "Bash(deno check *)",
       "Bash(curl -sS -m 15 https://solbrute.io/app.html)",
-      "Bash(node --experimental-strip-types prueba-hostil.ts)"
+      "Bash(node --experimental-strip-types prueba-hostil.ts)",
+      "Bash(curl -sS -m 15 https://solbrute.io/app.html?x=__TRACKED_VAR__)"
     ]
   }
 }
