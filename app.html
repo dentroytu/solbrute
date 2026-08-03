@@ -2195,13 +2195,21 @@
      veinte; aqui el combate ya esta decidido antes de animarse y lo unico que
      hace falta es que se ENTIENDA quien pega, quien esquiva y quien encaja. */
   const POSES = {
-    guardia: { pieI:  0, pieD:  0, brazoB:   0, brazoA:   0, cabeza:  0 },
-    paso1:   { pieI: 17, pieD:-13, brazoB:  16, brazoA:  -6, cabeza: -2 },
-    paso2:   { pieI:-15, pieD: 17, brazoB: -12, brazoA:   5, cabeza:  2 },
-    carga:   { pieI:-14, pieD: 10, brazoB: -22, brazoA: -30, cabeza: -5 },
-    golpe:   { pieI: 14, pieD:-16, brazoB:  26, brazoA:  46, cabeza:  6 },
-    esquiva: { pieI: -8, pieD: -8, brazoB: -18, brazoA: -14, cabeza:-10 },
-    encaja:  { pieI:  6, pieD:  9, brazoB:  22, brazoA:  16, cabeza: 12 },
+    /* Nueve articulaciones. Las que mas se notan no son los brazos: son el
+       TORSO —inclina todo el cuerpo de golpe— y el CODO, que es lo que hace
+       que un golpe se arme antes de salir en vez de aparecer estirado. */
+    guardia: { pieI:  0, pieD:  0, torso:  0, brazoB:   0, codoB:   0, cabeza:  0, brazoA:   0, codoA:   0, melena:  0 },
+    paso1:   { pieI: 18, pieD:-14, torso: -3, brazoB:  17, codoB: -10, cabeza: -2, brazoA:  -7, codoA:   6, melena: -8 },
+    paso2:   { pieI:-16, pieD: 18, torso:  3, brazoB: -13, codoB:   8, cabeza:  2, brazoA:   6, codoA:  -5, melena:  9 },
+    /* Cargar es echarse ATRAS: el peso va a la pierna de atras, el torso se
+       abre y el codo se cierra. Es el gesto que anuncia el golpe. */
+    carga:   { pieI:-18, pieD: 13, torso: -9, brazoB: -26, codoB:  16, cabeza: -4, brazoA: -17, codoA: -13, melena:-16 },
+    /* Y golpear es lo contrario, entero y de una vez. */
+    golpe:   { pieI: 16, pieD:-18, torso: 15, brazoB:  30, codoB: -16, cabeza:  8, brazoA:  50, codoA:  26, melena: 22 },
+    esquiva: { pieI:-11, pieD: -7, torso:-17, brazoB: -22, codoB:  20, cabeza:-14, brazoA:  -9, codoA:  16, melena:-20 },
+    /* Encajar es salir despedido hacia ATRAS. Estaba con el torso a +14, o sea
+       inclinandose hacia el que le pega — leyendo igual que un golpe. */
+    encaja:  { pieI:  9, pieD:-11, torso:-15, brazoB: -28, codoB:  24, cabeza:-19, brazoA: -14, codoA:  18, melena:-24 },
   };
   function pose(side, nombre){
     const p = POSES[nombre] || POSES.guardia;

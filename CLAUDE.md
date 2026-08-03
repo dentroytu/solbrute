@@ -938,6 +938,37 @@ Se miró comprar personajes animados. No sirven: los packs son «tres personajes
 cada uno con su estilo», fijos. Comprarlos sería cambiar la forja y los diez
 enteros que caben en una cuenta de Solana por tres aspectos para todo el mundo.
 
+### Nueve articulaciones, y las dos que más se notan no son las obvias
+
+```
+melena · pieI · pieD · torso · brazoB · codoB · cabeza · brazoA · codoA
+```
+
+Las que cambian el movimiento no son los brazos. Son:
+
+- **El torso**, porque inclina TODO el cuerpo de golpe. Va sobre la cadera y
+  dentro llevan los dos brazos y la cabeza, así que sus giros se componen —
+  que es como funciona un cuerpo.
+- **El codo**, porque es lo que hace que un golpe *se arme* antes de salir en
+  vez de aparecer ya estirado. El codo ya existía como vértice del trazo
+  (`M62 52 L78 40 L84 24`): solo hubo que partirlo en dos.
+
+El arma va DENTRO del antebrazo, así que gira con él sin tocar nada más.
+
+### Dos poses que estaban al revés, y solo se vieron mirándolas
+
+**La carga tapaba la cara.** En reposo el arma ya apunta arriba, así que girar
+el brazo hacia atrás la lleva sobre la cabeza. Es correcto como gesto y falso
+como dibujo: se lee como un fallo de renderizado. Se arma menos y se compensa
+con el torso y la pierna de atrás.
+
+**Encajar inclinaba hacia delante.** Tenía el torso a +14, igual que golpear —
+o sea que el que recibía el golpe se echaba *encima* del que pegaba. Encajar es
+salir despedido hacia atrás.
+
+Ninguna de las dos da error, ni sale en ninguna prueba. Solo se ven poniendo
+las siete poses en fila y mirándolas.
+
 ### El sprite NO se redibuja en cada cuadro
 
 `pose()` cambia el `transform` de los cinco grupos que ya están en el DOM.

@@ -482,6 +482,7 @@
 
     /* ── pelo por detrás de la cabeza ── */
     let hairBack = "";
+      const melenaAbre = `<g class="j-melena" style="transform-origin:46px 20px">`, melenaCierra = `</g>`;
     if(hairKind === "melena") hairBack = `
       <path d="M44 14 Q30 20 32 44 Q34 58 42 62 Q38 44 42 30 Q44 20 50 14 Z" fill="${hDk}" stroke="${OL}" stroke-width="2.4" stroke-linejoin="round"/>`;
     if(hairKind === "suelta") hairBack = `
@@ -518,9 +519,13 @@
     const llevaEscudo = (b.arma === "escudo");
     const shieldArm = `
         <g class="j-brazoB" style="transform-origin:46px 54px">
-      <path d="M46 54 L34 62 L36 74" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M46 54 L34 62 L36 74" fill="none" stroke="${sh}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
-      ${llevaEscudo ? `
+      <path d="M46 54 L34 62" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M46 54 L34 62" fill="none" stroke="${sh}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
+        <g class="j-codoB" style="transform-origin:34px 62px">
+        <path d="M34 62 L36 74" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M34 62 L36 74" fill="none" stroke="${sh}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+        ${llevaEscudo ? `
         <circle cx="32" cy="64" r="15" fill="#4a3a22" stroke="${OL}" stroke-width="3"/>
         <circle cx="32" cy="64" r="15" fill="none" stroke="${m}" stroke-width="2.6"/>
         <circle cx="32" cy="64" r="9" fill="none" stroke="${m}" stroke-width="1.6" opacity=".7"/>
@@ -599,10 +604,13 @@
     };
     const weaponArm = `
         <g class="j-brazoA" style="transform-origin:62px 52px">
-      <path d="M62 52 L78 40 L84 24" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M62 52 L78 40 L84 24" fill="none" stroke="${s}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M62 52 L78 40" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M62 52 L78 40" fill="none" stroke="${s}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
+        <g class="j-codoA" style="transform-origin:78px 40px">
+        <path d="M78 40 L84 24" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M78 40 L84 24" fill="none" stroke="${s}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
       ${tatBody}
-      ${filos[armaId] !== undefined ? filos[armaId] : filos.ninguna}</g>`;
+      ${filos[armaId] !== undefined ? filos[armaId] : filos.ninguna}</g></g>`;
 
     /* ── hombrera ── */
     const pauldron = `
@@ -658,14 +666,16 @@
     return `<svg viewBox="0 -34 110 164" aria-hidden="true">
       <g transform="${facingRight ? "" : "translate(110,0) scale(-1,1)"}">
         <ellipse cx="52" cy="126" rx="30" ry="4.5" fill="#000" opacity=".45"/>
-        ${cloakBack}${hairBack}
+        ${cloakBack}${hairBack ? melenaAbre + hairBack + melenaCierra : ""}
         ${legs}
         ${mascotaEnArena(b.mascota)}
+        <g class="j-torso" style="transform-origin:53px ${g.hipY}px">
         ${shieldArm}
         ${bareTorso}${clothFront}
         ${pauldron}
         ${headBlock}
         ${weaponArm}
+        </g>
       </g></svg>`;
   }
 
