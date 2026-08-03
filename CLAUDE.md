@@ -42,6 +42,8 @@ experiencia y sube de nivel.
 | `supabase-21-torneos.sql` | Torneos: cuadro, inscripción y reparto del bote | Aplicado |
 | `supabase-23-mascotas.sql` | Mascotas: bolsa del jugador y muerte permanente | Aplicado |
 | `supabase-24-limpiar-pruebas-mascotas.sql` | Borra las cuentas de las pruebas de la v0.2.0 | Repetible |
+| `supabase-25-niveles.sql` | Armas y mascotas con nivel minimo. **Antes de la Edge Function** | Repetible |
+| `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain** | Desplegada |
