@@ -41,6 +41,7 @@ experiencia y sube de nivel.
 | `supabase-20-cerrar-devnet.sql` | Cierra las pruebas de devnet, por lista blanca | Aplicado una vez |
 | `supabase-21-torneos.sql` | Torneos: cuadro, inscripción y reparto del bote | Aplicado |
 | `supabase-23-mascotas.sql` | Mascotas: bolsa del jugador y muerte permanente | Aplicado |
+| `supabase-24-limpiar-pruebas-mascotas.sql` | Borra las cuentas de las pruebas de la v0.2.0 | Repetible |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
