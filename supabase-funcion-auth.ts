@@ -678,6 +678,20 @@ async function manejar(req: Request): Promise<Response> {
     return g ? Number(g[1]) : 0;
   };
 
+  /* ── Los errores de Postgres se reconocen por MARCA, no por frase ──
+     Las cuatro funciones del paso 25 lanzan `sin_copias:daga`, `no_es_tuyo`,
+     `sin_jugador`, `desconocido:x`… en vez de espanol corriente.
+
+     Costo un 500 aprenderlo. El paso 14 lanzaba «no tienes NINGUNA % libre»
+     —arma es femenino— y al reescribir la funcion en el paso 25 se copio la
+     redaccion de las mascotas, «no tienes NINGUN %». Aqui se seguia buscando
+     «ninguna», no encajaba, y equipar algo que no tienes devolvia «algo ha
+     fallado en el servidor» en vez de «no tienes esa arma».
+
+     Una letra, y ninguna de las dos partes estaba mal por si sola. Dos
+     programas no pueden entenderse en un idioma con generos y sinonimos. */
+  const marca = (m: string, id: string) => m.includes(id);
+
   if (accion === "comprar") {
     const id = String(cuerpo.arma || "");
     const w = C.ARMAS[id];
@@ -697,10 +711,15 @@ async function manejar(req: Request): Promise<Response> {
       const m = (e as Error).message;
       const nv = faltaNivel(m);
       if (nv) return responder({ error: "te falta nivel", clase: "nivel", nivel: nv }, 403);
-      if (m.includes("sin_saldo")) {
+      if (marca(m, "sin_saldo")) {
         return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
       }
-      if (m.includes("jugador desconocido")) return responder({ error: "sesion no valida" }, 401);
+      /* Los dos de abajo no deberian poder pasar —la ruta ya filtra el arma y
+         el precio lo pone el servidor— pero "no se puede alcanzar" es una
+         suposicion que caduca, y un 500 no le dice nada a nadie. */
+      if (marca(m, "desconocido"))     return responder({ error: "esa arma no existe" }, 400);
+      if (marca(m, "precio_invalido")) return responder({ error: "precio no valido" }, 400);
+      if (marca(m, "sin_jugador")) return responder({ error: "sesion no valida" }, 401);
       throw e;
     }
 
@@ -743,12 +762,12 @@ async function manejar(req: Request): Promise<Response> {
          id de un bruto ajeno no lo toca. */
       const nv = faltaNivel(m);
       if (nv) return responder({ error: "te falta nivel", clase: "nivel", nivel: nv }, 403);
-      if (m.includes("no es tuyo")) return responder({ error: "ese bruto no es tuyo" }, 403);
-      if (m.includes("no tienes ninguna")) {
+      if (marca(m, "no_es_tuyo")) return responder({ error: "ese bruto no es tuyo" }, 403);
+      if (marca(m, "sin_copias")) {
         return responder({ error: "no tienes esa arma", clase: "sin_arma" }, 403);
       }
-      if (m.includes("arma desconocida")) return responder({ error: "esa arma no existe" }, 400);
-      if (m.includes("jugador desconocido")) return responder({ error: "sesion no valida" }, 401);
+      if (marca(m, "desconocido")) return responder({ error: "esa arma no existe" }, 400);
+      if (marca(m, "sin_jugador")) return responder({ error: "sesion no valida" }, 401);
       throw e;
     }
     return responder({ arma: r.arma, bolsa: r.bolsa });
@@ -1070,8 +1089,10 @@ async function manejar(req: Request): Promise<Response> {
       const t = (e as Error).message;
       const nv = faltaNivel(t);
       if (nv) return responder({ error: "te falta nivel", clase: "nivel", nivel: nv }, 403);
-      if (t.includes("sin_saldo")) return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
-      if (t.includes("jugador desconocido")) return responder({ error: "sesion no valida" }, 401);
+      if (marca(t, "sin_saldo")) return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
+      if (marca(t, "sin_jugador")) return responder({ error: "sesion no valida" }, 401);
+      if (marca(t, "desconocido"))     return responder({ error: "esa mascota no existe" }, 400);
+      if (marca(t, "precio_invalido")) return responder({ error: "precio no valido" }, 400);
       throw e;
     }
     reciclar(m.precio);
@@ -1094,10 +1115,10 @@ async function manejar(req: Request): Promise<Response> {
       const t = (e as Error).message;
       const nv = faltaNivel(t);
       if (nv) return responder({ error: "te falta nivel", clase: "nivel", nivel: nv }, 403);
-      if (t.includes("no es tuyo"))   return responder({ error: "ese bruto no es tuyo" }, 403);
-      if (t.includes("no tienes ningun")) return responder({ error: "no tienes esa mascota", clase: "sin_mascota" }, 403);
-      if (t.includes("desconocida"))  return responder({ error: "esa mascota no existe" }, 400);
-      if (t.includes("jugador desconocido")) return responder({ error: "sesion no valida" }, 401);
+      if (marca(t, "no_es_tuyo"))   return responder({ error: "ese bruto no es tuyo" }, 403);
+      if (marca(t, "sin_copias")) return responder({ error: "no tienes esa mascota", clase: "sin_mascota" }, 403);
+      if (marca(t, "desconocido"))  return responder({ error: "esa mascota no existe" }, 400);
+      if (marca(t, "sin_jugador")) return responder({ error: "sesion no valida" }, 401);
       throw e;
     }
     return responder({ mascota: r.mascota, bolsa: r.bolsa });

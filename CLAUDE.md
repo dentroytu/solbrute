@@ -1231,7 +1231,7 @@ Y editar el cliente es MENOS peligroso que llamar a la API directamente con
 (`prueba-banco.ts`) y la ataca con un cliente reescrito: subirse el nivel,
 regalarse peleas, monedas y armas, inventarse la lista de rivales, elegir la
 semilla, saltarse el precio de la plaza, tocar el bruto de otro y colarse en
-las rutas de admin. **18 ataques, ninguno funciona.**
+las rutas de admin. **21 ataques, ninguno funciona.**
 
 **Si añades una ruta a la función, añádele aquí su ataque antes de
 desplegarla.** Esto aguanta porque se prueba, no porque el código sea bonito.
@@ -1271,6 +1271,28 @@ y descuadró la comprobación de los libros porque no veía lo retirado.
 
 Para mirar esas tablas hay que ir por la ruta con sesión de la Edge Function,
 que es la única que las ve. **Un `[]` no es una prueba de que esté vacío.**
+
+### El servidor y Postgres no se hablan en español
+
+Las funciones del paso 25 lanzan **marcas**, no frases: `sin_copias:daga`,
+`no_es_tuyo`, `nivel_insuficiente:7`, `sin_saldo`, `desconocido:x`.
+
+Costó un 500 aprenderlo. El paso 14 lanzaba «no tienes **ninguna** % libre»
+—arma es femenino— y al reescribir la función en el paso 25 se copió la
+redacción de las mascotas, «no tienes **ningun** %». La Edge Function seguía
+buscando «ninguna», no encajaba, y equipar algo que no tienes devolvía «algo ha
+fallado en el servidor» en vez de «no tienes esa arma».
+
+**Una letra, y ninguna de las dos partes estaba mal por sí sola.** Dos programas
+no pueden entenderse en un idioma que tiene géneros, tildes y sinónimos.
+
+El ataque 14 del banco lo comprueba solo: lee las marcas **del propio `.sql`**,
+función por función, hace fallar cada una contra la ruta que puede lanzarla, y
+exige que ninguna acabe en un 500. Ya encontró dos más — `desconocido` y
+`precio_invalido` no estaban traducidas en las rutas de compra. No se podían
+alcanzar hoy, pero *«no se puede alcanzar»* es una suposición que caduca.
+
+**Si añades un `raise exception` al SQL, esta prueba te obliga a traducirlo.**
 
 ### Una prueba puede pasar por el motivo equivocado
 

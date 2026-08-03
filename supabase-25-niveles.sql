@@ -1,6 +1,23 @@
 -- ══════════════════════════════════════════════════════════════════════════
 -- SolBrute · paso 25 — armas y mascotas con nivel minimo
 -- ══════════════════════════════════════════════════════════════════════════
+--
+-- ── Las excepciones son MARCAS, no frases ────────────────────────────────
+--     desconocido:<id>          nivel_insuficiente:<n>     sin_copias:<id>
+--     sin_saldo                 sin_jugador                no_es_tuyo
+--     precio_invalido
+--
+-- La Edge Function las reconoce por estas cadenas. Antes eran espanol
+-- corriente y costo un 500: el paso 14 lanzaba «no tienes NINGUNA % libre»
+-- —arma es femenino— y al reescribir la funcion aqui se copio la redaccion de
+-- las mascotas, «no tienes NINGUN %». La funcion seguia buscando «ninguna», no
+-- encajaba, y equipar algo que no tienes devolvia «algo ha fallado en el
+-- servidor» en vez de «no tienes esa arma».
+--
+-- Una letra. Y ninguna de las dos partes estaba mal por si sola.
+--
+-- Por eso ya no se habla por prosa: dos programas no pueden entenderse en un
+-- idioma que tiene generos, tildes y sinonimos.
 -- Supabase → SQL Editor → New query → pegar → Run. Repetible.
 --
 -- A partir de aqui cada arma y cada mascota pide un nivel:
@@ -57,9 +74,9 @@ declare
   v_mejor int;
 begin
   if p_arma not in ('daga','escudo','lanza','mandoble') then
-    raise exception 'arma desconocida: %', p_arma;
+    raise exception 'desconocido:%', p_arma;
   end if;
-  if p_precio is null or p_precio < 0 then raise exception 'precio no valido'; end if;
+  if p_precio is null or p_precio < 0 then raise exception 'precio_invalido'; end if;
   if p_nivel_min is null or p_nivel_min < 1 then p_nivel_min := 1; end if;
 
   -- Tu MEJOR bruto. Comprar algo que ninguno puede usar es tirar monedas.
@@ -70,7 +87,7 @@ begin
 
   select coins, coalesce(armas, '{}'::jsonb) into v_saldo, v_bolsa
     from players where address = p_owner for update;
-  if not found then raise exception 'jugador desconocido'; end if;
+  if not found then raise exception 'sin_jugador'; end if;
   if v_saldo < p_precio then raise exception 'sin_saldo'; end if;
 
   v_bolsa := jsonb_set(v_bolsa, array[p_arma],
@@ -95,18 +112,18 @@ declare
   v_nivel  int;
 begin
   if p_arma not in ('ninguna','daga','escudo','lanza','mandoble') then
-    raise exception 'arma desconocida: %', p_arma;
+    raise exception 'desconocido:%', p_arma;
   end if;
   if p_nivel_min is null or p_nivel_min < 1 then p_nivel_min := 1; end if;
 
   select coalesce(armas, '{}'::jsonb) into v_bolsa
     from players where address = p_owner for update;
-  if not found then raise exception 'jugador desconocido'; end if;
+  if not found then raise exception 'sin_jugador'; end if;
 
   -- Por id Y por dueño: mandar el id de un bruto ajeno no lo toca.
   select arma, level into v_actual, v_nivel from brutes
    where id = p_bruto and owner = p_owner for update;
-  if not found then raise exception 'ese bruto no es tuyo'; end if;
+  if not found then raise exception 'no_es_tuyo'; end if;
 
   -- El candado. Soltar el arma ('ninguna') no pide nivel: nadie puede quedar
   -- atrapado con algo puesto por no llegar al nivel de quitarselo.
@@ -120,7 +137,7 @@ begin
 
   if p_arma <> 'ninguna' then
     v_n := coalesce((v_bolsa ->> p_arma)::int, 0);
-    if v_n < 1 then raise exception 'no tienes ningun % libre', p_arma; end if;
+    if v_n < 1 then raise exception 'sin_copias:%', p_arma; end if;
     v_bolsa := case when v_n = 1 then v_bolsa - p_arma
                     else jsonb_set(v_bolsa, array[p_arma], to_jsonb(v_n - 1)) end;
   end if;
@@ -153,9 +170,9 @@ declare
   v_mejor int;
 begin
   if p_id not in ('perro','lobo','oso') then
-    raise exception 'mascota desconocida: %', p_id;
+    raise exception 'desconocido:%', p_id;
   end if;
-  if p_precio is null or p_precio < 0 then raise exception 'precio no valido'; end if;
+  if p_precio is null or p_precio < 0 then raise exception 'precio_invalido'; end if;
   if p_nivel_min is null or p_nivel_min < 1 then p_nivel_min := 1; end if;
 
   select coalesce(max(level), 0) into v_mejor from brutes where owner = p_owner;
@@ -165,7 +182,7 @@ begin
 
   select coins, coalesce(mascotas, '{}'::jsonb) into v_saldo, v_bolsa
     from players where address = p_owner for update;
-  if not found then raise exception 'jugador desconocido'; end if;
+  if not found then raise exception 'sin_jugador'; end if;
   if v_saldo < p_precio then raise exception 'sin_saldo'; end if;
 
   v_bolsa := jsonb_set(v_bolsa, array[p_id],
@@ -190,17 +207,17 @@ declare
   v_nivel  int;
 begin
   if p_id not in ('ninguna','perro','lobo','oso') then
-    raise exception 'mascota desconocida: %', p_id;
+    raise exception 'desconocido:%', p_id;
   end if;
   if p_nivel_min is null or p_nivel_min < 1 then p_nivel_min := 1; end if;
 
   select coalesce(mascotas, '{}'::jsonb) into v_bolsa
     from players where address = p_owner for update;
-  if not found then raise exception 'jugador desconocido'; end if;
+  if not found then raise exception 'sin_jugador'; end if;
 
   select mascota, level into v_actual, v_nivel from brutes
    where id = p_bruto and owner = p_owner for update;
-  if not found then raise exception 'ese bruto no es tuyo'; end if;
+  if not found then raise exception 'no_es_tuyo'; end if;
 
   if p_id <> 'ninguna' and v_nivel < p_nivel_min then
     raise exception 'nivel_insuficiente:%', p_nivel_min;
@@ -212,7 +229,7 @@ begin
 
   if p_id <> 'ninguna' then
     v_n := coalesce((v_bolsa ->> p_id)::int, 0);
-    if v_n < 1 then raise exception 'no tienes ningun % libre', p_id; end if;
+    if v_n < 1 then raise exception 'sin_copias:%', p_id; end if;
     v_bolsa := case when v_n = 1 then v_bolsa - p_id
                     else jsonb_set(v_bolsa, array[p_id], to_jsonb(v_n - 1)) end;
   end if;

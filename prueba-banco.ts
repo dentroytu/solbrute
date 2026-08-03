@@ -57,6 +57,11 @@ const casa = (fila: any, f: [string, string, string][]) => f.every(([k, op, v]) 
   if (u.pathname.startsWith("/rest/v1/rpc/")) {
     const fn = u.pathname.replace("/rest/v1/rpc/", "");
     RPC.push({ fn, args: cuerpo });
+    /* Poniendo __RPC_LANZA se hace que la funcion falle con esa marca, para
+       comprobar que la Edge Function la entiende y no la deja caer en un 500
+       mudo. Ver el ataque 14. */
+    const lanzar = (globalThis as any).__RPC_LANZA;
+    if (lanzar) return resp({ message: String(lanzar) }, 400);
     if (fn === "arma_comprar" || fn === "mascota_comprar")
       return resp({ bolsa: {}, balance: 0 });
     if (fn === "arma_equipar")    return resp({ arma: cuerpo?.p_arma, bolsa: {}, cambio: true });

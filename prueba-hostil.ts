@@ -221,6 +221,46 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
          !!colado && colado.args.p_nivel_min!==C.ARMAS.mandoble.nivel,
          `mande 1, la funcion paso ${colado?.args.p_nivel_min}`);
 
+  // 14 · que el servidor ENTIENDA lo que le dice Postgres
+  /* El fallo que esto existe para cazar no es un ataque: es que las dos partes
+     dejen de hablar el mismo idioma. Paso de verdad — el paso 14 lanzaba «no
+     tienes NINGUNA % libre» y el 25 lo reescribio como «NINGUN %». La funcion
+     buscaba «ninguna», no encajaba, y equipar algo que no tienes devolvia «algo
+     ha fallado en el servidor». Una letra, y ninguna parte mal por si sola.
+
+     Cada marca se prueba contra LA RUTA QUE PUEDE LANZARLA: `sin_saldo` solo
+     sale de comprar, y dispararlo contra equipar seria una falsa alarma. Se
+     saca todo del .sql, funcion por funcion, para no tener aqui una lista
+     copiada a mano — que es justo la tercera version que causo el problema. */
+  {
+    const sql = await (await import("node:fs/promises")).readFile("supabase-25-niveles.sql","utf8");
+    const RUTA:Record<string,any> = {
+      arma_comprar:     {accion:"comprar",          arma:"daga"},
+      arma_equipar:     {accion:"equipar",          arma:"daga",  bruteId:A.id},
+      mascota_comprar:  {accion:"comprar_mascota",  mascota:"perro"},
+      mascota_equipar:  {accion:"equipar_mascota",  mascota:"perro", bruteId:A.id},
+    };
+    const ejemplo=(m:string)=> m==="nivel_insuficiente" ? m+":7"
+                             : m==="sin_copias" ? m+":daga"
+                             : m==="desconocido" ? m+":x" : m;
+    const mudos:string[]=[]; let total=0;
+    for(const [fn, extra] of Object.entries(RUTA)){
+      const ini = sql.indexOf("function "+fn+"(");
+      const fin = sql.indexOf("$$;", ini);
+      const marcas=[...new Set([...sql.slice(ini,fin).matchAll(/raise exception '([a-z_]+)(?::%)?'/g)].map(x=>x[1]))];
+      for(const marca of marcas){
+        total++;
+        (globalThis as any).__RPC_LANZA = ejemplo(marca);
+        const r = await pedir({token:A.token, ...extra});
+        if(r.s>=500) mudos.push(`${fn}/${marca}→${r.s}`);
+      }
+    }
+    (globalThis as any).__RPC_LANZA = null;
+    probar("entender los errores de Postgres", mudos.length>0,
+           mudos.length ? `${mudos.join(" ")} — cae en un 500 mudo`
+                        : `${total} marcas del .sql, todas traducidas a un error con sentido`);
+  }
+
   console.log("\n══════ RESULTADO ══════");
   if(!hallazgos.length) console.log("Ningún ataque económico funciona.");
   else hallazgos.forEach((h,i)=>console.log(`${i+1}. ${h}`));
