@@ -44,6 +44,7 @@ experiencia y sube de nivel.
 | `supabase-24-limpiar-pruebas-mascotas.sql` | Borra las cuentas de las pruebas de la v0.2.0 | Repetible |
 | `supabase-25-niveles.sql` | Armas y mascotas con nivel minimo. **Antes de la Edge Function** | Repetible |
 | `supabase-27-perdidas.sql` | El historial apunta el arma rota y la mascota muerta | Repetible |
+| `supabase-28-cuadrar.sql` | Cuadra los libros tras el descuadre del panel. **Tras la Edge Function** | Una vez |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
@@ -372,6 +373,38 @@ El arreglo tiene dos partes y las dos importan:
 **Reiniciar hoy no le cuesta nada a nadie; el día que exista el token, un saldo
 es un derecho a cobrar tokens reales y reiniciar pasa a ser quitarle valor a
 alguien.** Por eso el reinicio va antes del token, no después.
+
+---
+
+## El panel de admin imprimía dinero
+
+`admin_editar_jugador` escribía `players.coins` directamente y **no tocaba
+`economia` en ningún momento**. Así que:
+
+```
+dar monedas   →  la reserva NO baja      (nacen de la nada)
+gastarlas     →  el reciclaje SÍ las devuelve
+```
+
+Salen sin permiso y entran con él. Medido en vivo: `122 + 39.999.940 + 38 =
+40.000.100`. Cien de más.
+
+Es el mismo fallo que dejó la reserva en 40.000.117 el primer día, con otra
+puerta de entrada. Y no saltó el tope de `emision_reciclar` porque 40.000.100
+sigue por debajo de `reserva_total`.
+
+**Ahora dar monedas las SACA de la reserva y quitarlas las DEVUELVE**, igual que
+una pelea o una compra. Si la reserva no llega, responde 409 en vez de
+inventarse la diferencia.
+
+**Y esto es lo que separa el juguete del dinero:** hoy son 100 monedas y se
+arreglan con un `update`. Con el token en mainnet, cada moneda en
+`players.coins` es un **derecho a cobrar tokens reales** de la wallet
+operativa. Cien de más son cien tokens que alguien puede pedir y que no
+existen — y el último en retirar se queda sin cobrar.
+
+La invariante no es contabilidad bonita: es lo que separa un saldo de una
+promesa incumplida.
 
 ---
 

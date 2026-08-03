@@ -1451,6 +1451,36 @@ async function manejar(req: Request): Promise<Response> {
       if (c.slots !== undefined) campos.slots = entre(c.slots, 1, MAX_BRUTOS, antes.slots);
       if (!Object.keys(campos).length) return responder({ error: "nada que cambiar" }, 400);
 
+      /* ── El saldo NO se escribe a pelo ────────────────────────────────────
+         Escribirlo directo es imprimir dinero. La reserva no baja al dar
+         monedas, pero el reciclaje SI las devuelve cuando el jugador las
+         gasta: salen sin permiso y entran con el, y la reserva acaba por
+         encima de su propio techo.
+
+         Paso dos veces. 407 monedas dejaron la reserva en 40.000.117, y
+         despues 100 anadidas desde este mismo panel la dejaron en
+         40.000.100.
+
+         Hoy se arregla con un UPDATE. Con el token en mainnet cada moneda de
+         mas es un derecho a cobrar tokens que NO existen en la wallet
+         operativa, y el ultimo en retirar se queda sin cobrar.
+
+         Asi que dar monedas las SACA de la reserva y quitarlas las DEVUELVE,
+         igual que una pelea o una compra. */
+      if (campos.coins !== undefined && Number(campos.coins) !== Number(antes.coins)) {
+        const delta = Number(campos.coins) - Number(antes.coins);
+        if (delta > 0) {
+          const r = await emitir(delta);
+          if (r.monedas < delta) {
+            /* La reserva manda. Si no llega, no se inventa la diferencia. */
+            return responder({ error: "la reserva no da para tanto", clase: "sin_reserva",
+                               disponible: r.monedas }, 409);
+          }
+        } else {
+          reciclar(-delta);
+        }
+      }
+
       await db("/players?address=eq." + encodeURIComponent(dir), { method: "PATCH", body: JSON.stringify(campos) });
       await anotar("editar_jugador", dir, antes, campos);
       return responder({ ok: true });

@@ -229,7 +229,6 @@
   .tor-elige button:disabled{ opacity:.4; cursor:not-allowed; }
   .tor-elige button small{ display:block; font-size:10px; color:var(--muted); }
 
-  .salas{ display:flex; gap:8px; flex-wrap:wrap; }
   .salas-fija{ position:sticky; top:0; z-index:40; background:rgba(12,10,7,.94);
                backdrop-filter:blur(6px); border-bottom:1px solid var(--line); }
   .salas-inner{ max-width:1080px; margin:0 auto; padding:8px 24px;
@@ -325,6 +324,12 @@
      acompanante, no un segundo luchador con el mismo peso visual. Roja porque
      aqui rojo significa vida, como en todo el juego. */
   .pet-row{ display:flex; align-items:center; gap:6px; margin-top:5px; opacity:.95; }
+  /* `display:flex` GANA a la regla `[hidden]{display:none}` del navegador, asi
+     que sin esta linea la barra se marcaba como oculta y se seguia viendo — un
+     bruto sin mascota mostraba una barra vacia a cero. Sin error y sin aviso.
+     Cada vez que se le pone `display` a algo que a veces va con `hidden`, hay
+     que escribir esta pareja. */
+  .pet-row[hidden]{ display:none; }
   .hud.right .pet-row{ flex-direction:row-reverse; }
   .pet-row svg{ width:20px; height:20px; display:block; }
   .pet-bar{ flex:1; height:7px; border-radius:3px; overflow:hidden;
@@ -2234,7 +2239,11 @@
   function medirAlcance(){
     const a = el("figA").getBoundingClientRect(), b = el("figB").getBoundingClientRect();
     const hueco = Math.max(0, b.left - a.right);
-    el("arena").style.setProperty("--alcance", Math.round(hueco * .82) + "px");
+    /* 0.91 y no 0.82: con 82% quedaban ~100px sin cubrir sobre un hueco de
+       575, y el arma se paraba a un palmo del rival. Se deja un resto de ~50px
+       porque el arma sobresale del cuerpo y lo cubre — a 100% se solapan los
+       dos cuerpos, que se lee peor que quedarse corto. */
+    el("arena").style.setProperty("--alcance", Math.round(hueco * .91) + "px");
   }
 
   function floatDmg(side, text, kind){
