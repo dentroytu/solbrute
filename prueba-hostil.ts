@@ -261,6 +261,32 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
                         : `${total} marcas del .sql, todas traducidas a un error con sentido`);
   }
 
+  // 15 · que las tres capas usen el mismo vocabulario
+  /* Los tipos de movimiento viven en tres sitios: la Edge Function los escribe,
+     el .sql tiene la lista blanca, y app.html las etiquetas. Si uno se
+     desincroniza no falla nada visible — el apunte se pierde en silencio,
+     porque `apuntar` traga los errores a proposito para no tumbar una compra
+     ya cobrada. Un historial con huecos y ninguna alarma.
+
+     Se leen los tres ficheros, no una lista de aqui. */
+  {
+    const fs = await import("node:fs/promises");
+    const ts  = await fs.readFile("supabase-funcion-auth.ts","utf8");
+    const sql = await fs.readFile("supabase-27-perdidas.sql","utf8");
+    const web = await fs.readFile("app.html","utf8");
+    const usados = [...new Set([...ts.matchAll(/apuntar\([^,]+,\s*"([a-z_]+)"/g)].map(m=>m[1]))];
+    const lista  = (sql.match(/p_tipo not in \(([^)]*)\)/s)||["",""])[1];
+    const permitidos = [...new Set([...lista.matchAll(/'([a-z_]+)'/g)].map(m=>m[1]))];
+    const sinPermiso = usados.filter(t=>!permitidos.includes(t));
+    const sinEtiqueta = permitidos.filter(t=>(web.match(new RegExp("hist_"+t+":","g"))||[]).length!==3);
+    probar("tipos de movimiento: SQL los permite", sinPermiso.length>0,
+           sinPermiso.length ? `la funcion escribe ${sinPermiso.join(", ")} y el .sql los rechaza`
+                             : `${usados.length} tipos usados, todos en la lista blanca`);
+    probar("tipos de movimiento: la web los nombra", sinEtiqueta.length>0,
+           sinEtiqueta.length ? `sin etiqueta en los 3 idiomas: ${sinEtiqueta.join(", ")}`
+                              : `${permitidos.length} tipos, todos con etiqueta es/en/fr`);
+  }
+
   console.log("\n══════ RESULTADO ══════");
   if(!hallazgos.length) console.log("Ningún ataque económico funciona.");
   else hallazgos.forEach((h,i)=>console.log(`${i+1}. ${h}`));

@@ -368,6 +368,7 @@
   .banner .who{ font-family:'Cinzel',serif; font-size:clamp(21px,5vw,32px); font-weight:900; color:var(--bronze-light); }
   .banner .rew{ font-size:12px; color:var(--muted); margin-top:6px; }
   .banner .rew b{ color:var(--sol-teal); }
+  .banner .rew .perdida{ color:var(--blood-bright); }
   /* El cambio del día va en su propia línea y apagado: es información, no
      premio. Si compitiera en color con las monedas, el jugador leería primero
      la letra pequeña que lo que acaba de ganar. */
@@ -819,6 +820,7 @@
       hist_compra_arma:"Arma comprada", hist_compra_plaza:"Plaza de bruto",
       hist_retirada:"Retirada", hist_skin:"Aspecto", hist_torneo:"Torneo",
       hist_mascota:"Mascota", hist_ajuste:"Ajuste",
+      hist_arma_rota:"Arma rota", hist_mascota_muerta:"Mascota perdida",
       hist_pendiente:"pendiente", hist_enviada:"enviada", hist_fallida:"fallida",
       tor_open:"🏛️ Torneos", tor_h1:"Torneos",
       tor_sub:"Eliminatorias directas. El cuadro se resuelve entero de una vez, y cada combate se puede recalcular.",
@@ -840,6 +842,7 @@
       viv_note:"Una mascota se pone delante y encaja golpes por ti, pero no te libra del todo: lo que no absorbe te llega igual. Te hace ir más lento, cae casi cada combate, y de vez en cuando no se levanta — y entonces la pierdes para siempre.",
       viv_para:"Para", viv_puesta:"Te acompaña", viv_vida:"Vida", viv_lento:"Iniciativa",
       ev_h2:"Últimas novedades", ev_gana:"venció a", ev_pierde:"cayó ante",
+      ev_mascota:"perdió para siempre a su", viv_muerta:"ha muerto tu",
       ev_nivel:"subió al nivel", ev_rota:"perdió para siempre su", ev_con:"con",
       ev_un_bruto:"Un bruto", ev_ahora:"ahora mismo", ev_min:"min", ev_h:"h",
       ev_ayer:"ayer", ev_dias:"días",
@@ -933,6 +936,7 @@
       hist_compra_arma:"Weapon bought", hist_compra_plaza:"Brute slot",
       hist_retirada:"Withdrawal", hist_skin:"Skin", hist_torneo:"Tournament",
       hist_mascota:"Pet", hist_ajuste:"Adjustment",
+      hist_arma_rota:"Weapon broken", hist_mascota_muerta:"Pet lost",
       hist_pendiente:"pending", hist_enviada:"sent", hist_fallida:"failed",
       tor_open:"🏛️ Tournaments", tor_h1:"Tournaments",
       tor_sub:"Single elimination. The whole bracket is resolved at once, and every fight can be replayed.",
@@ -954,6 +958,7 @@
       viv_note:"A pet steps in front and takes hits for you, but it does not save you entirely: whatever it does not absorb still reaches you. It slows you down, it goes down almost every fight, and now and then it does not get up — and then it is gone for good.",
       viv_para:"For", viv_puesta:"At your side", viv_vida:"Health", viv_lento:"Initiative",
       ev_h2:"Latest news", ev_gana:"beat", ev_pierde:"fell to",
+      ev_mascota:"lost for good their", viv_muerta:"you lost your",
       ev_nivel:"reached level", ev_rota:"lost for good their", ev_con:"with",
       ev_un_bruto:"A brute", ev_ahora:"just now", ev_min:"min", ev_h:"h",
       ev_ayer:"yesterday", ev_dias:"days",
@@ -1046,6 +1051,7 @@
       hist_load:"Chargement…", hist_err:"Je n'ai pas pu charger l'historique.",
       hist_compra_arma:"Arme achetée", hist_compra_plaza:"Place de brute",
       hist_retirada:"Retrait", hist_skin:"Apparence", hist_torneo:"Tournoi",
+      hist_arma_rota:"Arme cassee", hist_mascota_muerta:"Familier perdu",
       hist_mascota:"Familier", hist_ajuste:"Ajustement",
       hist_pendiente:"en attente", hist_enviada:"envoyé", hist_fallida:"échoué",
       tor_open:"🏛️ Tournois", tor_h1:"Tournois",
@@ -1068,6 +1074,7 @@
       viv_note:"Un familier se met devant et encaisse des coups a ta place, mais il ne te sauve pas tout a fait : ce qu\u2019il n\u2019absorbe pas t\u2019arrive quand meme. Il te ralentit, il tombe presque a chaque combat, et de temps en temps il ne se releve pas — et la, tu le perds pour de bon.",
       viv_para:"Pour", viv_puesta:"À tes côtés", viv_vida:"Vie", viv_lento:"Initiative",
       ev_h2:"Dernières nouvelles", ev_gana:"a battu", ev_pierde:"est tombé face à",
+      ev_mascota:"a perdu a jamais son", viv_muerta:"tu as perdu ton",
       ev_nivel:"atteint le niveau", ev_rota:"a perdu à jamais son", ev_con:"avec",
       ev_un_bruto:"Un brute", ev_ahora:"à l'instant", ev_min:"min", ev_h:"h",
       ev_ayer:"hier", ev_dias:"jours",
@@ -1401,6 +1408,15 @@
       if(f.arma_rota){
         lineas.push({ tipo:"rota", ico:"✧", cuando,
           txt:`<b>${quien}</b> ${t("ev_rota")} <b>${esc(armas[f.arma_rota] || f.arma_rota)}</b>` });
+      }
+
+      /* La mascota muerta va aqui por lo mismo que el arma rota: pierdes algo
+         que compraste y tienes que enterarte. En la arena se ve caer, pero
+         quien le da a «saltar al resultado» —o sea, todo el mundo a partir de
+         la decima pelea— no veria nada. */
+      if(f.mascota_muerta){
+        lineas.push({ tipo:"muerta", ico:"🐾", cuando,
+          txt:`<b>${quien}</b> ${t("ev_mascota")} <b>${esc(O("bichos")[f.mascota_muerta] || f.mascota_muerta)}</b>` });
       }
     }
 
@@ -2241,8 +2257,16 @@
     const nombres = O("armas");
     let extra = "";
     if(premio.arma_rota)  extra += ` · ${t("arm_rota")} ${nombres[premio.arma_rota] || premio.arma_rota}`;
+    /* Perder la mascota es MAS caro que romper un arma —175 monedas el oso— y
+       hasta ahora el cartel no lo decia. Va en rojo sangre: es una perdida, no
+       un dato. */
+    if(premio.mascota_muerta)
+      extra += ` · <span class="perdida">${t("viv_muerta")} ${O("bichos")[premio.mascota_muerta] || premio.mascota_muerta}</span>`;
     if(premio.arma_nueva) extra += ` · ${t("arm_ganada")} ${nombres[premio.arma_nueva] || premio.arma_nueva}`;
     active.arma = premio.arma;
+    /* Sin esto el ludus seguiria dibujando al bruto con su lobo hasta recargar
+       la pagina: el servidor ya se la quito, pero la copia del navegador no. */
+    if(premio.mascota !== undefined) active.mascota = premio.mascota;
     /* `bolsa` solo viene si el nivel dio un arma Y el bruto ya llevaba otra:
        si peleaba a puno limpio se equipa sola y la bolsa no cambia. */
     if(premio.bolsa) bolsa = premio.bolsa;

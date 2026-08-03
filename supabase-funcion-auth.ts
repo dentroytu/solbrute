@@ -919,6 +919,10 @@ async function manejar(req: Request): Promise<Response> {
          cueste mantenerlo (~11 combates) y que las armas sigan siendo un
          sumidero en vez de una compra única. */
       armaAhora = "ninguna";
+      /* Y queda en el historial. Con 0 monedas: no te cobran al romperse, se
+         apunta para que exista el rastro. Sumarlo contaria la compra dos veces
+         — una al pagarla y otra al perderla. */
+      apuntar(dueno, "arma_rota", rota, 0, { bruto: Number(fila.id), nombre: fila.name });
     }
 
     /* ── la mascota ──
@@ -939,6 +943,10 @@ async function manejar(req: Request): Promise<Response> {
         method: "POST",
         body: JSON.stringify({ p_owner: dueno, p_bruto: Number(fila.id) }),
       }).catch((e) => console.warn("no pude matar la mascota: " + e.message));
+      /* Igual que el arma rota: 0 monedas, solo el rastro. Es la linea que el
+         jugador va a buscar cuando se pregunte donde esta su oso. */
+      apuntar(dueno, "mascota_muerta", mascotaMuerta, 0,
+              { bruto: Number(fila.id), nombre: fila.name });
     }
 
     /* Un arma nueva puede ser lo que toque al subir de nivel. */

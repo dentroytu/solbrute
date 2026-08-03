@@ -43,6 +43,7 @@ experiencia y sube de nivel.
 | `supabase-23-mascotas.sql` | Mascotas: bolsa del jugador y muerte permanente | Aplicado |
 | `supabase-24-limpiar-pruebas-mascotas.sql` | Borra las cuentas de las pruebas de la v0.2.0 | Repetible |
 | `supabase-25-niveles.sql` | Armas y mascotas con nivel minimo. **Antes de la Edge Function** | Repetible |
+| `supabase-27-perdidas.sql` | El historial apunta el arma rota y la mascota muerta | Repetible |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
@@ -1231,7 +1232,7 @@ Y editar el cliente es MENOS peligroso que llamar a la API directamente con
 (`prueba-banco.ts`) y la ataca con un cliente reescrito: subirse el nivel,
 regalarse peleas, monedas y armas, inventarse la lista de rivales, elegir la
 semilla, saltarse el precio de la plaza, tocar el bruto de otro y colarse en
-las rutas de admin. **21 ataques, ninguno funciona.**
+las rutas de admin. **23 ataques, ninguno funciona.**
 
 **Si añades una ruta a la función, añádele aquí su ataque antes de
 desplegarla.** Esto aguanta porque se prueba, no porque el código sea bonito.
@@ -1271,6 +1272,37 @@ y descuadró la comprobación de los libros porque no veía lo retirado.
 
 Para mirar esas tablas hay que ir por la ruta con sesión de la Edge Function,
 que es la única que las ve. **Un `[]` no es una prueba de que esté vacío.**
+
+### Perder algo también se apunta
+
+`movimientos` guardaba solo compras y retiradas: lo que sale del saldo. Pero lo
+que de verdad hace desaparecer tus monedas no es el momento de pagar, es el
+momento en que aquello se rompe.
+
+```
+compras un oso por 175        →  quedaba apuntado
+el oso muere a las 30 peleas  →  no quedaba en ningún sitio
+```
+
+Y esa segunda línea es la que el jugador busca cuando se pregunta dónde está su
+oso. En la arena se ve caer, pero **quien le da a «saltar al resultado» —o sea,
+todo el mundo a partir de la décima pelea— no veía nada.** Ahora la pérdida sale
+en tres sitios: el cartel del final, el tablón del ludus y el historial.
+
+**Van con `monedas = 0` a propósito.** No te cobran al morir; se apuntan para
+que exista el rastro. El historial suma esa columna para enseñar el total
+gastado, y sumar aquí contaría la compra dos veces.
+
+### El vocabulario vive en tres sitios, y nadie avisa si se rompe
+
+Un tipo de movimiento tiene que existir en los tres: la Edge Function lo
+escribe, `movimiento_apuntar` lo permite en su lista blanca, y `app.html` le
+pone etiqueta en tres idiomas.
+
+Si uno se desincroniza **no falla nada visible**: `apuntar` traga los errores a
+propósito —el jugador ya pagó, quedarse sin apunte es molesto pero perder la
+compra sería peor— así que el resultado es un historial con huecos y ninguna
+alarma. El ataque 15 lee los tres ficheros y lo compara.
 
 ### El servidor y Postgres no se hablan en español
 
