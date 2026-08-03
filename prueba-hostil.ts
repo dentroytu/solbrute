@@ -8,12 +8,19 @@
    navegador — es su ordenador. La defensa no es evitarlo, es que hacerlo no
    le sirva de nada. Esto lo comprueba ANTES de desplegar.
 
-   Uso:
-     1. cp supabase-funcion-auth.ts /tmp/f.ts  y cambiar el import de
-        brute-combate.js por rutas absolutas más `import "./prueba-banco.ts"`
-     2. node prueba-hostil.ts
+   Uso — dos ordenes, y la primera GENERA el fichero bajo prueba a partir de
+   la funcion de verdad, para que no se pueda probar una copia vieja:
+
+     sed 's|import "./brute-combate.js";|import "./prueba-banco.ts";\
+     import "./brute-combate.js";|' supabase-funcion-auth.ts > funcion-bajo-prueba.ts
+     node --experimental-strip-types prueba-hostil.ts
+
+   `funcion-bajo-prueba.ts` esta en .gitignore: es un derivado, y un derivado
+   commiteado es el que acabas probando en vez del original.
 
    Si algún día se añade una ruta a la función, añade aquí su ataque.
+   Y si una ruta pasa un dato NUEVO a Postgres, comprueba aquí que lo pasa:
+   un parámetro que se deja de mandar no da error, solo apaga lo que protegía.
    ══════════════════════════════════════════════════════════════════════════ */
 import "./funcion-bajo-prueba.ts";
 import { webcrypto, generateKeyPairSync, sign as firmarNode } from "node:crypto";
@@ -78,9 +85,19 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
   await pedir({accion:"guardar",token:A.token,balance:1e9,brutos:[]});
   probar("fijarse el saldo", saldo(A.dir)!==antes, `${antes} → ${saldo(A.dir)}`);
 
-  // 3 · comprar sin pagar
-  const c=await pedir({accion:"comprar",token:A.token,bruteId:A.id,arma:"mandoble",precio:0});
-  probar("comprar mandando el precio", c.s===200, `HTTP ${c.s} ${c.d.error||""}`);
+  // 3 · comprar poniendo TU precio
+  /* Se comprueba en el parametro que sale hacia Postgres, no en el saldo: el
+     cobro ocurre DENTRO de la funcion de Postgres, que este banco no
+     reimplementa a proposito. Mirar el saldo aqui daria una falsa alarma. */
+  {
+    const R=(globalThis as any).__RPC as {fn:string;args:any}[];
+    R.length=0;
+    await pedir({accion:"comprar",token:A.token,arma:"mandoble",precio:0,p_precio:0});
+    const l=R.find(r=>r.fn==="arma_comprar");
+    probar("comprar poniendo tu propio precio",
+           !!l && l.args.p_precio!==C.ARMAS.mandoble.precio,
+           `mande 0, la funcion paso ${l?.args.p_precio} (precio real ${C.ARMAS.mandoble.precio})`);
+  }
 
   // 4 · equipar lo que no tiene
   await pedir({accion:"equipar",token:A.token,bruteId:A.id,arma:"mandoble"});
@@ -114,18 +131,33 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
     probar("aspecto fuera de rango", JSON.stringify(env.look).includes("script")||JSON.stringify(env.look).includes("999"), JSON.stringify(env.look).slice(0,50));
   }
 
-  // 9 · comprar de verdad: ¿cobra exactamente el precio?
-  /* Se le ponen monedas en la base simulada, como si las hubiera ganado
-     peleando: lo que se prueba es el cobro, no cómo llegó al saldo. */
-  T.players.find((x:any)=>x.address===A.dir).coins = 200;
-  const t0=saldo(A.dir);
-  const compra=await pedir({accion:"comprar",token:A.token,bruteId:A.id,arma:"mandoble"});
-  if(compra.s===200){
-    probar("comprar cobra el precio exacto", saldo(A.dir)!==t0-35, `${t0} → ${saldo(A.dir)} (esperado ${t0-35})`);
-    probar("comprar dos veces la misma", (await pedir({accion:"comprar",token:A.token,bruteId:A.id,arma:"mandoble"})).s===200, "se puede repetir");
-    probar("comprar un arma inexistente", (await pedir({accion:"comprar",token:A.token,bruteId:A.id,arma:"excalibur"})).s===200, "se acepta");
-    probar("comprar 'ninguna' (puños) pagando", (await pedir({accion:"comprar",token:A.token,bruteId:A.id,arma:"ninguna"})).s===200, "se acepta");
-  } else probar("comprar con saldo suficiente", true, `HTTP ${compra.s} ${compra.d.error||""} (saldo ${t0})`);
+  // 9 · el precio que sale hacia Postgres es el del servidor, para TODAS
+  /* Antes esto miraba el saldo y esperaba 35 monedas — el precio del mandoble
+     de hace tres cambios. Una prueba con un numero copiado a mano envejece
+     sola y acaba fallando por estar desactualizada, no por haber encontrado
+     nada. Ahora se lee de `C.ARMAS`, que es la misma fuente que usa el juego.
+
+     Y la que decia "comprar dos veces la misma" se ha quitado: marcaba como
+     agujero algo que desde el inventario del paso 14 es lo correcto — tres
+     brutos pueden llevar tres dagas, y para eso hay que comprar tres. Pasaba
+     solo porque la llamada moria antes de llegar. */
+  {
+    const R=(globalThis as any).__RPC as {fn:string;args:any}[];
+    R.length=0;
+    for(const id of Object.keys(C.ARMAS)) if(id!=="ninguna") await pedir({accion:"comprar",token:A.token,arma:id});
+    for(const id of Object.keys(C.MASCOTAS)) if(id!=="ninguna") await pedir({accion:"comprar_mascota",token:A.token,mascota:id});
+    const mal=R.filter(r=>{
+      const tabla = r.fn==="arma_comprar" ? C.ARMAS : r.fn==="mascota_comprar" ? C.MASCOTAS : null;
+      if(!tabla) return false;
+      const it = tabla[r.args.p_arma||r.args.p_id];
+      return !it || r.args.p_precio!==it.precio;
+    });
+    probar("el precio lo pone el servidor, en todas", mal.length>0,
+           mal.length ? mal.map(r=>`${r.args.p_arma||r.args.p_id}=${r.args.p_precio}`).join(" ")
+                      : `${R.length} compras con el precio de brute-combate.js`);
+  }
+  probar("comprar un arma inexistente", (await pedir({accion:"comprar",token:A.token,arma:"excalibur"})).s===200, "se acepta");
+  probar("comprar 'ninguna' (puños) pagando", (await pedir({accion:"comprar",token:A.token,arma:"ninguna"})).s===200, "se acepta");
 
   // 10 · adelantar el día para recargar peleas
   bruto(A.id).fights_day="2020-01-01";
@@ -148,6 +180,46 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
     if(r.s===200) admins++;
   }
   probar("entrar en las rutas de admin", admins>0, `${admins} de 4 respondieron`);
+
+  // 13 · el candado de nivel: que la funcion se lo PASE a Postgres
+  /* El candado vive en el .sql y ya se ataca contra el servidor real. Lo que
+     solo puede comprobarse aqui es que la Edge Function manda `p_nivel_min`:
+     si alguien lo quita de una llamada, el SQL usa su valor por defecto (1) y
+     el candado se apaga SIN FALLAR. Un candado con la llave puesta y ningun
+     error que lo delate — el peor tipo de agujero. */
+  const RPC=(globalThis as any).__RPC as {fn:string;args:any}[];
+  RPC.length=0;
+  const esperado:[string,string,number][]=[];
+  for(const [id,w] of Object.entries(C.ARMAS) as any){
+    if(id==="ninguna") continue;
+    await pedir({accion:"comprar",token:A.token,arma:id});
+    await pedir({accion:"equipar",token:A.token,bruteId:A.id,arma:id});
+    esperado.push(["arma_comprar",id,w.nivel],["arma_equipar",id,w.nivel]);
+  }
+  for(const [id,m] of Object.entries(C.MASCOTAS) as any){
+    if(id==="ninguna") continue;
+    await pedir({accion:"comprar_mascota",token:A.token,mascota:id});
+    await pedir({accion:"equipar_mascota",token:A.token,bruteId:A.id,mascota:id});
+    esperado.push(["mascota_comprar",id,m.nivel],["mascota_equipar",id,m.nivel]);
+  }
+  const sinNivel=RPC.filter(r=>/comprar|equipar/.test(r.fn) && r.args?.p_nivel_min===undefined);
+  probar("mandar el nivel minimo a Postgres", sinNivel.length>0,
+         sinNivel.length ? `${sinNivel.length} llamadas SIN p_nivel_min: ${[...new Set(sinNivel.map(r=>r.fn))].join(", ")}`
+                         : `${RPC.length} llamadas, todas con p_nivel_min`);
+  const malNivel=RPC.filter(r=>{
+    const t=esperado.find(e=>e[0]===r.fn && (r.args.p_arma===e[1]||r.args.p_id===e[1]));
+    return t && r.args.p_nivel_min!==t[2];
+  });
+  probar("mandar el nivel CORRECTO de cada objeto", malNivel.length>0,
+         malNivel.length ? malNivel.map(r=>`${r.fn}(${r.args.p_arma||r.args.p_id})=${r.args.p_nivel_min}`).join(" ")
+                         : "daga 1 · escudo 2 · lanza 4 · mandoble 7 · perro 1 · lobo 4 · oso 8");
+  /* Y que el nivel NO se pueda mandar desde el navegador. */
+  RPC.length=0;
+  await pedir({accion:"comprar",token:A.token,arma:"mandoble",p_nivel_min:1,nivel_min:1,nivel:1});
+  const colado=RPC.find(r=>r.fn==="arma_comprar");
+  probar("colar tu propio nivel minimo por el cuerpo",
+         !!colado && colado.args.p_nivel_min!==C.ARMAS.mandoble.nivel,
+         `mande 1, la funcion paso ${colado?.args.p_nivel_min}`);
 
   console.log("\n══════ RESULTADO ══════");
   if(!hallazgos.length) console.log("Ningún ataque económico funciona.");

@@ -7,6 +7,9 @@
    simulada en memoria, para poder atacarla antes de desplegarla. */
 const TABLAS: Record<string, any[]> = { players: [], brutes: [], sessions: [], auth_nonces: [], fights: [], admin_log: [] };
 let SEQ = 1;
+/* Registro de las llamadas a funciones de Postgres, para poder comprobar
+   CON QUE se las llamo. Ver el bloque /rpc/ mas abajo. */
+const RPC: { fn: string; args: any }[] = [];
 
 function filtros(qs: string) {
   const f: [string, string, string][] = [];
@@ -38,6 +41,29 @@ const casa = (fila: any, f: [string, string, string][]) => f.every(([k, op, v]) 
   const f = filtros(u.search.slice(1));
   const resp = (d: any, s = 200) => ({ ok: s < 400, status: s, text: async () => JSON.stringify(d) });
 
+  /* ── Las funciones de Postgres ──
+     NO se reimplementa lo que hacen: solo se APUNTA con que se las llamo y se
+     devuelve algo plausible.
+
+     Es deliberado. La logica de `arma_comprar` vive en el .sql y ya se ataca
+     contra el servidor de verdad. Copiarla aqui seria una tercera version que
+     se desincroniza el primer dia — y una prueba que pasa contra una copia
+     equivocada es peor que no tener prueba.
+
+     Lo que SI puede comprobar este banco, y nadie mas, es que la Edge Function
+     le pasa a Postgres lo que debe. Si alguien quita `p_nivel_min` de una
+     llamada, el candado se apaga en silencio: el SQL tiene ese parametro con
+     valor por defecto 1, asi que no falla, simplemente deja pasar todo. */
+  if (u.pathname.startsWith("/rest/v1/rpc/")) {
+    const fn = u.pathname.replace("/rest/v1/rpc/", "");
+    RPC.push({ fn, args: cuerpo });
+    if (fn === "arma_comprar" || fn === "mascota_comprar")
+      return resp({ bolsa: {}, balance: 0 });
+    if (fn === "arma_equipar")    return resp({ arma: cuerpo?.p_arma, bolsa: {}, cambio: true });
+    if (fn === "mascota_equipar") return resp({ mascota: cuerpo?.p_id, bolsa: {}, cambio: true });
+    return resp({});
+  }
+
   if (!T) return resp({ message: "no existe " + tabla }, 404);
   if (met === "GET")    return resp(T.filter((x) => casa(x, f)));
   if (met === "DELETE") { for (let i = T.length - 1; i >= 0; i--) if (casa(T[i], f)) T.splice(i, 1); return resp(null, 204); }
@@ -67,3 +93,4 @@ const casa = (fila: any, f: [string, string, string][]) => f.every(([k, op, v]) 
   serve: (f: any) => { (globalThis as any).__manejador = f; },
 };
 (globalThis as any).__TABLAS = TABLAS;
+(globalThis as any).__RPC = RPC;

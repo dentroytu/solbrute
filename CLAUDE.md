@@ -1272,6 +1272,32 @@ y descuadró la comprobación de los libros porque no veía lo retirado.
 Para mirar esas tablas hay que ir por la ruta con sesión de la Edge Function,
 que es la única que las ve. **Un `[]` no es una prueba de que esté vacío.**
 
+### Una prueba puede pasar por el motivo equivocado
+
+Al añadir el candado de nivel hubo que enseñarle al banco simulado a responder
+a las funciones de Postgres (`/rpc/…`). Antes devolvía **404**, así que la
+llamada moría, la ruta daba 500, y tres ataques de la armería salían «aguanta»
+sin haber llegado a comprobar nada.
+
+Con la respuesta puesta se destaparon solos. Uno de ellos marcaba como agujero
+**poder comprar dos veces la misma arma** — que desde el inventario del paso 14
+es justo lo correcto: tres brutos, tres dagas. Y otro esperaba que el mandoble
+costara 35 monedas, el precio de hacía tres cambios.
+
+**Una prueba con un número copiado a mano envejece sola** y acaba fallando por
+estar desactualizada, no por haber encontrado algo. Ahora leen el precio y el
+nivel de `C.ARMAS` y `C.MASCOTAS`, que es la misma fuente que usa el juego.
+
+**Y el banco NO reimplementa lo que hacen las funciones de Postgres.** Solo
+apunta con qué se las llamó. Copiar `arma_comprar` allí sería una tercera
+versión que se desincroniza el primer día, y una prueba que pasa contra una
+copia equivocada es peor que no tener prueba. Lo que sí comprueba —y no puede
+comprobar nadie más— es que la Edge Function le pasa a Postgres lo que debe:
+
+> Si alguien quita `p_nivel_min` de una llamada, el SQL usa su valor por
+> defecto (1) y **el candado se apaga sin fallar**. Ningún error que lo delate.
+> Ese es el agujero que este banco existe para encontrar.
+
 ### Dos cosas que se aprendieron atacando
 
 **Cloudflare corta antes de llegar.** Un `arma` con `'; drop table players; --`
