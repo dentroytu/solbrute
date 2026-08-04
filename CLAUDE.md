@@ -49,6 +49,7 @@ experiencia y sube de nivel.
 | `supabase-30-rescatar.sql` | Rescatar el arma rota y revivir la mascota | Repetible |
 | `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Escrito, sin aplicar |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
+| `prueba-preventa.mjs` | Ataca la preventa **contra el servidor desplegado**. 31 ataques | Herramienta |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain y la preventa** | Desplegada |
@@ -1626,6 +1627,42 @@ las rutas de admin. **23 ataques, ninguno funciona.**
 
 **Si añades una ruta a la función, añádele aquí su ataque antes de
 desplegarla.** Esto aguanta porque se prueba, no porque el código sea bonito.
+
+### La preventa, atacada contra el servidor desplegado
+
+`prueba-preventa.mjs`, con **claves ed25519 recién generadas** y sin base
+simulada: habla con la Edge Function de verdad y con Postgres de verdad. 31
+ataques, ninguno funciona.
+
+| Ataque | Resultado |
+|---|---|
+| Reservar y reclamar sin firma | 401 |
+| Firma inventada | 401 |
+| **Firma válida, hecha con OTRA clave** | 401 |
+| **Firma propia, pero el mensaje nombra otra dirección** | 401 |
+| Reusar una firma de hace una hora, o del futuro | 401 |
+| Firmar un mensaje sin fecha | 401 |
+| Decir «ya he pagado» sin haber pagado | 403 |
+| Reclamar tokens que no se han comprado | 403 |
+| Las 8 funciones de Postgres con la clave anon | `42501` |
+| Leer las tres tablas con anon | invisibles, y `preventa` tiene fila |
+| `PATCH`/`POST` directo para encenderla y regalarse tokens | la fila no se movió |
+
+Las dos en negrita son las que importan: la firma cuadra criptográficamente y
+aun así se rechaza, porque el mensaje tiene que nombrar **esa** dirección y la
+clave que firma tiene que ser **la suya**. Sin lo primero, una firma dada en
+cualquier otra web valdría aquí. Sin lo segundo, cualquiera bloquearía el cupo
+entero con direcciones ajenas.
+
+**Y encontró un fallo real:** `tokens: 1e21` es finito y positivo, así que
+pasaba la validación, y `JSON.stringify` lo escribía como `1e+21`. Postgres no
+puede meter eso en un `bigint`, así que la llamada reventaba con un **500
+mudo** — el servidor cayéndose por un número que el navegador puede mandar
+cuando quiera, sin decir por qué. Ahora se exige `isSafeInteger` y un tope.
+
+Por eso el banco **cuenta los 500 aparte y también falla con ellos**. Un 500 no
+es un agujero, pero tampoco es aguantar bien, y sin contarlo el siguiente pasa
+desapercibido.
 
 ### La economía y el inventario, atacados contra el servidor real
 

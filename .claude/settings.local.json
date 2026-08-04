@@ -188,7 +188,8 @@
       "Bash(grep -n \"^---$\" CLAUDE.md)",
       "Bash(awk -F: '$1>890 && $1<930')",
       "Bash(awk '{print $5\"\\\\t\"$9}')",
-      "Bash(curl -s \"https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd\")"
+      "Bash(curl -s \"https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd\")",
+      "Bash(node prueba-preventa.mjs)"
     ]
   }
 }

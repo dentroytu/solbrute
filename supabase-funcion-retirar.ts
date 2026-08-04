@@ -344,8 +344,18 @@ Deno.serve(async (req) => {
          Antes de que el comprador firme nada. Si el cupo se acaba entre medias,
          mejor decirlo ahora que despues de que haya pagado la comision de red. */
       if (acc === "pv_reservar") {
+        /* `isFinite` NO basta, y lo encontro el banco de ataque: 1e21 es finito
+           y positivo, pasaba la validacion, y `JSON.stringify` lo escribia como
+           `1e+21`. Postgres no puede meter eso en un bigint, asi que la llamada
+           reventaba y salia un 500 generico — un error mudo por un numero que
+           el navegador puede mandar cuando quiera.
+
+           `isSafeInteger` corta ahi, y el tope de mil millones lo corta mucho
+           antes: no hay preventa que venda mas que eso. */
         const tk = Math.floor(Number(cuerpo.tokens));
-        if (!Number.isFinite(tk) || tk <= 0) return responder({ error: "cantidad no valida" }, 400);
+        if (!Number.isSafeInteger(tk) || tk <= 0 || tk > 1_000_000_000) {
+          return responder({ error: "cantidad no valida" }, 400);
+        }
         let r;
         try {
           r = await db("/rpc/preventa_reservar", {
@@ -384,7 +394,11 @@ Deno.serve(async (req) => {
       if (acc === "pv_pagado") {
         const id = Math.floor(Number(cuerpo.id));
         const firma = String(cuerpo.firma_pago || "");
-        if (!id || firma.length < 32) return responder({ error: "faltan datos" }, 400);
+        /* Mismo motivo que arriba: un id fuera del rango de un bigint no es un
+           404, es un 500. Y las firmas de Solana miden 87-88 caracteres. */
+        if (!Number.isSafeInteger(id) || id <= 0 || firma.length < 32 || firma.length > 128) {
+          return responder({ error: "faltan datos" }, 400);
+        }
 
         const fila = (await db("/preventa?id=eq.1&select=wallet"))?.[0];
         const compra = (await db("/preventa_compras?id=eq." + id + "&select=*"))?.[0];

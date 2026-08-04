@@ -159,6 +159,20 @@ Igual, con `supabase-funcion-auth.ts`. Trae las dos rutas del panel
 (`admin_preventa` y `admin_preventa_config`). Busca `admin_preventa_config`
 dentro del código desplegado para confirmarlo.
 
+## 3b · Atacarla antes de que toque dinero
+
+```bash
+node prueba-preventa.mjs
+```
+
+Habla con tu servidor de verdad, con claves ed25519 recién generadas. **Es
+seguro pasarlo con la preventa encendida**: ningún ataque compra nada — o le
+falta la firma, o la lleva mal, o pide algo que no es suyo.
+
+Tiene que acabar en «Ningun ataque a la preventa funciona» y **sin errores
+mudos**. Si sale algún 500, no sigas: es el servidor cayéndose por una entrada
+que cualquiera puede mandar.
+
 ## 4 · Los secretos
 
 **Supabase → Project Settings → Edge Functions → Secrets.**
