@@ -290,6 +290,20 @@
   ARMAS.mandoble.precio =  90;   // ~11
   ARMAS.ninguna.precio  =   0;
 
+  /* ── Lo que cuesta recuperar algo perdido ─────────────────────────────────
+     El 60% del precio. Y sube el sumidero en vez de bajarlo, aunque parezca lo
+     contrario: no todos los que pierden un objeto vuelven a comprarlo. Perder
+     un oso de 175 duele y volver a soltar 175 frena a mucha gente. Con
+     supuestos razonables, de 100 que lo pierden recompran ~40; con rescate al
+     60% lo recuperan ~85, y 85x105 es mas que 40x175.
+
+     Captura a quien NO habria vuelto a comprar. Ese es todo el truco.
+
+     Si se baja mucho, el rescate se convierte en una segunda tienda barata y
+     nadie compra a precio completo. Si se sube a 100%, no lo usa nadie. */
+  const RESCATE_PCT = 0.60;
+  const precioRescate = precio => Math.max(1, Math.round(precio * RESCATE_PCT));
+
   /* Cuántos combates aguanta de media, para poder enseñarlo en la armería:
      comprar a ciegas algo que se rompe es una mala experiencia. */
   const duracion = id => { const w = ARMAS[id]; return w && w.fragil ? Math.round(1 / w.fragil) : 0; };
@@ -556,7 +570,7 @@
     VERSION,
     STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS, PROB_ATRIBUTO, PROB_ARMA,
     OPP_COUNT, LEVEL_SPREAD, FIGHTS_DAY, REROLLS_DAY, NAMES, LOOK_N,
-    ARMAS, ARMAS_REALES, arma, seRompe, duracion,
+    ARMAS, ARMAS_REALES, arma, seRompe, duracion, RESCATE_PCT, precioRescate,
     MASCOTAS, MASCOTAS_REALES, mascota,
     randomLook, barajar, nuevoBot,
     ri, xpNeed, rollStats, subirAtributo, botStats,

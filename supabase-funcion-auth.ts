@@ -325,6 +325,22 @@ function apuntar(
   }).catch((e) => console.warn("no pude apuntar " + tipo + ": " + e.message));
 }
 
+/* Abre la ventana para recuperar algo que se acaba de perder. Como `apuntar`,
+   se traga los errores: el jugador ya ha perdido el arma, y quedarse ademas sin
+   la opcion de rescatarla por un fallo de escritura seria castigarle dos veces
+   por lo mismo. */
+function perdida(address: string, bruto: number, tipo: string,
+                 objeto: string, precio: number, fight?: number): void {
+  if (!objeto || objeto === "ninguna" || !(precio > 0)) return;
+  db("/rpc/perdida_apuntar", {
+    method: "POST",
+    body: JSON.stringify({
+      p_owner: address, p_bruto: bruto, p_tipo: tipo, p_objeto: objeto,
+      p_precio: Math.round(precio), p_fight: fight ?? null, p_horas: 24,
+    }),
+  }).catch((e) => console.warn("no pude apuntar la perdida: " + e.message));
+}
+
 /* ═══════════ lectura del mensaje firmado ═══════════ */
 /* Se leen los campos del mensaje en vez de reconstruirlo: reconstruirlo
    exigiría reproducir la fecha al milisegundo y cualquier cambio de formato
@@ -923,6 +939,11 @@ async function manejar(req: Request): Promise<Response> {
          apunta para que exista el rastro. Sumarlo contaria la compra dos veces
          — una al pagarla y otra al perderla. */
       apuntar(dueno, "arma_rota", rota, 0, { bruto: Number(fila.id), nombre: fila.name });
+      /* Y se abre la ventana para recuperarla. Se apunta AQUI, en el momento
+         exacto de perderla, porque el precio sale de la tabla de armas que
+         solo vive en `brute-combate.js`. */
+      perdida(dueno, Number(fila.id), "arma", rota,
+              C.precioRescate(C.ARMAS[rota]?.precio || 0), Number(fight.id) || undefined);
     }
 
     /* ── la mascota ──
@@ -947,6 +968,8 @@ async function manejar(req: Request): Promise<Response> {
          jugador va a buscar cuando se pregunte donde esta su oso. */
       apuntar(dueno, "mascota_muerta", mascotaMuerta, 0,
               { bruto: Number(fila.id), nombre: fila.name });
+      perdida(dueno, Number(fila.id), "mascota", mascotaMuerta,
+              C.precioRescate(C.MASCOTAS[mascotaMuerta]?.precio || 0), Number(fight.id) || undefined);
     }
 
     /* Un arma nueva puede ser lo que toque al subir de nivel. */
@@ -1103,6 +1126,43 @@ async function manejar(req: Request): Promise<Response> {
       hoy_todos:  suma(todas),
       red:        String(e.red || ""),
     });
+  }
+
+  /* ══════════ lo que se puede recuperar ══════════ */
+  if (accion === "perdidas") {
+    const filas = await db("/rpc/perdidas_de", {
+      method: "POST", body: JSON.stringify({ p_address: dueno }),
+    });
+    return responder({ perdidas: filas || [] });
+  }
+
+  /* ══════════ recuperarlo ══════════
+     El precio y el objeto salen de LA FILA, no del cuerpo. El navegador solo
+     manda el id; aceptar el precio del cliente es el ataque de siempre. */
+  if (accion === "rescatar") {
+    const pid = idEntero(cuerpo.id);
+    if (!pid) return responder({ error: "identificador no valido" }, 400);
+    let r;
+    try {
+      r = await db("/rpc/perdida_rescatar", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_id: Number(pid) }),
+      });
+    } catch (e) {
+      const m = (e as Error).message;
+      if (marca(m, "no_es_tuyo"))   return responder({ error: "eso no es tuyo" }, 403);
+      if (marca(m, "ya_rescatado")) return responder({ error: "ya lo recuperaste", clase: "ya" }, 409);
+      if (marca(m, "caducado"))     return responder({ error: "se paso el plazo", clase: "caducado" }, 410);
+      if (marca(m, "sin_saldo"))    return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
+      if (marca(m, "no_existe"))    return responder({ error: "eso no existe" }, 404);
+      if (marca(m, "sin_jugador"))  return responder({ error: "sesion no valida" }, 401);
+      throw e;
+    }
+    /* Lo gastado vuelve a la reserva, igual que una compra: es un sumidero. */
+    reciclar(Number(r.precio) || 0);
+    apuntar(dueno, r.tipo === "arma" ? "compra_arma" : "mascota",
+            String(r.objeto), -Number(r.precio), { rescate: true });
+    return responder(r);
   }
 
   if (accion === "retiradas") {

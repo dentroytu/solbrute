@@ -348,6 +348,15 @@
 
     /* El listado sí se queda en `auth`: es una consulta sin riesgo y no
        necesita ninguna librería de Solana. */
+    /* Lo que se puede recuperar antes de que caduque, y el rescate. El precio
+       lo pone el servidor desde la fila: aqui solo se manda el id. */
+    async perdidas(){
+      return await pedirAuth({ accion: "perdidas", token: token() });
+    },
+    async rescatar(id){
+      return await pedirAuth({ accion: "rescatar", token: token(), id });
+    },
+
     /* Los parametros de la retirada, para que la pantalla no tenga que
        suponer nada: tasa, comision, minimo, topes y si esta abierta. */
     async economia(){

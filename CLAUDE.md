@@ -46,6 +46,7 @@ experiencia y sube de nivel.
 | `supabase-27-perdidas.sql` | El historial apunta el arma rota y la mascota muerta | Repetible |
 | `supabase-28-cuadrar.sql` | Cuadra los libros tras el descuadre del panel. **Tras la Edge Function** | Una vez |
 | `supabase-29-valvula.sql` | La válvula: solo se paga lo que hay. **Con el token en mainnet** | Escrito |
+| `supabase-30-rescatar.sql` | Rescatar el arma rota y revivir la mascota | Repetible |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
@@ -757,6 +758,44 @@ rival igual que tú; lo que gastas, no.**
 
 Sin peleas no se enseña un recuadro vacío: ocupa lo mismo que uno lleno y no
 dice nada.
+
+---
+
+## Rescatar lo perdido, y por qué el sumidero CRECE
+
+Cuando un arma se rompe o una mascota muere se apunta la pérdida con 24 horas
+de plazo. Hasta que caduque se puede recuperar por el **60%** del precio.
+
+La intuición dice que esto encoge el sumidero: si rescatar sale más barato que
+comprar, el jugador gasta menos. Y es cierto **para el que iba a recomprar**.
+
+Pero no todos recompran. Perder un oso de 175 duele, y volver a soltar 175
+frena a mucha gente: se quedan sin mascota y siguen jugando. Con supuestos
+razonables, de cada 100 que lo pierden recompran ~40; con rescate al 60% lo
+recuperan ~85:
+
+```
+hoy          40 × 175 = 7.000
+con rescate  85 × 105 = 8.925      (+27%)
+```
+
+**Captura a quien no habría vuelto a comprar.** Ese es todo el truco.
+
+Si se baja mucho el porcentaje, el rescate es una segunda tienda barata y nadie
+compra a precio completo. Si se sube a 100%, no lo usa nadie.
+
+### Por qué una tabla y no deducirlo de `fights`
+
+El rescate tiene que ser de un solo uso y tiene que poder **bloquearse**. Con
+`for update` sobre una fila, dos peticiones simultáneas no pueden rescatar lo
+mismo dos veces pagando una. Deduciéndolo de `fights` no hay nada que bloquear,
+y ese es el hueco por el que se duplica un objeto.
+
+### El plazo no es para meter prisa
+
+Es para que la oferta signifique algo. Un rescate que dura siempre es una
+segunda tienda con los precios rebajados. 24 horas deja volver al día siguiente
+y no más.
 
 ---
 
