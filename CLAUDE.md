@@ -947,6 +947,20 @@ estar delante de los ojos de quien va a pulsar «Preventa abierta».
 
 **Nunca devuelve la URL**, solo el host: la URL lleva la clave de API dentro.
 
+### Una fecha se podía poner y no quitar
+
+`coalesce` está bien para los números —mandar `null` significa «no lo toques»—
+pero con las fechas eso hace que **poner una sea irreversible**. Vaciar la
+casilla no mandaba el campo, y `coalesce` conservaba la vieja.
+
+Suena menor y no lo es: una preventa con una fecha de fin que no se puede
+borrar **se cierra sola** el día que toque, y no hay forma de evitarlo desde el
+panel.
+
+Se arregla con `p_campos ? 'desde'`, que mira si la clave **viene** en el
+objeto — distinto de que venga vacía. Presente y nula = bórrala. Y el panel las
+manda siempre, con `null` cuando están vacías.
+
 ### El panel pide motivo y confirma dos veces
 
 Encender la venta y abrir los reclamos son los dos únicos botones del panel que

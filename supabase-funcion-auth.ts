@@ -1416,10 +1416,13 @@ async function manejar(req: Request): Promise<Response> {
         if (c.cupo_total        !== undefined) campos.cupo_total  = entero(c.cupo_total, 1e12);
         if (c.tope_wallet       !== undefined) campos.tope_wallet = entero(c.tope_wallet, 1e12);
         if (c.minimo            !== undefined) campos.minimo      = entero(c.minimo, 1e12);
+        /* Una fecha presente y nula significa «quitala». Saltarsela cuando
+           viene vacia dejaria una fecha imposible de borrar, y una preventa
+           con una fecha de fin que no se puede quitar se cierra sola. */
         for (const k of ["desde", "hasta"]) {
           if (c[k] === undefined) continue;
-          const txt = String(c[k] || "");
-          if (!txt) continue;
+          const txt = String(c[k] ?? "").trim();
+          if (!txt) { campos[k] = null; continue; }
           if (Number.isNaN(Date.parse(txt))) throw new Error("fecha");
           campos[k] = new Date(txt).toISOString();
         }

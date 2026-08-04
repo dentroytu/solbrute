@@ -1122,8 +1122,11 @@
       wallet:            el("pvWallet").value.trim(),
       mint:              el("pvMint").value.trim()
     };
-    if(el("pvDesde").value) campos.desde = new Date(el("pvDesde").value).toISOString();
-    if(el("pvHasta").value) campos.hasta = new Date(el("pvHasta").value).toISOString();
+    /* Se mandan SIEMPRE, aunque esten vacias: vaciar la casilla tiene que
+       poder quitar la fecha. Si solo se mandaran cuando tienen valor, una
+       fecha se podria poner y nunca borrar. */
+    campos.desde = el("pvDesde").value ? new Date(el("pvDesde").value).toISOString() : null;
+    campos.hasta = el("pvHasta").value ? new Date(el("pvHasta").value).toISOString() : null;
 
     try{
       await SolBruteDB.adminPreventaConfig(campos, motivo);

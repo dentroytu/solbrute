@@ -405,8 +405,14 @@ begin
     cupo_total      = coalesce((p_campos->>'cupo_total')::bigint,      cupo_total),
     tope_wallet     = coalesce((p_campos->>'tope_wallet')::bigint,     tope_wallet),
     minimo          = coalesce((p_campos->>'minimo')::bigint,          minimo),
-    desde           = coalesce((p_campos->>'desde')::timestamptz,      desde),
-    hasta           = coalesce((p_campos->>'hasta')::timestamptz,      hasta),
+    -- Las fechas NO usan coalesce, y es el unico sitio donde importa: con
+    -- coalesce, mandar null significa «no lo toques», asi que una fecha se
+    -- podria poner pero nunca QUITAR. `?` mira si la clave viene en el objeto,
+    -- que es distinto de que venga vacia: presente y nula = borrala.
+    desde           = case when p_campos ? 'desde'
+                           then (nullif(p_campos->>'desde', ''))::timestamptz else desde end,
+    hasta           = case when p_campos ? 'hasta'
+                           then (nullif(p_campos->>'hasta', ''))::timestamptz else hasta end,
     wallet          = coalesce( p_campos->>'wallet',                   wallet),
     mint            = coalesce( p_campos->>'mint',                     mint),
     reclamos_abiertos = coalesce((p_campos->>'reclamos_abiertos')::boolean, reclamos_abiertos),
