@@ -430,7 +430,9 @@
       <a href="#ciclo" data-i18n="nav_how">How it works</a>
       <a href="#solana" data-i18n="nav_why">Why Solana</a>
       <a href="#features" data-i18n="nav_features">Features</a>
-      <a href="#roadmap" data-i18n="nav_roadmap">Roadmap</a>
+      <a href="#preventa" class="js-pv-nav" data-i18n="nav_presale" hidden>Presale</a>
+      <a href="#preventa" class="js-pv-nav" data-i18n="nav_presale" hidden>Presale</a>
+    <a href="#roadmap" data-i18n="nav_roadmap">Roadmap</a>
     </div>
     <div class="nav-right">
       <div class="lang-switch">
@@ -593,43 +595,6 @@
   </div>
 </section>
 
-<section class="section" id="roadmap">
-  <div class="section-head">
-    <div class="section-eyebrow" data-i18n="roadmap_eyebrow">Roadmap</div>
-    <h2 data-i18n="roadmap_h2">Where we are and where we're headed</h2>
-  </div>
-  <div class="roadmap">
-    <div class="rm-item">
-      <div class="rm-phase" data-i18n="phase0_label">PHASE 0</div>
-      <div class="rm-body">
-        <h4><span data-i18n="phase0_t">Playable prototype</span> <span class="rm-status done" data-i18n="phase0_status">DONE</span></h4>
-        <p data-i18n="phase0_p">Character creation, auto-battles, and progression, with a local account and an off-chain simulated economy.</p>
-      </div>
-    </div>
-    <div class="rm-item">
-      <div class="rm-phase" data-i18n="phase1_label">PHASE 1</div>
-      <div class="rm-body">
-        <h4><span data-i18n="phase1_t">Your wallet is your account</span> <span class="rm-status done" data-i18n="phase1_status">DONE</span></h4>
-        <p data-i18n="phase1_p">Connect Phantom or Solflare and sign in to enter. Your brutes are tied to your address, no passwords.</p>
-      </div>
-    </div>
-    <div class="rm-item">
-      <div class="rm-phase" data-i18n="phase2_label">PHASE 2</div>
-      <div class="rm-body">
-        <h4><span data-i18n="phase2_t">Devnet program</span> <span class="rm-status live" data-i18n="phase2_status">CURRENT</span></h4>
-        <p data-i18n="phase2_p">Anchor contract on Solana's testnet: characters and battle results on-chain.</p>
-      </div>
-    </div>
-    <div class="rm-item">
-      <div class="rm-phase" data-i18n="phase3_label">PHASE 3</div>
-      <div class="rm-body">
-        <h4><span data-i18n="phase3_t">Mainnet &amp; token</span> <span class="rm-status soon" data-i18n="phase3_status">COMING SOON</span></h4>
-        <p data-i18n="phase3_p">Mainnet launch with a game token and an open marketplace between players.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
 <section class="section" id="preventa" hidden>
   <div class="section-head">
     <div class="section-eyebrow" data-i18n="pv_eyebrow">Presale</div>
@@ -695,6 +660,43 @@
   </div>
 </section>
 
+<section class="section" id="roadmap">
+  <div class="section-head">
+    <div class="section-eyebrow" data-i18n="roadmap_eyebrow">Roadmap</div>
+    <h2 data-i18n="roadmap_h2">Where we are and where we're headed</h2>
+  </div>
+  <div class="roadmap">
+    <div class="rm-item">
+      <div class="rm-phase" data-i18n="phase0_label">PHASE 0</div>
+      <div class="rm-body">
+        <h4><span data-i18n="phase0_t">Playable prototype</span> <span class="rm-status done" data-i18n="phase0_status">DONE</span></h4>
+        <p data-i18n="phase0_p">Character creation, auto-battles, and progression, with a local account and an off-chain simulated economy.</p>
+      </div>
+    </div>
+    <div class="rm-item">
+      <div class="rm-phase" data-i18n="phase1_label">PHASE 1</div>
+      <div class="rm-body">
+        <h4><span data-i18n="phase1_t">Your wallet is your account</span> <span class="rm-status done" data-i18n="phase1_status">DONE</span></h4>
+        <p data-i18n="phase1_p">Connect Phantom or Solflare and sign in to enter. Your brutes are tied to your address, no passwords.</p>
+      </div>
+    </div>
+    <div class="rm-item">
+      <div class="rm-phase" data-i18n="phase2_label">PHASE 2</div>
+      <div class="rm-body">
+        <h4><span data-i18n="phase2_t">Devnet program</span> <span class="rm-status live" data-i18n="phase2_status">CURRENT</span></h4>
+        <p data-i18n="phase2_p">Anchor contract on Solana's testnet: characters and battle results on-chain.</p>
+      </div>
+    </div>
+    <div class="rm-item">
+      <div class="rm-phase" data-i18n="phase3_label">PHASE 3</div>
+      <div class="rm-body">
+        <h4><span data-i18n="phase3_t">Mainnet &amp; token</span> <span class="rm-status soon" data-i18n="phase3_status">COMING SOON</span></h4>
+        <p data-i18n="phase3_p">Mainnet launch with a game token and an open marketplace between players.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="final-cta" id="jugar">
   <h2 data-i18n="finalcta_h2">The arena is already open</h2>
   <p data-i18n="finalcta_p">Try the current prototype, create your brute, and fight other players while we keep building the on-chain version.</p>
@@ -718,7 +720,7 @@
 (function(){
   const translations = {
     en: {
-      nav_how:"How it works", nav_why:"Why Solana", nav_features:"Features", nav_roadmap:"Roadmap", nav_cta:"Enter the arena",
+      nav_how:"How it works", nav_why:"Why Solana", nav_features:"Features", nav_presale:"Presale", nav_roadmap:"Roadmap", nav_cta:"Enter the arena",
       hero_eyebrow:"Prototype in development · Solana",
       hero_h1:`Forge your <span class="hl">brute</span>.<br>Fight <span class="hl2">on-chain</span>. Rule the arena.`,
       hero_p:"SolBrute brings turn-based auto-battles to Solana: characters that level up, verifiable fights between real players, and an economy that runs on near-zero fees.",
@@ -788,7 +790,7 @@
       footer_note:"SolBrute is currently a prototype-stage project. There is no token yet, no contract deployed on mainnet, and no reward with real-world value. This site is for demonstration and development purposes only."
     },
     es: {
-      nav_how:"Cómo funciona", nav_why:"Por qué Solana", nav_features:"Características", nav_roadmap:"Roadmap", nav_cta:"Entrar a la arena",
+      nav_how:"Cómo funciona", nav_why:"Por qué Solana", nav_features:"Características", nav_presale:"Preventa", nav_roadmap:"Roadmap", nav_cta:"Entrar a la arena",
       hero_eyebrow:"Prototipo en desarrollo · Solana",
       hero_h1:`Crea tu <span class="hl">bruto</span>.<br>Pelea <span class="hl2">on-chain</span>. Domina la arena.`,
       hero_p:"SolBrute lleva el combate automático por turnos a Solana: personajes que suben de nivel, peleas verificables entre jugadores reales y una economía que corre con comisiones casi nulas.",
@@ -858,7 +860,7 @@
       footer_note:"SolBrute es un proyecto en fase de prototipo. No existe todavía ningún token, contrato desplegado en mainnet, ni recompensa con valor real. Este sitio es solo para fines de demostración y desarrollo."
     },
     fr: {
-      nav_how:"Comment ça marche", nav_why:"Pourquoi Solana", nav_features:"Fonctionnalités", nav_roadmap:"Feuille de route", nav_cta:"Entrer dans l'arène",
+      nav_how:"Comment ça marche", nav_why:"Pourquoi Solana", nav_features:"Fonctionnalités", nav_presale:"Prévente", nav_roadmap:"Feuille de route", nav_cta:"Entrer dans l'arène",
       hero_eyebrow:"Prototype en développement · Solana",
       hero_h1:`Forge ta <span class="hl">brute</span>.<br>Combats <span class="hl2">on-chain</span>. Domine l'arène.`,
       hero_p:"SolBrute apporte le combat automatique au tour par tour sur Solana : des personnages qui progressent, des combats vérifiables entre vrais joueurs, et une économie aux frais quasi nuls.",
@@ -1338,6 +1340,9 @@
 
     PV.estado = e;
     $pv('preventa').hidden = false;
+    /* El enlace del menu se enciende con la seccion. Un ancla a algo oculto no
+       hace nada al pulsarla, y eso se lee como que la web esta rota. */
+    document.querySelectorAll('.js-pv-nav').forEach(a => { a.hidden = false; });
     $pv('pvPanel').hidden  = !(viva || cerradaConHistoria);
     $pv('pvPrevia').hidden =  (viva || cerradaConHistoria);
     if($pv('pvPanel').hidden) return;   // en previa no hay nada mas que hacer

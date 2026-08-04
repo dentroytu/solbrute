@@ -191,7 +191,9 @@
       "Bash(curl -s \"https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd\")",
       "Bash(node prueba-preventa.mjs)",
       "Bash(sed -n '/async function entrar/,/^  }/p' admin.html)",
-      "Bash(sed -n '/async function cargar\\(dir\\)/,/^  }/p' admin.html)"
+      "Bash(sed -n '/async function cargar\\(dir\\)/,/^  }/p' admin.html)",
+      "Bash(node prueba-pago-devnet.mjs)",
+      "Bash(curl -s https://api.devnet.solana.com -X POST -H 'Content-Type: application/json' -d '{ *)"
     ]
   }
 }
