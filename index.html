@@ -1342,6 +1342,7 @@
     $pv('preventa').hidden = false;
     /* El enlace del menu se enciende con la seccion. Un ancla a algo oculto no
        hace nada al pulsarla, y eso se lee como que la web esta rota. */
+    document.querySelectorAll('.js-pv-nav').forEach(a => { a.hidden = false; });
     $pv('pvPanel').hidden  = !(viva || cerradaConHistoria);
     $pv('pvPrevia').hidden =  (viva || cerradaConHistoria);
     if($pv('pvPanel').hidden) return;   // en previa no hay nada mas que hacer
