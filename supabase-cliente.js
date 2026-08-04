@@ -348,6 +348,12 @@
 
     /* El listado sí se queda en `auth`: es una consulta sin riesgo y no
        necesita ninguna librería de Solana. */
+    /* Los parametros de la retirada, para que la pantalla no tenga que
+       suponer nada: tasa, comision, minimo, topes y si esta abierta. */
+    async economia(){
+      return await pedirAuth({ accion: "economia", token: token() });
+    },
+
     async misRetiradas(limite){
       return await pedirAuth({ accion: "retiradas", token: token(), limite: limite || 20 });
     },

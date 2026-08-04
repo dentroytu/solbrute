@@ -385,6 +385,41 @@
                  rgba(12,10,7,var(--velo,.34)) 74%,
                  rgba(12,10,7,calc(var(--velo,.34) + .30)) 100%); }
   .arena > .fighter, .arena > .banner, .arena > .dmg{ z-index:2; }
+  /* ── La retirada ──
+     Es la pantalla donde un numero de Postgres se convierte en dinero de
+     verdad, asi que TODO lo que puede sorprender va escrito ANTES de pulsar:
+     la conversion de hoy, la comision, el minimo y los topes. Un numero que
+     cambia despues de darle al boton se lee como un engano aunque sea un
+     despiste. */
+  .ret-caja{ background:var(--surface); border:1px solid var(--line); border-radius:12px;
+             padding:20px; max-width:520px; }
+  .ret-saldo{ font-size:15px; color:var(--muted); margin-bottom:14px; }
+  .ret-saldo b{ font-family:'Cinzel',serif; font-size:26px; color:var(--sol-teal); margin:0 5px; }
+  .ret-eq{ display:block; font-size:12.5px; color:var(--bronze); margin-top:4px; }
+  .ret-aviso{ border-left:3px solid var(--bronze); padding:10px 0 10px 14px; }
+  .ret-aviso p{ font-size:13.5px; color:var(--muted); line-height:1.55; margin:0; }
+  .ret-lab{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .ret-fila{ display:flex; gap:8px; margin-bottom:12px; }
+  .ret-fila input{ flex:1; background:#150f06; border:1.5px solid var(--line); border-radius:6px;
+                   color:var(--text); padding:10px 12px; font-family:'Cinzel',serif; font-size:17px; }
+  .ret-fila input:focus{ outline:none; border-color:var(--bronze); }
+  .ret-desglose{ font-size:12.5px; color:var(--muted); margin-bottom:14px; line-height:1.9; }
+  .ret-desglose .l{ display:flex; justify-content:space-between; }
+  .ret-desglose .l b{ color:var(--text); font-variant-numeric:tabular-nums; }
+  .ret-desglose .l.total b{ color:var(--sol-teal); font-family:'Cinzel',serif; font-size:15px; }
+  .ret-nota{ font-size:12px; margin-top:10px; min-height:16px; }
+  .ret-nota.mal{ color:var(--blood-bright); }
+  .ret-h2{ font-family:'Cinzel',serif; font-size:16px; color:var(--bronze-light);
+           letter-spacing:1.5px; margin:28px 0 10px; text-transform:uppercase; }
+  .ret-lista{ display:flex; flex-direction:column; gap:7px; max-width:520px; }
+  .ret-r{ display:flex; justify-content:space-between; align-items:center; gap:10px;
+          background:var(--surface); border:1px solid var(--line); border-radius:8px;
+          padding:9px 12px; font-size:12.5px; }
+  .ret-r .est{ font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; }
+  .ret-r .est.enviada{ color:var(--sol-teal); }
+  .ret-r .est.pendiente{ color:var(--torch); }
+  .ret-r .est.fallida, .ret-r .est.revision{ color:var(--blood-bright); }
+  .ret-r .est.devuelta{ color:var(--muted); }
   .arena{ position:relative; height:250px; border-radius:16px; overflow:hidden; border:1px solid var(--line); margin-bottom:15px; background:radial-gradient(ellipse 60% 42% at 50% 96%, rgba(255,157,66,.2), transparent 70%), linear-gradient(180deg,#1a1409,#241b0d 62%,#2e2412); }
   .arena::after{ content:""; position:absolute; left:50%; bottom:26px; transform:translateX(-50%); width:74%; height:60px; border-radius:50%; border:2px solid rgba(239,231,216,.08); }
   /* ── EL MOVIMIENTO ──
@@ -540,6 +575,7 @@
     <button class="sala" id="btnViv"   data-sc="scVivarium" data-i18n="viv_open">🐺 Vivarium</button>
     <button class="sala" id="btnRank"  data-sc="scRank"     data-i18n="rank_open">🏆 Leaderboard</button>
     <button class="sala" id="btnTor"   data-sc="scTorneos"  data-i18n="tor_open">🏛️ Tournaments</button>
+    <button class="sala" id="btnRet"   data-sc="scRetirar" data-i18n="ret_open">💰 Withdraw</button>
     <button class="sala" id="btnHist"  data-sc="scHist"     data-i18n="hist_open">📜 History</button>
   </div>
 </nav>
@@ -703,6 +739,35 @@
     <div class="log" id="log"></div>
   </section>
 
+  <!-- RETIRADA -->
+  <section class="screen" id="scRetirar">
+    <div class="page-head">
+      <div><h1 data-i18n="ret_h1">Withdraw</h1><p data-i18n="ret_sub">Turn your coins into $BRUTE in your wallet.</p></div>
+    </div>
+    <div class="ret-caja">
+      <div class="ret-saldo">
+        <span data-i18n="ret_tienes">You have</span>
+        <b id="retSaldo">0</b> <span data-i18n="coins">coins</span>
+        <span class="ret-eq" id="retEq"></span>
+      </div>
+      <div id="retCerrada" class="ret-aviso" hidden>
+        <p data-i18n="ret_cerrada">Withdrawals are not open yet. The $BRUTE token does not exist on mainnet, so there is nothing to send. Your coins stay in your account and nothing is lost.</p>
+      </div>
+      <div id="retForm" hidden>
+        <label class="ret-lab" for="retCant" data-i18n="ret_cuanto">How much do you want to withdraw?</label>
+        <div class="ret-fila">
+          <input type="number" id="retCant" min="0" step="1" inputmode="numeric">
+          <button class="btn btn-ghost btn-sm" id="retMax" data-i18n="ret_max">Max</button>
+        </div>
+        <div class="ret-desglose" id="retDesglose"></div>
+        <button class="btn btn-primary" id="retIr" data-i18n="ret_ir">Withdraw</button>
+        <p class="ret-nota" id="retNota"></p>
+      </div>
+    </div>
+    <h2 class="ret-h2" data-i18n="ret_hist">Your withdrawals</h2>
+    <div class="ret-lista" id="retLista"></div>
+  </section>
+
   <!-- 5 · FORGE + CREADOR -->
   <section class="screen" id="scForge">
     <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
@@ -856,6 +921,20 @@
       win:"VICTORIA", lose:"DERROTA", points:"POR PUNTOS", coins:"monedas",
       lg_through:"te llegan", lg_all:"lo para entero",
       arm_nivel_min:"Se abre en el nivel", arm_nivel_eq:"Este bruto necesita el nivel",
+      ret_open:"💰 Retirar", ret_h1:"Retirar", ret_sub:"Convierte tus monedas en $BRUTE en tu wallet.",
+      ret_tienes:"Tienes", ret_tasa:"conversión de hoy:", ret_cuanto:"¿Cuánto quieres retirar?",
+      ret_max:"Máx", ret_ir:"Retirar", ret_pides:"Pides", ret_com:"Comisión",
+      ret_recibes:"Recibes", ret_min:"Mínimo por retirada", ret_queda:"Te queda hoy",
+      ret_hist:"Tus retiradas", ret_sin:"Todavía no has retirado nada.",
+      ret_cerrada:"Las retiradas todavía no están abiertas. El token $BRUTE no existe en mainnet, así que no hay nada que enviar. Tus monedas siguen en tu cuenta y no se pierde nada.",
+      ret_cerrada_corta:"Las retiradas están cerradas.",
+      ret_no_llega:"No te llegan las monedas.", ret_bajo_min:"El mínimo es",
+      ret_tope_dia:"Hoy solo te quedan", ret_tope_dia_c:"Has llegado a tu tope de hoy.",
+      ret_tope_glob:"Se ha llegado al tope del día entre todos. Prueba mañana.",
+      ret_enviando:"Enviando…", ret_hecho:"Hecho. Se está enviando a tu wallet.",
+      ret_fallo:"Algo ha fallado. No se ha movido nada.",
+      ret_e_pendiente:"pendiente", ret_e_enviada:"enviada", ret_e_fallida:"fallida",
+      ret_e_revision:"en revisión", ret_e_devuelta:"devuelta",
       lg_disarm:"pierde el arma:", lg_bite:"muerde a", lg_petmiss:"no acierta a",
       lg_cover:"se interpone y encaja el golpe de", lg_petdown:"cae y ya no se levanta en este combate",
       lg_petdead:"cae, y esta vez no se levanta nunca mas",
@@ -974,6 +1053,20 @@
       win:"VICTORY", lose:"DEFEAT", points:"ON POINTS", coins:"coins",
       lg_through:"gets through:", lg_all:"stops it all",
       arm_nivel_min:"Unlocks at level", arm_nivel_eq:"This brute needs level",
+      ret_open:"💰 Withdraw", ret_h1:"Withdraw", ret_sub:"Turn your coins into $BRUTE in your wallet.",
+      ret_tienes:"You have", ret_tasa:"today's rate:", ret_cuanto:"How much do you want to withdraw?",
+      ret_max:"Max", ret_ir:"Withdraw", ret_pides:"You ask for", ret_com:"Fee",
+      ret_recibes:"You receive", ret_min:"Minimum per withdrawal", ret_queda:"Left for you today",
+      ret_hist:"Your withdrawals", ret_sin:"You have not withdrawn anything yet.",
+      ret_cerrada:"Withdrawals are not open yet. The $BRUTE token does not exist on mainnet, so there is nothing to send. Your coins stay in your account and nothing is lost.",
+      ret_cerrada_corta:"Withdrawals are closed.",
+      ret_no_llega:"You do not have that many coins.", ret_bajo_min:"The minimum is",
+      ret_tope_dia:"You only have left today", ret_tope_dia_c:"You have hit your daily cap.",
+      ret_tope_glob:"The global daily cap has been reached. Try tomorrow.",
+      ret_enviando:"Sending…", ret_hecho:"Done. It is on its way to your wallet.",
+      ret_fallo:"Something went wrong. Nothing was moved.",
+      ret_e_pendiente:"pending", ret_e_enviada:"sent", ret_e_fallida:"failed",
+      ret_e_revision:"under review", ret_e_devuelta:"refunded",
       lg_disarm:"loses the", lg_bite:"bites", lg_petmiss:"misses",
       lg_cover:"steps in and takes the hit from", lg_petdown:"goes down for the rest of this fight",
       lg_petdead:"goes down, and this time for good",
@@ -1092,6 +1185,20 @@
       win:"VICTOIRE", lose:"DÉFAITE", points:"AUX POINTS", coins:"pièces",
       lg_through:"t\u2019arrive :", lg_all:"tout bloque",
       arm_nivel_min:"Debloque au niveau", arm_nivel_eq:"Cette brute a besoin du niveau",
+      ret_open:"💰 Retirer", ret_h1:"Retirer", ret_sub:"Convertis tes pièces en $BRUTE dans ton wallet.",
+      ret_tienes:"Tu as", ret_tasa:"conversion du jour :", ret_cuanto:"Combien veux-tu retirer ?",
+      ret_max:"Max", ret_ir:"Retirer", ret_pides:"Tu demandes", ret_com:"Commission",
+      ret_recibes:"Tu reçois", ret_min:"Minimum par retrait", ret_queda:"Il te reste aujourd\u2019hui",
+      ret_hist:"Tes retraits", ret_sin:"Tu n\u2019as encore rien retiré.",
+      ret_cerrada:"Les retraits ne sont pas encore ouverts. Le token $BRUTE n\u2019existe pas sur mainnet, il n\u2019y a donc rien à envoyer. Tes pièces restent sur ton compte et rien n\u2019est perdu.",
+      ret_cerrada_corta:"Les retraits sont fermés.",
+      ret_no_llega:"Tu n\u2019as pas assez de pièces.", ret_bajo_min:"Le minimum est",
+      ret_tope_dia:"Il ne te reste aujourd\u2019hui que", ret_tope_dia_c:"Tu as atteint ta limite du jour.",
+      ret_tope_glob:"La limite quotidienne globale est atteinte. Réessaie demain.",
+      ret_enviando:"Envoi…", ret_hecho:"C\u2019est fait. En route vers ton wallet.",
+      ret_fallo:"Quelque chose a échoué. Rien n\u2019a bougé.",
+      ret_e_pendiente:"en attente", ret_e_enviada:"envoyé", ret_e_fallida:"échoué",
+      ret_e_revision:"en révision", ret_e_devuelta:"remboursé",
       lg_disarm:"perd son arme :", lg_bite:"mord", lg_petmiss:"rate",
       lg_cover:"s\u2019interpose et encaisse le coup de", lg_petdown:"tombe pour le reste de ce combat",
       lg_petdead:"tombe, et cette fois pour de bon",
@@ -1770,6 +1877,77 @@
     renderVivarium();
   }
 
+  /* ═══════════ la retirada ═══════════
+     Aqui un numero de Postgres se convierte en dinero. Todo lo que puede
+     sorprender se enseña ANTES de pulsar: la conversion de hoy, la comision,
+     el minimo y lo que queda de tope. Un numero que cambia despues del boton
+     se lee como un engano aunque sea un despiste.
+
+     Los parametros salen del SERVIDOR (`economia`), nunca de constantes aqui:
+     la tasa la mueve la valvula y el navegador no tiene forma de saberla. */
+  let eco = null;
+
+  async function renderRetirar(){
+    el("retSaldo").textContent = balance;
+    el("retEq").textContent = "";
+    el("retLista").innerHTML = "";
+    try{ eco = (await SolBruteDB.economia()) || null; }
+    catch(e){ eco = null; }
+
+    const abierta = !!(eco && eco.abiertas);
+    el("retCerrada").hidden = abierta;
+    el("retForm").hidden    = !abierta;
+
+    if(eco){
+      /* Lo que valen tus monedas HOY. Se enseña siempre, abierta o cerrada:
+         saber a cuanto esta la conversion no depende de poder retirar. */
+      /* Ojo: la variable NO se puede llamar `t` — ese nombre es la funcion de
+         traduccion, y llamarla igual la tapa dentro de este bloque. */
+      const tok = Math.floor(balance * eco.tasa);
+      el("retEq").textContent = `≈ ${tok.toLocaleString()} $BRUTE  ·  ${t("ret_tasa")} ${eco.tasa}`;
+    }
+    if(abierta){ el("retCant").value = ""; pintarDesglose(); }
+
+    try{
+      const r = await SolBruteDB.misRetiradas(20);
+      const filas = (r && r.retiradas) || [];
+      el("retLista").innerHTML = filas.length ? filas.map(f => `
+        <div class="ret-r">
+          <span><b>${Number(f.monedas).toLocaleString()}</b> ${t("coins")}
+                → ${Number(f.tokens).toLocaleString()} $BRUTE</span>
+          <span class="est ${esc(f.estado)}">${t("ret_e_"+f.estado) || esc(f.estado)}</span>
+        </div>`).join("") : `<p class="match-note">${t("ret_sin")}</p>`;
+    }catch(e){ /* sin historial no se rompe la pantalla */ }
+  }
+
+  /* El desglose es la pieza honesta: separa lo que pides, lo que se queda la
+     comision y lo que te llega. Sin esto el jugador pide 100 y recibe 90 sin
+     saber por que. */
+  function pintarDesglose(){
+    if(!eco) return;
+    const n = Math.max(0, Math.floor(Number(el("retCant").value) || 0));
+    const com = Math.floor(n * eco.comision / 100);
+    const tok = Math.floor((n - com) * eco.tasa);
+    const quedaDia = Math.max(0, eco.tope_dia - eco.hoy_tu);
+    el("retDesglose").innerHTML = `
+      <div class="l"><span>${t("ret_pides")}</span><b>${n.toLocaleString()}</b></div>
+      <div class="l"><span>${t("ret_com")} (${eco.comision}%)</span><b>−${com.toLocaleString()}</b></div>
+      <div class="l total"><span>${t("ret_recibes")}</span><b>${tok.toLocaleString()} $BRUTE</b></div>
+      <div class="l"><span>${t("ret_min")}</span><b>${eco.minimo.toLocaleString()}</b></div>
+      <div class="l"><span>${t("ret_queda")}</span><b>${quedaDia.toLocaleString()}</b></div>`;
+
+    /* El boton se apaga por el motivo concreto, y el motivo se escribe. Un
+       boton gris sin explicacion se lee como que la web esta rota. */
+    let mal = "";
+    if(n <= 0)                 mal = "";
+    else if(n > balance)       mal = t("ret_no_llega");
+    else if(n < eco.minimo)    mal = t("ret_bajo_min") + " " + eco.minimo;
+    else if(n > quedaDia)      mal = t("ret_tope_dia") + " " + quedaDia;
+    el("retNota").textContent = mal;
+    el("retNota").className = "ret-nota" + (mal ? " mal" : "");
+    el("retIr").disabled = !!mal || n <= 0;
+  }
+
   function renderVivarium(){
     if(!active){
       el("vivSub").textContent = "";
@@ -2228,8 +2406,12 @@
      convierte un deslizamiento en un paso: sin esto parece que patina. */
   function caminar(side, veces, paso){
     let i = 0;
-    const t = setInterval(() => { pose(side, i++ % 2 ? "paso2" : "paso1"); }, paso);
-    setTimeout(() => { clearInterval(t); }, veces * paso);
+    /* `reloj`, no `t`: ese nombre es la funcion de traduccion y llamarlo igual
+       la tapa dentro de la funcion. Hoy aqui no se traduce nada, pero la
+       proxima vez que alguien anada un texto se encuentra con `t is not a
+       function` y sin motivo aparente. */
+    const reloj = setInterval(() => { pose(side, i++ % 2 ? "paso2" : "paso1"); }, paso);
+    setTimeout(() => { clearInterval(reloj); }, veces * paso);
   }
 
   /* La distancia hasta el rival se MIDE, no se supone: la arena cambia de
@@ -2775,7 +2957,44 @@
   el("btnViv").onclick = () => openVivarium();
   el("btnTor").onclick = openTorneos;
   el("btnTorVolver").onclick = openTorneos;
+  el("btnRet").onclick  = () => { show("scRetirar"); renderRetirar(); };
   el("btnHist").onclick = openHist;
+  el("retCant").oninput = pintarDesglose;
+  el("retMax").onclick  = () => {
+    /* El maximo de verdad es el menor de tres: tu saldo, lo que queda de tu
+       tope del dia y lo que queda del tope global. Poner solo el saldo seria
+       ofrecerte algo que el servidor va a rechazar. */
+    if(!eco) return;
+    const tope = Math.max(0, eco.tope_dia   - eco.hoy_tu);
+    const glob = Math.max(0, eco.tope_total - eco.hoy_todos);
+    el("retCant").value = Math.max(0, Math.min(balance, tope, glob));
+    pintarDesglose();
+  };
+  el("retIr").onclick = async () => {
+    const n = Math.floor(Number(el("retCant").value) || 0);
+    if(!(n > 0)) return;
+    const b = el("retIr"); b.disabled = true;
+    el("retNota").className = "ret-nota";
+    el("retNota").textContent = t("ret_enviando");
+    try{
+      const r = await SolBruteDB.retirar(n);
+      balance = (r && r.saldo !== undefined) ? r.saldo : balance - n;
+      el("balNum").textContent = balance;
+      await renderRetirar();
+      el("retNota").textContent = t("ret_hecho");
+    }catch(e){
+      /* El servidor manda una marca para poder decir QUE ha fallado. Sin eso
+         el jugador ve «error» y no sabe si el problema es suyo o del sitio. */
+      const m = String((e && e.message) || "");
+      el("retNota").className = "ret-nota mal";
+      el("retNota").textContent =
+        m.includes("retiradas_cerradas") ? t("ret_cerrada_corta") :
+        m.includes("minimo")             ? t("ret_bajo_min") + " " + (eco ? eco.minimo : "") :
+        m.includes("tope_jugador")       ? t("ret_tope_dia_c") :
+        m.includes("tope_global")        ? t("ret_tope_glob") :
+        m.includes("sin_saldo")          ? t("ret_no_llega") : t("ret_fallo");
+    }finally{ b.disabled = false; }
+  };
   el("btnHistRefresh").onclick = cargarHist;
   el("btnRankRefresh").onclick = async () => {
     const b = el("btnRankRefresh");

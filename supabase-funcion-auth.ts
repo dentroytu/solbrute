@@ -1069,6 +1069,42 @@ async function manejar(req: Request): Promise<Response> {
 
   /* Las retiradas del jugador. Misma regla que el historial: la dirección sale
      del token, nunca del cuerpo. */
+  /* ══════════ los parametros de la retirada ══════════
+     Todo lo que la pantalla necesita para decir la verdad ANTES de que el
+     jugador pulse nada: a cuanto esta la conversion hoy, cuanto es lo minimo,
+     que topes le quedan y si la puerta esta abierta.
+
+     Sin esto la pantalla tendria que suponer, y suponer aqui significa
+     enseñarle a alguien una cifra que luego el servidor le corrige. Un numero
+     que cambia al pulsar se lee como un engano, aunque sea un despiste.
+
+     Lo retirado HOY sale de `withdrawals`, que el navegador no puede leer
+     (RLS con cero politicas), asi que tiene que venir por aqui. */
+  if (accion === "economia") {
+    const e = (await db("/economia?id=eq.1&select=*"))?.[0];
+    if (!e) return responder({ error: "economia sin configurar" }, 500);
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    const mias = await db("/withdrawals?address=eq." + encodeURIComponent(dueno) +
+                          "&created_at=gte." + hoy + "&estado=neq.devuelta&select=monedas");
+    const todas = await db("/withdrawals?created_at=gte." + hoy +
+                           "&estado=neq.devuelta&select=monedas");
+    const suma = (f: unknown) => (Array.isArray(f) ? f : [])
+      .reduce((a: number, x: { monedas?: number }) => a + Number(x.monedas || 0), 0);
+
+    return responder({
+      abiertas:   !!e.retiradas_abiertas,
+      tasa:       Number(e.tokens_por_moneda),
+      comision:   Number(e.comision_pct),
+      minimo:     Number(e.minimo_retirada),
+      tope_dia:   Number(e.tope_jugador_dia),
+      tope_total: Number(e.tope_global_dia),
+      hoy_tu:     suma(mias),
+      hoy_todos:  suma(todas),
+      red:        String(e.red || ""),
+    });
+  }
+
   if (accion === "retiradas") {
     const limite = Math.min(Math.max(Math.floor(Number(cuerpo.limite)) || 20, 1), 100);
     const filas = await db("/rpc/retiradas_de", {

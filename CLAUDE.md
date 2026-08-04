@@ -45,6 +45,7 @@ experiencia y sube de nivel.
 | `supabase-25-niveles.sql` | Armas y mascotas con nivel minimo. **Antes de la Edge Function** | Repetible |
 | `supabase-27-perdidas.sql` | El historial apunta el arma rota y la mascota muerta | Repetible |
 | `supabase-28-cuadrar.sql` | Cuadra los libros tras el descuadre del panel. **Tras la Edge Function** | Una vez |
+| `supabase-29-valvula.sql` | La válvula: solo se paga lo que hay. **Con el token en mainnet** | Escrito |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
@@ -756,6 +757,48 @@ rival igual que tú; lo que gastas, no.**
 
 Sin peleas no se enseña un recuadro vacío: ocupa lo mismo que uno lleno y no
 dice nada.
+
+---
+
+## La pantalla de retirada
+
+El servidor de retiradas estaba entero desde hacía tiempo —`retirar`, los
+topes, la comisión, el registro— pero **no había pantalla**. Nunca se
+construyó.
+
+**Todo lo que puede sorprender se enseña ANTES de pulsar:** la conversión de
+hoy, la comisión, el mínimo y lo que queda de tope. Un número que cambia
+después de darle al botón se lee como un engaño aunque sea un despiste.
+
+Los parámetros salen de la ruta `economia`, no de constantes en el cliente: la
+tasa la mueve la válvula y el navegador no tiene forma de saberla. Y lo
+retirado hoy sale de `withdrawals`, que el navegador no puede leer —RLS con
+cero políticas—, así que tiene que venir por el servidor.
+
+**El botón «Máx» pone el menor de tres cosas:** tu saldo, lo que queda de tu
+tope diario y lo que queda del global. Poner solo el saldo sería ofrecerte algo
+que el servidor va a rechazar.
+
+**Y con las retiradas cerradas no hay botón muerto:** se explica que el token
+no existe todavía y que las monedas no se pierden. Un botón gris sin
+explicación se lee como que la web está rota.
+
+### La válvula: solo se paga lo que hay
+
+`supabase-29-valvula.sql`, escrito y **sin aplicar** — no sirve de nada hasta
+que exista el token en mainnet y `respaldo_tokens` tenga un valor real.
+
+```
+tokens_por_moneda = min(objetivo, respaldo_disponible / deuda_total)
+```
+
+Si hay respaldo de sobra se paga el objetivo; si no, se paga menos, solo.
+**Lo que garantiza es que el sistema no pueda quedar a deber**, y que si falta,
+falte para todos por igual y a la vez en vez de cobrar el primero que llegue.
+
+Lo que **no** garantiza, y está escrito dentro del fichero: no impide que las
+ganancias bajen si deja de entrar dinero. Eso no lo arregla ningún mecanismo.
+Hace que bajen de forma ordenada en vez de acabar en un impago.
 
 ---
 
