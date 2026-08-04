@@ -196,7 +196,12 @@
       "Bash(curl -s https://api.devnet.solana.com -X POST -H 'Content-Type: application/json' -d '{ *)",
       "Bash(node --check prueba-preventa.mjs)",
       "Bash(mkdir -p /Users/alvaroreyesgiraldez/Desktop/aduanas)",
-      "Read(//Users/alvaroreyesgiraldez/Desktop/**)"
+      "Read(//Users/alvaroreyesgiraldez/Desktop/**)",
+      "Bash(node --check logica.js)",
+      "Bash(awk '{print $NF}')",
+      "Bash(open /Users/alvaroreyesgiraldez/Desktop/aduanas/index.html)",
+      "Bash(node --check respaldo.mjs)",
+      "Bash(node respaldo.mjs)"
     ]
   }
 }

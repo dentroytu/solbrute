@@ -49,7 +49,10 @@ experiencia y sube de nivel.
 | `supabase-30-rescatar.sql` | Rescatar el arma rota y revivir la mascota | Repetible |
 | `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Escrito, sin aplicar |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
-| `prueba-preventa.mjs` | Ataca la preventa **contra el servidor desplegado**. 31 ataques | Herramienta |
+| `prueba-preventa.mjs` | Ataca la preventa **contra el servidor desplegado**. 33 ataques | Herramienta |
+| `prueba-pago-devnet.mjs` | Compra de verdad contra devnet: paga, cobra y no cobra dos veces | Herramienta |
+| `respaldo.mjs` | Copia de seguridad propia de la base, y la comprueba | Herramienta |
+| `LEGAL.md` | Expediente de hechos para el abogado | Guía |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain y la preventa** | Desplegada |
@@ -1544,6 +1547,8 @@ dos lados.
       `supabase-31-preventa.sql`, redesplegar las dos Edge Functions, poner
       los secretos y configurarla desde el panel. Ver `DESPLIEGUE.md`.
       Los ataques de `prueba-hostil.ts` (12b y 12c) hay que pasarlos antes.
+- [x] ~~Copia de seguridad de la base~~ — hecha. `respaldo.mjs`, con su
+      comprobación. Ver «La copia de seguridad».
 - [ ] **Torneos semanales** — anotado, sin construir. Lo que hay que decidir:
       · ¿Te apuntas o entran todos? Apuntarse da menos gente y más intención.
       · Cuadro de 8 o 16, eliminatorias. El servidor puede resolverlas de golpe,
@@ -1887,6 +1892,47 @@ Antes de dar por bueno un fallo, comprueba que el ataque está bien escrito.
 servidor hay que preguntarse *qué pasa si viene envenenado*, y cada vez que un
 dato viaja del servidor a la pantalla de OTRO jugador hay que preguntarse *qué
 pasa si lo escribió un atacante*.
+
+---
+
+## La copia de seguridad
+
+`respaldo.mjs`. Hasta ahora **no había ninguna**: un `delete` mal escrito en el
+SQL Editor se llevaba los brutos de todo el mundo sin vuelta atrás.
+
+```bash
+export SUPABASE_SERVICE_KEY='…'
+node respaldo.mjs                      # guarda
+node respaldo.mjs --ver respaldos/…    # comprueba
+```
+
+**No sustituye a las copias de Supabase, y esa es la gracia.** Vive en tu disco
+y no depende de que tu cuenta siga existiendo ni de que no borren el proyecto
+por error. Una copia que vive dentro del mismo sitio que protege no es una
+copia.
+
+### Se creyó una copia vacía la primera vez que se probó
+
+Con la clave `anon` copió sin un solo error y sacó ✓ en las quince tablas.
+`movimientos`, `withdrawals`, `preventa_compras` y `admin_log` salieron con
+**cero filas** — porque RLS las hace invisibles, no porque estuvieran vacías. Es
+la trampa de siempre (`200 []` no prueba nada) con la peor cara posible: **una
+copia inútil que parece perfecta**, y de la que te enteras el día que vas a
+restaurar.
+
+Ahora mira el `role` que va dentro del JWT y se niega a correr con otra clave.
+Y de segundo cinturón, `economia` y `preventa` tienen una fila fija cada una: si
+vienen a cero, no se guarda nada.
+
+### Una copia que nadie ha restaurado no es una copia
+
+Por eso existe `--ver`, y por eso el fichero guarda el número de filas de cada
+tabla: **un JSON truncado a la mitad se abre igual de bien que uno entero.** Sin
+una cuenta que cuadre no hay forma de saber que está completo. Y de paso
+comprueba la invariante de la economía sobre los datos copiados.
+
+Las copias van a `respaldos/`, fuera del repositorio: llevan direcciones y
+saldos de gente.
 
 ---
 

@@ -250,7 +250,7 @@ a jugadores legítimos. Diluir y vigilar es la respuesta realista.
 
 | | Qué | Por qué |
 |---|---|---|
-| ⬜ | **Copia de seguridad de la base** | hoy no hay ninguna. Un borrado accidental se lleva todo |
+| ✅ | ~~Copia de seguridad de la base~~ | `respaldo.mjs`, con comprobación. Se creyó una copia vacía la primera vez: la clave `anon` da `[]` en todo lo que tiene RLS |
 | ⬜ | **Página de estado pública** | reserva restante, emisión del día, tokens en circulación. Encaja con el tono del proyecto: se dice lo que hay |
 | ⬜ | Límite de peticiones por IP en la Edge Function | hoy nada impide machacar las rutas |
 | ⬜ | Borrar `supabase-funcion-prueba-solana.ts` | ya cumplió: demostró que la Edge Function puede firmar |
@@ -270,7 +270,7 @@ tokens reales, eso deja de ser una molestia y pasa a ser dinero de otros.
 Mi orden, y el porqué:
 
 1. **Lo legal.** Bloquea todo lo demás y no depende de ti que sea rápido.
-2. **Copia de seguridad.** Barato, y hoy no existe.
+2. ~~**Copia de seguridad.**~~ Hecha.
 3. **El enlace por combate + el verificador.** Poco trabajo, cumple una promesa
    que hoy está sin cumplir, y es lo único de la lista que trae gente sola.
 4. **Skins.** El sumidero más barato y el único que no toca el equilibrio.
