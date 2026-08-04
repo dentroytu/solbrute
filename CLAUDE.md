@@ -677,6 +677,26 @@ Puede editar y borrar jugadores y brutos. Los valores se recortan al mismo
 rango legal que usa el juego: un administrador está para arreglar cosas, no
 para crear sin querer un bruto con fuerza 500. Y no puede borrarse a sí mismo.
 
+### El panel se abría y LUEGO preguntaba
+
+`cargar()` escondía la puerta y enseñaba el panel **antes** de pedir los datos.
+Y la firma de cualquier jugador es válida —es un usuario legítimo, solo que no
+administrador—, así que entraba, veía el panel entero montado, y solo entonces
+el servidor decía que no. Tablas vacías, pero el formulario de la preventa a la
+vista.
+
+**No filtraba ni un dato**: el servidor nunca respondió. Pero le confirmaba a un
+desconocido que este panel existe y que llegar aquí es cuestión de estar en una
+lista — que es justo lo que no se le quiere decir, y por lo que a quien no es
+admin se le responde lo mismo que a una sesión caducada.
+
+Ahora los datos van primero: `recargar()` lanza si el servidor no te reconoce, y
+la puerta se queda donde estaba.
+
+Con un sitio estático **el marcado del panel no se puede esconder** —cualquiera
+puede leer `admin.html`— y no se pretende: lo que no puede pasar es que la
+página se comporte como si hubieras entrado.
+
 ### Todo cambio queda en `admin_log`
 
 Con el **antes y el después** — sin el antes, un registro solo dice que algo

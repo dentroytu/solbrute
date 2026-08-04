@@ -733,6 +733,12 @@
       /* Si el servidor dice 401 puede ser sesión mala O que no eres admin: él
          responde lo mismo a propósito, para no confirmarle a un desconocido
          que este panel existe. */
+      /* Y se cierra por si acaso: si la sesion caduca estando dentro y se
+         vuelve a intentar, el panel no puede quedarse abierto. */
+      el("scPanel").classList.remove("on");
+      el("scPuerta").style.display = "";
+      el("btnSalir").style.display = "none";
+      el("quien").textContent = "";
       aviso(porCausa[e.causa || e.clase] || "No has podido entrar. Si tu dirección no está en la lista de administradores, esto es lo que verás.", true);
       console.warn("[admin]", e.causa || e.clase || "?", e.message);
     }finally{
@@ -740,23 +746,42 @@
     }
   }
 
+  /* Los datos ANTES de enseñar nada, y no al reves.
+     ────────────────────────────────────────────────────────────────────────
+     Esto enseñaba el panel primero y pedia los datos despues. La firma de
+     cualquier jugador es VALIDA —es un usuario legitimo, solo que no
+     administrador—, asi que entraba, veia el panel entero montado, y solo
+     entonces el servidor decia que no. Tablas vacias, pero el formulario de
+     la preventa a la vista.
+
+     No filtraba ni un dato: el servidor nunca respondio. Pero le confirmaba a
+     un desconocido que este panel existe y que llegar aqui es cuestion de
+     estar en una lista — que es justo lo que no se le quiere decir.
+
+     Ahora `recargar()` lanza si no eres admin y la puerta se queda donde
+     estaba. Lo que ve alguien que no lo es es exactamente lo que ve una sesion
+     caducada. */
   async function cargar(dir){
     datos.dir = dir;
+    await recargar();
     el("scPuerta").style.display = "none";
     el("scPanel").classList.add("on");
     el("quien").textContent = dir.slice(0,4) + "…" + dir.slice(-4);
     el("btnSalir").style.display = "";
-    await recargar();
   }
 
   /* Tras cada cambio se recarga todo del servidor en vez de tocar la tabla a
      mano: así lo que ves es lo que hay guardado, no lo que creemos que quedó. */
   async function recargar(){
+    /* Esta es la puerta de verdad, y va la PRIMERA: lanza si el servidor no te
+       reconoce como administrador. Lo de abajo son llamadas sueltas que se
+       tragan sus propios errores, asi que si fueran antes no frenarian a
+       nadie. */
+    const resumen = await SolBruteDB.adminResumen();
+    const { jugadores, brutos } = await SolBruteDB.adminJugadores();
     cargarTorneos();
     cargarRed();
     cargarPreventa();
-    const resumen = await SolBruteDB.adminResumen();
-    const { jugadores, brutos } = await SolBruteDB.adminJugadores();
     datos.brutos = brutos || [];
 
     pintarResumen(resumen);

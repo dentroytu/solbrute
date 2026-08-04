@@ -1,1 +1,5 @@
 funcion-bajo-prueba.ts
+
+# La clave del comprador de pruebas. Es de devnet y no vale nada, pero una
+# clave privada en un repo publico es un habito que no conviene coger.
+.comprador-devnet.json
