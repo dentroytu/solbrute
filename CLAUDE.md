@@ -47,6 +47,7 @@ experiencia y sube de nivel.
 | `supabase-28-cuadrar.sql` | Cuadra los libros tras el descuadre del panel. **Tras la Edge Function** | Una vez |
 | `supabase-29-valvula.sql` | La válvula: solo se paga lo que hay. **Con el token en mainnet** | Escrito |
 | `supabase-30-rescatar.sql` | Rescatar el arma rota y revivir la mascota | Repetible |
+| `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Repetible |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
@@ -758,6 +759,57 @@ rival igual que tú; lo que gastas, no.**
 
 Sin peleas no se enseña un recuadro vacío: ocupa lo mismo que uno lleno y no
 dice nada.
+
+---
+
+## La preventa
+
+`supabase-31-preventa.sql`. **Nace apagada** y no se enciende desde el código:
+se enciende desde el panel, a mano. Mientras esté apagada la landing no enseña
+nada.
+
+### Una transacción con dos firmas
+
+El servidor construye una transacción con las dos instrucciones dentro —el SOL
+del comprador hacia la wallet de preventa, y los tokens de esa wallet hacia
+él—, la firma por su parte, y el navegador la firma por la del comprador.
+
+**O pasan las dos cosas o no pasa ninguna.** Sin custodia, sin lista de espera,
+y sin que nadie tenga que fiarse de que el equipo entregue después. Es la
+diferencia entre vender algo y pedir un anticipo.
+
+### Hay que RESERVAR antes de firmar
+
+Entre construir la transacción y firmarla pasan segundos, y en esos segundos
+otro puede llevarse el cupo. Sin reserva, dos personas firman transacciones
+válidas por los mismos tokens y la segunda falla **en la cadena, habiendo
+pagado ya la comisión de red**.
+
+Se reserva con `for update`, se firma después, y la reserva caduca sola a los
+tres minutos. Las caducadas se sueltan al reservar la siguiente, no en una
+tarea aparte: si nadie ejecuta la limpieza, el cupo se quedaría bloqueado por
+reservas muertas.
+
+### El precio va en lamports, no en dólares
+
+Lo que se firma es una transferencia de SOL, así que el precio se fija en
+lamports por token. **El dólar es una consecuencia del precio del SOL**, no
+algo que se pueda fijar:
+
+```
+$0,025/token con SOL a $73,62  →  339.582 lamports por token
+```
+
+Y si el SOL se mueve durante la preventa, el precio en dólares se mueve con él
+— con SOL a $120 estarías vendiendo a $0,041. Se corrige cambiando el precio
+desde el panel.
+
+### El tope por wallet no es contra ballenas
+
+Es contra que **una sola persona se lleve el cupo entero** y luego decida ella
+sola el precio del token vendiéndolo. Con 5.000.000 en preventa y un tope de
+250.000 hacen falta 20 compradores como mínimo. No impide usar varias wallets,
+pero obliga a molestarse.
 
 ---
 
