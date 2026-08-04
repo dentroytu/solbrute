@@ -768,15 +768,46 @@ dice nada.
 se enciende desde el panel, a mano. Mientras esté apagada la landing no enseña
 nada.
 
-### Una transacción con dos firmas
+### Se paga ahora y se reclama después
 
-El servidor construye una transacción con las dos instrucciones dentro —el SOL
-del comprador hacia la wallet de preventa, y los tokens de esa wallet hacia
-él—, la firma por su parte, y el navegador la firma por la del comprador.
+El comprador manda SOL, la compra queda apuntada, y los tokens se entregan
+cuando el dueño abre los reclamos — normalmente al crear el pool, **para que el
+precio de referencia lo ponga el proyecto y no el primero que reciba tokens**.
 
-**O pasan las dos cosas o no pasa ninguna.** Sin custodia, sin lista de espera,
-y sin que nadie tenga que fiarse de que el equipo entregue después. Es la
-diferencia entre vender algo y pedir un anticipo.
+**Lo que eso exige a cambio, dicho claro:** entre que alguien paga y recibe, su
+dinero está en tu wallet y él no tiene nada. Eso es custodia y no hay forma de
+que no lo sea. Lo único que se puede hacer es que sea verificable a cada paso:
+
+- la firma del pago se guarda → comprobable en la cadena
+- lo que se te debe está a la vista en tu pantalla, siempre
+- abrir los reclamos deja rastro en `admin_log`: quién y cuándo
+- la firma de la entrega también se guarda, **antes** de enviar
+
+La alternativa —entregar en el acto— no necesita nada de esto, pero deja que el
+primero que reciba tokens monte el mercado a su precio. **Es un intercambio
+consciente, no un descuido.**
+
+### El reclamo usa el orden de la retirada
+
+```
+1. abrir    toma las compras pagadas y las deja en vuelo   (atómico)
+2. firmar   GUARDA la firma                                 ANTES de enviar
+3. enviar   a la red
+4. cerrar   marca entregada
+```
+
+El fallo clásico es mandar los tokens, caerse antes de apuntarlo, y al
+reintentar mandarlos otra vez. En Solana la firma se calcula antes de enviar,
+así que se apunta en el paso 2: si algo se rompe después, se va a mirar a la
+cadena si llegó. No hay que adivinar.
+
+**Y la firma de la entrega no vive en la compra, sino en su propia tabla.** Si
+alguien compró tres veces y reclama de golpe, eso es UNA transacción con UNA
+firma, y no cabría en tres filas con la firma marcada como única.
+
+**Un reclamo fallido no devuelve el SOL solo.** «Falló el envío» y «llegó pero
+no vi la confirmación» se parecen demasiado desde el servidor; las compras
+vuelven a quedar pendientes y se mira la cadena.
 
 ### Hay que RESERVAR antes de firmar
 

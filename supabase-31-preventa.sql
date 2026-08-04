@@ -8,13 +8,24 @@
 -- apagada la landing no enseña nada.
 --
 -- ── Como funciona la compra ───────────────────────────────────────────────
--- UNA transaccion con DOS firmas. El servidor la construye con las dos
--- instrucciones dentro —el SOL del comprador hacia la wallet de preventa, y
--- los tokens de esa wallet hacia el comprador—, la firma por su parte, y el
--- navegador la firma por la del comprador.
+-- Se paga ahora y se RECLAMA despues. El comprador manda SOL, la compra queda
+-- apuntada, y los tokens se entregan cuando el dueño abre los reclamos —
+-- normalmente al crear el pool, para que el precio de referencia lo ponga el
+-- proyecto y no el primero que reciba tokens.
 --
--- O pasan las dos cosas o no pasa ninguna. Sin custodia, sin lista de espera,
--- y sin que nadie tenga que fiarse de que el equipo entregue despues.
+-- ── Lo que esto exige a cambio, dicho claro ───────────────────────────────
+-- Entre que alguien paga y recibe, SU DINERO ESTA EN TU WALLET Y EL NO TIENE
+-- NADA. Eso es custodia y no hay forma de que no lo sea. Lo unico que se puede
+-- hacer es que sea verificable a cada paso, y es lo que hace este fichero:
+--
+--   · la firma del pago se guarda -> comprobable en la cadena
+--   · lo que se te debe esta a la vista en tu pantalla, siempre
+--   · abrir los reclamos deja rastro en admin_log: quien y cuando
+--   · la firma de la entrega tambien se guarda, ANTES de enviar
+--
+-- La alternativa —entregar en el acto— no necesita nada de esto, pero deja
+-- que el primero que reciba tokens monte el mercado a su precio. Es un
+-- intercambio consciente, no un descuido.
 --
 -- ── Por que hay que RESERVAR antes de firmar ──────────────────────────────
 -- Entre que se construye la transaccion y el comprador la firma pasan
@@ -49,6 +60,9 @@ create table if not exists preventa (
   hasta           timestamptz,
   wallet          text,                             -- donde llega el SOL
   mint            text,                             -- el token que se entrega
+  -- La segunda puerta, y tambien nace cerrada. Se abre cuando exista el pool:
+  -- entregar antes es justo lo que esta arquitectura evita.
+  reclamos_abiertos boolean not null default false,
   actualizado     timestamptz not null default now()
 );
 insert into preventa (id) values (1) on conflict (id) do nothing;
@@ -59,11 +73,17 @@ create table if not exists preventa_compras (
   tokens      bigint not null check (tokens > 0),
   lamports    bigint not null check (lamports >= 0),
   estado      text   not null default 'reservada'
-              check (estado in ('reservada','pagada','caducada','cancelada')),
-  firma       text unique,          -- unica: un envio no se puede reclamar dos veces
+              check (estado in ('reservada','pagada','entregada','caducada','cancelada')),
+  -- La firma del PAGO vive aqui. La de la ENTREGA no: si alguien compro tres
+  -- veces y reclama de golpe, eso es UNA transaccion con UNA firma, y no
+  -- cabria en tres filas con la firma marcada como unica. Por eso el reclamo
+  -- tiene tabla propia y las compras apuntan a el.
+  firma       text unique,          -- el pago que hizo el comprador
+  reclamo_id  bigint,               -- el reclamo que la entrego (ver abajo)
   creado      timestamptz not null default now(),
   caduca      timestamptz not null,
-  confirmado  timestamptz
+  confirmado  timestamptz,
+  entregado   timestamptz
 );
 create index if not exists preventa_addr_idx on preventa_compras(address, creado desc);
 create index if not exists preventa_res_idx  on preventa_compras(caduca)
@@ -96,7 +116,8 @@ as $$
     'tope',     p.tope_wallet,
     'minimo',   p.minimo,
     'desde',    p.desde,
-    'hasta',    p.hasta)
+    'hasta',    p.hasta,
+    'reclamos', p.reclamos_abiertos)
   from preventa p where p.id = 1;
 $$;
 
@@ -199,6 +220,139 @@ $$;
 
 
 -- ══════════════════════════════════════════════════════════════════════════
+-- EL RECLAMO
+-- ══════════════════════════════════════════════════════════════════════════
+-- Mismo orden que la retirada, y por el mismo motivo:
+--
+--     1. abrir     toma las compras pagadas y las deja en vuelo   (atomico)
+--     2. firmar    GUARDA la firma                                ANTES de enviar
+--     3. enviar    a la red
+--     4. cerrar    marca entregada
+--
+-- El fallo clasico es mandar los tokens, caerse antes de apuntarlo, y al
+-- reintentar mandarlos otra vez. En Solana la firma se puede calcular antes de
+-- enviar, asi que se apunta en el paso 2: si algo se rompe despues, la firma
+-- esta guardada y se puede ir a mirar a la cadena si llego. No hay que
+-- adivinar.
+create table if not exists preventa_reclamos (
+  id        bigserial primary key,
+  address   text   not null,
+  tokens    bigint not null check (tokens > 0),
+  estado    text   not null default 'abierto'
+            check (estado in ('abierto','enviado','fallido','revision')),
+  firma     text unique,          -- unica: un reintento no reclama el mismo envio
+  creado    timestamptz not null default now(),
+  cerrado   timestamptz
+);
+create index if not exists preventa_rec_idx on preventa_reclamos(address, creado desc);
+alter table preventa_reclamos enable row level security;
+
+
+-- Lo que un comprador tiene y en que estado. Es lo que se le enseña.
+create or replace function preventa_mias(p_address text)
+returns json
+language sql
+security definer
+as $$
+  select json_build_object(
+    'pagado',    coalesce((select sum(tokens) from preventa_compras
+                            where address = p_address and estado = 'pagada'), 0),
+    'entregado', coalesce((select sum(tokens) from preventa_compras
+                            where address = p_address and estado = 'entregada'), 0),
+    'lamports',  coalesce((select sum(lamports) from preventa_compras
+                            where address = p_address and estado in ('pagada','entregada')), 0),
+    'compras',   coalesce((select json_agg(x order by x.creado desc) from (
+                    select id, tokens, lamports, estado, firma, creado
+                      from preventa_compras
+                     where address = p_address and estado in ('pagada','entregada')
+                     limit 50) x), '[]'::json));
+$$;
+
+
+create or replace function preventa_reclamar_abrir(p_address text)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_abierto boolean;
+  v_tokens  bigint;
+  v_id      bigint;
+  v_mint    text;
+begin
+  select reclamos_abiertos, mint into v_abierto, v_mint from preventa where id = 1;
+  if not coalesce(v_abierto, false) then raise exception 'reclamos_cerrados'; end if;
+
+  -- Si ya hay uno en vuelo no se abre otro: dos reclamos abiertos a la vez son
+  -- dos transacciones por los mismos tokens.
+  if exists (select 1 from preventa_reclamos
+              where address = p_address and estado in ('abierto','revision')) then
+    raise exception 'reclamo_en_curso';
+  end if;
+
+  select coalesce(sum(tokens), 0) into v_tokens
+    from preventa_compras where address = p_address and estado = 'pagada' for update;
+  if v_tokens <= 0 then raise exception 'nada_que_reclamar'; end if;
+
+  insert into preventa_reclamos (address, tokens) values (p_address, v_tokens)
+  returning id into v_id;
+
+  update preventa_compras set reclamo_id = v_id
+   where address = p_address and estado = 'pagada';
+
+  return json_build_object('id', v_id, 'tokens', v_tokens, 'mint', v_mint);
+end;
+$$;
+
+
+create or replace function preventa_reclamar_firmar(p_id bigint, p_firma text)
+returns json
+language plpgsql
+security definer
+as $$
+begin
+  if p_firma is null or length(p_firma) < 32 then raise exception 'firma_invalida'; end if;
+  update preventa_reclamos set firma = p_firma
+   where id = p_id and estado = 'abierto' and firma is null;
+  if not found then raise exception 'no_abierto'; end if;
+  return json_build_object('ok', true);
+end;
+$$;
+
+
+-- Solo despues de que la red la haya aceptado. Marca las compras como
+-- entregadas: a partir de aqui ese comprador ya no tiene nada pendiente.
+create or replace function preventa_reclamar_cerrar(p_id bigint, p_estado text)
+returns json
+language plpgsql
+security definer
+as $$
+declare r preventa_reclamos%rowtype;
+begin
+  if p_estado not in ('enviado','fallido','revision') then raise exception 'estado_invalido'; end if;
+  select * into r from preventa_reclamos where id = p_id for update;
+  if not found then raise exception 'no_existe'; end if;
+
+  update preventa_reclamos set estado = p_estado, cerrado = now() where id = p_id;
+
+  if p_estado = 'enviado' then
+    update preventa_compras set estado = 'entregada', entregado = now()
+     where reclamo_id = p_id and estado = 'pagada';
+  else
+    -- No llego: las compras vuelven a estar pendientes para reintentar. NO se
+    -- devuelve el SOL solo: «fallo el envio» y «llego y no vi la confirmacion»
+    -- se parecen demasiado desde el servidor, y devolver a ciegas es como
+    -- alguien cobra dos veces.
+    update preventa_compras set reclamo_id = null
+     where reclamo_id = p_id and estado = 'pagada';
+  end if;
+
+  return json_build_object('estado', p_estado, 'tokens', r.tokens);
+end;
+$$;
+
+
+-- ══════════════════════════════════════════════════════════════════════════
 -- CONFIGURAR (solo el panel)
 -- ══════════════════════════════════════════════════════════════════════════
 -- Todo cambio queda en admin_log con el antes y el despues. Encender una
@@ -226,6 +380,7 @@ begin
     hasta           = coalesce((p_campos->>'hasta')::timestamptz,      hasta),
     wallet          = coalesce( p_campos->>'wallet',                   wallet),
     mint            = coalesce( p_campos->>'mint',                     mint),
+    reclamos_abiertos = coalesce((p_campos->>'reclamos_abiertos')::boolean, reclamos_abiertos),
     actualizado     = now()
   where id = 1;
 
@@ -253,6 +408,15 @@ grant  execute on function preventa_estado()                  to service_role;
 grant  execute on function preventa_reservar(text, bigint)    to service_role;
 grant  execute on function preventa_confirmar(bigint, text)   to service_role;
 grant  execute on function preventa_config(jsonb, text)       to service_role;
+
+revoke execute on function preventa_mias(text)                    from public, anon, authenticated;
+revoke execute on function preventa_reclamar_abrir(text)          from public, anon, authenticated;
+revoke execute on function preventa_reclamar_firmar(bigint, text) from public, anon, authenticated;
+revoke execute on function preventa_reclamar_cerrar(bigint, text) from public, anon, authenticated;
+grant  execute on function preventa_mias(text)                    to service_role;
+grant  execute on function preventa_reclamar_abrir(text)          to service_role;
+grant  execute on function preventa_reclamar_firmar(bigint, text) to service_role;
+grant  execute on function preventa_reclamar_cerrar(bigint, text) to service_role;
 
 
 -- ══════════════════════════════════════════════════════════════════════════
