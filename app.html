@@ -1767,7 +1767,7 @@
       active.rerolls = r.rerolls_left;
       renderMatch();
     }catch(e){
-      const porClase = { version:"f_version", sin_cambios:"reroll_none", sesion:"g_authfail" };
+      const porClase = { version:"f_version", sin_cambios:"reroll_none", sesion:"g_authfail", auth:"g_authfail" };
       el("oppList").innerHTML = `<p class="match-note">${t(porClase[e.clase] || "f_error")}</p>`;
       console.warn("[SolBrute] arena:", e.clase || "?", e.message);
     }
@@ -2405,7 +2405,7 @@
     try{
       r = await SolBruteDB.pelear(active.rid, idx);
     }catch(e){
-      const porClase = { version:"f_version", sesion:"g_authfail" };
+      const porClase = { version:"f_version", sesion:"g_authfail", auth:"g_authfail" };
       alert(t(porClase[e.clase] || "f_error"));
       console.warn("[SolBrute] pelea:", e.clase || "?", e.message);
       return;

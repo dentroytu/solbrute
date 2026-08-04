@@ -1562,6 +1562,20 @@ El síntoma era que nadie podía pelear, porque al fallar el guardado la lista d
 rivales no llegaba a escribirse: un error que hablaba de rivales y cuya causa
 era el nombre.
 
+### La sesión caducada solo avisaba bien UNA vez
+
+`pedirAuth` tenía `if(r.status === 401 && sesion)`. La primera llamada tras
+caducar entraba ahí, borraba la sesión y avisaba correctamente. **La segunda ya
+encontraba `sesion` a `null`**, se saltaba el `if`, y salía por el error
+genérico.
+
+Resultado: la pantalla decía «no he podido resolver el combate, inténtalo otra
+vez» cuando lo que pasaba era que había que volver a firmar. El jugador se queda
+dándole al botón, y el mensaje le está diciendo justamente que insista.
+
+Un 401 de la Edge Function significa siempre lo mismo —el servidor no te
+reconoce— haya sesión guardada o no. Ya no lleva la condición.
+
 ### Lo que todavía no es seguro
 
 **El navegador ya no escribe ni calcula el combate.** La ruta `pelear` sortea la

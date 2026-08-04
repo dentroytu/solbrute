@@ -160,8 +160,18 @@
       /* El nombre repetido tiene su propia clase para que la forja pueda
          avisar en pantalla en vez de soltar un error genérico. */
       if(r.status === 409 || datos.clase === "duplicado") throw ErrorDB("duplicado", datos.error || "nombre ocupado");
-      /* Sesión caducada o revocada: se tira y la app pedirá firmar otra vez. */
-      if(r.status === 401 && sesion){ window.SolBruteDB.cerrarSesion(); throw ErrorDB("sesion", datos.error || "sesión no válida"); }
+      /* Sesión caducada o revocada: se tira y la app pedirá firmar otra vez.
+
+         Antes esto llevaba `&& sesion`, y por eso solo acertaba UNA vez. La
+         primera llamada tras caducar entraba aquí, borraba la sesión y avisaba
+         bien; la segunda ya encontraba `sesion` a null, se saltaba el if, y
+         salía por el genérico de abajo. Resultado: la pantalla decía «no he
+         podido resolver el combate» cuando lo que pasaba era que había que
+         volver a firmar, y el jugador se quedaba dándole al botón.
+
+         Un 401 de la Edge Function significa SIEMPRE lo mismo, haya sesión
+         guardada o no: el servidor no te reconoce. */
+      if(r.status === 401){ window.SolBruteDB.cerrarSesion(); throw ErrorDB("sesion", datos.error || "sesión no válida"); }
       throw ErrorDB("auth", datos.error || ("HTTP " + r.status));
     }
     return datos;
