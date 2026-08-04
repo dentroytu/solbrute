@@ -1048,9 +1048,13 @@ async function manejar(req: Request): Promise<Response> {
        sin congelarlos la pelea deja de poder reproducirse. Durante mucho tiempo
        solo se guardó el del rival, y por eso `pelea.html` distingue las peleas
        antiguas —que no se pueden verificar y lo dice— de las nuevas. */
+    /* `return=representation` para quedarse con el id: es lo que permite
+       enlazar la pelea desde el juego (`pelea.html?id=…`). Sin el, el resultado
+       no tiene forma de decir cual acaba de jugarse. */
+    let peleaId: number | null = null;
     await db("/fights", {
       method: "POST",
-      headers: { Prefer: "return=minimal" },
+      headers: { Prefer: "return=representation" },
       body: JSON.stringify({
         seed, a_brute: fila.id, a_owner: dueno, a_snapshot: aAntes,
         b_brute: foe.rid || null, b_name: String(foe.name || "?").slice(0, 32),
@@ -1067,7 +1071,8 @@ async function manejar(req: Request): Promise<Response> {
         arma_rota: rota || null, arma: mio.arma,
         mascota_muerta: mascotaMuerta || null, mascota: mio.mascota,
       }),
-    }).catch((e) => console.warn("no pude guardar la pelea: " + e.message));
+    }).then((r) => { peleaId = Number(r?.[0]?.id) || null; })
+      .catch((e) => console.warn("no pude guardar la pelea: " + e.message));
 
     /* Se devuelve semilla + registro: el navegador puede recalcular la pelea
        con las mismas reglas y comprobar que cuadra. Eso es la promesa de
@@ -1085,6 +1090,10 @@ async function manejar(req: Request): Promise<Response> {
       /* QUÉ tocó al subir: "str" | "agi" | "spd" | "hp". Sin esto el cartel
          del juego no puede decirlo y acaba enseñando siempre vida. */
       ganancia: premio.ganancia,
+      /* El id de la fila, para poder enlazarla. Puede venir null si el guardado
+         falló: entonces el juego no enseña el botón de compartir en vez de dar
+         un enlace roto. */
+      fight_id: peleaId,
       bruto: mio, fights_left: peleas - 1, balance: monedas,
     });
   }

@@ -158,6 +158,11 @@
      pérdida, bronce equipo. Si todo fuera del mismo color habría que leerlo
      entero para encontrar lo que importa. */
   .tablon{ margin-top:34px; }
+  .ev-ver{ font-size:10.5px; color:var(--bronze); text-decoration:none;
+        border:1px solid var(--line); border-radius:99px; padding:1px 8px;
+        margin-left:6px; white-space:nowrap; }
+  .ev-ver:hover{ color:var(--bronze-light); border-color:var(--bronze); }
+
   .tablon h2{ font-family:'Cinzel',serif; font-size:15px; letter-spacing:.04em;
               color:var(--bronze); margin:0 0 12px; }
   .ev{ display:flex; align-items:baseline; gap:10px; padding:8px 12px;
@@ -487,6 +492,12 @@
      la letra pequeña que lo que acaba de ganar. */
   .banner .rate{ display:block; margin-top:4px; font-size:11px; opacity:.6; }
   .banner .btn{ margin-top:14px; }
+  /* El enlace a la pelea. `[hidden]` no gana a `display:inline-flex` de `.btn`,
+     asi que hace falta la regla — es el mismo caso que la barra de vida de la
+     mascota y que el boton de reclamar de la preventa. */
+  .banner-btns{ display:flex; gap:9px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  .btn[hidden]{ display:none; }
+
   .arena-controls{ display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
   .spd{ display:flex; gap:3px; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:3px; margin-left:auto; }
   .spd button{ background:none; border:none; color:var(--muted); font-family:inherit; font-size:11.5px; font-weight:700; padding:6px 9px; border-radius:6px; cursor:pointer; }
@@ -756,7 +767,11 @@
         <div class="what" id="bannerWhat"></div>
         <div class="who" id="bannerWho"></div>
         <div class="rew" id="bannerRew"></div>
-        <button class="btn btn-bronze js-back" data-i18n="to_ludus">Back to the ludus</button>
+        <div class="banner-btns">
+          <button class="btn btn-bronze js-back" data-i18n="to_ludus">Back to the ludus</button>
+          <a class="btn btn-ghost btn-sm" id="btnCompartir" target="_blank" rel="noopener"
+             data-i18n="share_fight" hidden>See this fight</a>
+        </div>
       </div>
     </div>
     <div class="arena-controls">
@@ -944,7 +959,7 @@
       match_h1:"Elige rival", match_for:"Rivales para", lvl:"nivel", refresh:"↻ Otra lista",
       match_note:"Solo aparecen brutos de nivel parecido. Cuando no hay suficientes jugadores despiertos, la arena completa la lista con brutos de la casa — van marcados.",
       tag_player:"jugador", tag_bot:"BOT", go:"Pelear",
-      back:"‹ Volver al ludus", to_ludus:"Volver al ludus", turn:"TURNO",
+      back:"‹ Volver al ludus", share_fight:"Ver esta pelea", ev_ver:"ver", to_ludus:"Volver al ludus", turn:"TURNO",
       skip:"Ver resultado", seed:"semilla", seed_note:"el mismo número reproduce el mismo combate",
       win:"VICTORIA", lose:"DERROTA", points:"POR PUNTOS", coins:"monedas",
       lg_through:"te llegan", lg_all:"lo para entero",
@@ -1078,7 +1093,7 @@
       match_h1:"Pick an opponent", match_for:"Opponents for", lvl:"level", refresh:"↻ New list",
       match_note:"Only brutes near your level show up. When there aren't enough players awake, the arena fills the list with house brutes — they're labelled.",
       tag_player:"player", tag_bot:"BOT", go:"Fight",
-      back:"‹ Back to the ludus", to_ludus:"Back to the ludus", turn:"TURN",
+      back:"‹ Back to the ludus", share_fight:"See this fight", ev_ver:"see", to_ludus:"Back to the ludus", turn:"TURN",
       skip:"Skip to result", seed:"seed", seed_note:"the same number replays the same fight",
       win:"VICTORY", lose:"DEFEAT", points:"ON POINTS", coins:"coins",
       lg_through:"gets through:", lg_all:"stops it all",
@@ -1212,7 +1227,7 @@
       match_h1:"Choisis un adversaire", match_for:"Adversaires pour", lvl:"niveau", refresh:"↻ Autre liste",
       match_note:"Seules les brutes de niveau proche apparaissent. Quand il n'y a pas assez de joueurs éveillés, l'arène complète la liste avec ses propres brutes — elles sont signalées.",
       tag_player:"joueur", tag_bot:"BOT", go:"Combattre",
-      back:"‹ Retour au ludus", to_ludus:"Retour au ludus", turn:"TOUR",
+      back:"‹ Retour au ludus", share_fight:"Voir ce combat", ev_ver:"voir", to_ludus:"Retour au ludus", turn:"TOUR",
       skip:"Voir le résultat", seed:"graine", seed_note:"le même nombre rejoue le même combat",
       win:"VICTOIRE", lose:"DÉFAITE", points:"AUX POINTS", coins:"pièces",
       lg_through:"t\u2019arrive :", lg_all:"tout bloque",
@@ -1662,7 +1677,8 @@
         ? ` <span class="ev-cuando">${t("ev_con")} ${esc(armas[f.arma] || f.arma)}</span>` : "";
       lineas.push({ tipo: gano ? "gana" : "pierde", ico: gano ? "⚔️" : "✖", cuando,
         txt: `<b>${quien}</b> ${gano ? t("ev_gana") : t("ev_pierde")} <b>${rival}</b>`
-             + ` · +${f.coins} $BRUTE${conArma}` });
+             + ` · +${f.coins} $BRUTE${conArma}`
+             + ` <a class="ev-ver" href="pelea.html?id=${Number(f.id)}" target="_blank" rel="noopener">${t("ev_ver")}</a>` });
 
       if(f.subio){
         const g = String(f.ganancia || "");
@@ -2693,6 +2709,15 @@
   function finish(){
     if(!playing || !premio) return;
     playing = false;
+
+    /* El enlace a la pelea, publico y sin sesion. Solo si el servidor pudo
+       guardarla: sin id, un enlace llevaria a una pagina que dice «esa pelea no
+       existe», que es peor que no ofrecerlo. */
+    const bc = el("btnCompartir");
+    if(premio.fight_id){
+      bc.href = "pelea.html?id=" + premio.fight_id;
+      bc.hidden = false;
+    }else bc.hidden = true;
     const won = fight.winner === "A";
 
     /* Nada se calcula aquí: el servidor ya aplicó la recompensa y subió el
