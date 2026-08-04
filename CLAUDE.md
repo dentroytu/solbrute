@@ -931,6 +931,22 @@ otra**. Hay que tirar la firma vieja a mano o quedan las dos y PostgREST puede
 llamar a la que no es. `supabase-29-valvula.sql` tenía el mismo fallo en
 `respaldo_fijar` y se arregló antes de aplicarlo.
 
+### El panel dice en qué RED se van a cobrar los pagos
+
+`admin_red` pregunta el **genesis hash** al RPC configurado y lo traduce. Es
+distinto en cada red de Solana y no se puede falsificar desde la URL.
+
+Hace falta porque la red del RPC **no se puede adivinar**: la URL la escribe una
+persona a mano en un secreto. Y si apunta a devnet mientras alguien paga con SOL
+real —Phantom está en mainnet por defecto—, la función busca ese pago en devnet,
+no lo encuentra nunca, y esa persona se queda sin tokens y sin su dinero.
+
+Se pinta **en rojo cuando es mainnet**, delante del formulario. No es alarmismo:
+mainnet significa que lo que se cobra es dinero de verdad, y esa frase tiene que
+estar delante de los ojos de quien va a pulsar «Preventa abierta».
+
+**Nunca devuelve la URL**, solo el host: la URL lleva la clave de API dentro.
+
 ### El panel pide motivo y confirma dos veces
 
 Encender la venta y abrir los reclamos son los dos únicos botones del panel que

@@ -179,11 +179,11 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
     const r=await pedir({accion:a,token:A.token,id:A.id,address:B.dir,campos:{coins:1e9}});
     if(r.s===200) admins++;
   }
-  for(const a of ["admin_preventa","admin_preventa_config"]){
+  for(const a of ["admin_preventa","admin_preventa_config","admin_red"]){
     const r=await pedir({accion:a,token:A.token,campos:{activa:true,precio_lamports:1},motivo:"me la abro yo solo"});
     if(r.s===200) admins++;
   }
-  probar("entrar en las rutas de admin", admins>0, `${admins} de 6 respondieron`);
+  probar("entrar en las rutas de admin", admins>0, `${admins} de 7 respondieron`);
 
   /* La preventa es la unica parte del juego donde alguien manda SOL de verdad
      antes de recibir nada. Encenderla desde fuera del panel seria abrir la

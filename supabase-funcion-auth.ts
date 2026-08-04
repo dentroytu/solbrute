@@ -1336,6 +1336,44 @@ async function manejar(req: Request): Promise<Response> {
       return responder({ resumen: r });
     }
 
+    /* ══════════ ¿en que red estamos? ══════════
+       La red del RPC decide donde se comprueban los pagos, y NO se puede
+       adivinar mirando el secreto: la URL la escribe una persona a mano.
+
+       Si apunta a devnet y alguien paga con SOL real —Phantom esta en mainnet
+       por defecto—, la funcion busca ese pago en devnet, no lo encuentra
+       nunca, y esa persona se queda sin tokens y sin su dinero.
+
+       El genesis hash lo dice sin ambiguedad: es distinto en cada red y no se
+       puede falsificar desde la URL.
+
+       NUNCA se devuelve la URL: lleva la clave de API dentro. Solo el host. */
+    if (accion === "admin_red") {
+      const url = Deno.env.get("SOLANA_RPC") || "";
+      if (!url) return responder({ red: null, motivo: "SOLANA_RPC sin poner" });
+
+      let host = "?";
+      try { host = new URL(url).host; } catch { return responder({ red: null, motivo: "SOLANA_RPC no es una URL" }); }
+
+      const GENESIS: Record<string, string> = {
+        "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d": "mainnet",
+        "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG": "devnet",
+        "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY": "testnet",
+      };
+      try {
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getGenesisHash" }),
+        });
+        const j = await r.json();
+        const g = String(j?.result || "");
+        return responder({ red: GENESIS[g] || "desconocida", host, genesis: g, responde: r.ok });
+      } catch (e) {
+        return responder({ red: null, host, motivo: "el RPC no responde: " + (e as Error).message });
+      }
+    }
+
     /* ══════════ la preventa, desde el panel ══════════
        Encender una preventa es empezar a aceptar dinero de gente, asi que
        todo pasa por `preventa_config`, que exige motivo y deja el antes y el

@@ -308,6 +308,11 @@
     /* ═══════════ la preventa, desde el panel ═══════════
        Las tres tablas tienen RLS y cero políticas: no se pueden leer con la
        clave anon ni aunque quisieras. Todo sale por la función. */
+    /* En que red se comprueban los pagos. No devuelve la URL —lleva la clave
+       de API dentro—, solo el host y el veredicto. */
+    async adminRed(){
+      return await pedirAuth({ accion: "admin_red", token: token() });
+    },
     async adminPreventa(){
       return await pedirAuth({ accion: "admin_preventa", token: token() });
     },

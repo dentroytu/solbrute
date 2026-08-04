@@ -119,6 +119,12 @@
 
 
   /* ── preventa ── */
+  .pv-red{ font-size:12.5px; margin-bottom:14px; padding:10px 12px; border-radius:9px;
+        border:1px solid var(--line); background:var(--bg-deep); color:var(--muted); }
+  .pv-red b{ font-family:'Cinzel',serif; }
+  .pv-red.mainnet{ border-color:var(--blood-bright); color:#f0b6b3; }
+  .pv-red.devnet{ border-color:rgba(20,241,149,.35); color:var(--sol-teal); }
+  .pv-red.mal{ border-color:var(--blood); color:#f0b6b3; }
   .pv-est{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
   .pv-pill{ font-size:10px; padding:3px 10px; border-radius:99px; border:1px solid var(--line);
         color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
@@ -302,6 +308,7 @@
       <p class="nota">Nace apagada y se queda apagada hasta que la enciendas aquí. Mientras esté apagada, la sección no aparece siquiera en la landing — enseñar una preventa cerrada invita a mandar SOL a mano, y ese SOL no lo recupera nadie.</p>
       <p class="nota"><b>Los reclamos son una segunda puerta.</b> Se venden los tokens ahora y se entregan cuando la abras: no puedes entregar antes de que exista la liquidez, porque quien reciba tokens sin mercado los vende contra un pool que aún no está.</p>
 
+      <div class="pv-red" id="pvRed"></div>
       <div class="pv-est" id="pvEst"></div>
 
       <div class="pv-form">
@@ -746,6 +753,7 @@
      mano: así lo que ves es lo que hay guardado, no lo que creemos que quedó. */
   async function recargar(){
     cargarTorneos();
+    cargarRed();
     cargarPreventa();
     const resumen = await SolBruteDB.adminResumen();
     const { jugadores, brutos } = await SolBruteDB.adminJugadores();
@@ -982,6 +990,38 @@
            "T" + p(d.getHours()) + ":" + p(d.getMinutes());
   };
   const SOL = 1e9;
+
+  /* Se pinta ANTES que nada en este bloque, y en rojo si es mainnet. No es
+     alarmismo: mainnet significa que lo que se cobra es dinero de verdad, y
+     esa frase tiene que estar delante de los ojos de quien va a pulsar
+     «Preventa abierta». */
+  async function cargarRed(){
+    const e = el("pvRed");
+    let r;
+    try{ r = await SolBruteRed(); }
+    catch(err){ e.className = "pv-red mal"; e.textContent = "No pude comprobar la red del RPC."; return; }
+
+    if(!r.red){
+      e.className = "pv-red mal";
+      e.innerHTML = "<b>Sin red</b> — " + escapar(r.motivo || "el RPC no contesta") +
+                    ". Los pagos no se pueden comprobar, asi que no enciendas la venta.";
+      return;
+    }
+    if(r.red === "mainnet"){
+      e.className = "pv-red mainnet";
+      e.innerHTML = "Los pagos se comprueban en <b>MAINNET</b> (" + escapar(r.host) + "). " +
+                    "Esto es dinero de verdad.";
+    }else if(r.red === "devnet" || r.red === "testnet"){
+      e.className = "pv-red devnet";
+      e.innerHTML = "Los pagos se comprueban en <b>" + escapar(r.red.toUpperCase()) + "</b> (" +
+                    escapar(r.host) + "). Sirve para probar. " +
+                    "Si alguien paga con SOL real, ese pago no se vera nunca aqui.";
+    }else{
+      e.className = "pv-red mal";
+      e.innerHTML = "Red <b>desconocida</b> (" + escapar(r.host) + "). No enciendas la venta.";
+    }
+  }
+  const SolBruteRed = () => SolBruteDB.adminRed();
 
   async function cargarPreventa(){
     let r;
