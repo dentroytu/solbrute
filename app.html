@@ -385,6 +385,25 @@
                  rgba(12,10,7,var(--velo,.34)) 74%,
                  rgba(12,10,7,calc(var(--velo,.34) + .30)) 100%); }
   .arena > .fighter, .arena > .banner, .arena > .dmg{ z-index:2; }
+  /* ── Lo que se puede recuperar ──
+     En bronce y no en rojo: es una oportunidad, no una alarma. El rojo esta
+     reservado para lo que ya has perdido; esto todavia no lo has perdido del
+     todo, y esa diferencia es justo la que hace que alguien pulse. */
+  .perdidas{ background:linear-gradient(180deg, rgba(201,138,58,.10), rgba(201,138,58,.03));
+             border:1px solid rgba(201,138,58,.35); border-radius:12px;
+             padding:14px 16px; margin-bottom:16px; }
+  .perdidas h2{ font-family:'Cinzel',serif; font-size:14px; letter-spacing:1.5px;
+                color:var(--bronze-light); margin:0 0 10px; text-transform:uppercase; }
+  .per{ display:flex; align-items:center; gap:12px; padding:8px 0;
+        border-top:1px solid rgba(201,138,58,.16); }
+  .per:first-child{ border-top:0; }
+  .per-ico{ width:30px; height:30px; flex-shrink:0; }
+  .per-ico svg{ width:100%; height:100%; display:block; }
+  .per-txt{ flex:1; font-size:13px; }
+  .per-txt b{ color:var(--bronze-light); }
+  .per-plazo{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+  .per-plazo.poco{ color:var(--blood-bright); }
+
   /* ── La retirada ──
      Es la pantalla donde un numero de Postgres se convierte en dinero de
      verdad, asi que TODO lo que puede sorprender va escrito ANTES de pulsar:
@@ -627,7 +646,16 @@
     <div class="page-head">
       <div><h1 data-i18n="ludus_h1">Your ludus</h1><p id="slotInfo"></p></div>
     </div>
+    <!-- La ÚNICA cosa que se pone delante de los brutos, y por un motivo:
+         caduca. El tablón va debajo porque es un registro y no corre prisa;
+         esto corre. Un aviso que expira y está enterrado bajo el registro es
+         un aviso que nadie ve a tiempo. -->
+    <section class="perdidas" id="perdidas" hidden>
+      <h2 data-i18n="per_h2">You can still get this back</h2>
+      <div id="perLista"></div>
+    </section>
     <div class="roster" id="roster"></div>
+
 
     <!-- El tablón va DEBAJO de los brutos, no encima: lo primero que tiene que
          ver el jugador al entrar es su ludus, no un registro. -->
@@ -935,6 +963,8 @@
       ret_fallo:"Algo ha fallado. No se ha movido nada.",
       ret_e_pendiente:"pendiente", ret_e_enviada:"enviada", ret_e_fallida:"fallida",
       ret_e_revision:"en revisión", ret_e_devuelta:"devuelta",
+      per_h2:"Todavía puedes recuperarlo", per_cuesta:"recuperarlo cuesta",
+      per_quedan:"quedan", per_ir:"Recuperar",
       lg_disarm:"pierde el arma:", lg_bite:"muerde a", lg_petmiss:"no acierta a",
       lg_cover:"se interpone y encaja el golpe de", lg_petdown:"cae y ya no se levanta en este combate",
       lg_petdead:"cae, y esta vez no se levanta nunca mas",
@@ -1067,6 +1097,8 @@
       ret_fallo:"Something went wrong. Nothing was moved.",
       ret_e_pendiente:"pending", ret_e_enviada:"sent", ret_e_fallida:"failed",
       ret_e_revision:"under review", ret_e_devuelta:"refunded",
+      per_h2:"You can still get this back", per_cuesta:"costs",
+      per_quedan:"left:", per_ir:"Recover",
       lg_disarm:"loses the", lg_bite:"bites", lg_petmiss:"misses",
       lg_cover:"steps in and takes the hit from", lg_petdown:"goes down for the rest of this fight",
       lg_petdead:"goes down, and this time for good",
@@ -1199,6 +1231,8 @@
       ret_fallo:"Quelque chose a échoué. Rien n\u2019a bougé.",
       ret_e_pendiente:"en attente", ret_e_enviada:"envoyé", ret_e_fallida:"échoué",
       ret_e_revision:"en révision", ret_e_devuelta:"remboursé",
+      per_h2:"Tu peux encore le récupérer", per_cuesta:"le récupérer coûte",
+      per_quedan:"il reste", per_ir:"Récupérer",
       lg_disarm:"perd son arme :", lg_bite:"mord", lg_petmiss:"rate",
       lg_cover:"s\u2019interpose et encaisse le coup de", lg_petdown:"tombe pour le reste de ce combat",
       lg_petdead:"tombe, et cette fois pour de bon",
@@ -1546,6 +1580,60 @@
       console.warn("[SolBrute] eventos:", e.message);
     }
     pintarEventos();
+  }
+
+  /* ═══════════ lo que todavia se puede recuperar ═══════════
+     Se pinta ARRIBA del todo del ludus porque caduca. Un aviso que expira y
+     esta enterrado debajo del registro es un aviso que nadie ve a tiempo.
+
+     El precio viene del servidor, de la fila: aqui no se calcula nada. Si el
+     navegador pusiera el precio, bastaria con editarlo para rescatar gratis. */
+  async function renderPerdidas(){
+    if(!nube || !addr){ el("perdidas").hidden = true; return; }
+    let lista = [];
+    try{ lista = ((await SolBruteDB.perdidas()) || {}).perdidas || []; }
+    catch(e){ el("perdidas").hidden = true; return; }
+
+    if(!lista.length){ el("perdidas").hidden = true; return; }
+    el("perdidas").hidden = false;
+
+    const armas = O("armas"), bichos = O("bichos");
+    el("perLista").innerHTML = lista.map(pd => {
+      const nom = pd.tipo === "arma" ? (armas[pd.objeto] || pd.objeto)
+                                     : (bichos[pd.objeto] || pd.objeto);
+      const ico = pd.tipo === "arma" ? iconoArma(pd.objeto) : iconoMascota(pd.objeto);
+      const quedan = Math.max(0, new Date(pd.caduca) - Date.now());
+      const horas  = Math.floor(quedan / 3600000);
+      const mins   = Math.floor(quedan / 60000) % 60;
+      const poco   = quedan < 3 * 3600000;
+      const puede  = balance >= pd.precio;
+      return `<div class="per">
+        <span class="per-ico">${ico}</span>
+        <span class="per-txt">
+          <b>${esc(nom)}</b> · ${t("per_cuesta")} <b>${pd.precio}</b>
+          <span class="per-plazo${poco ? " poco" : ""}">${t("per_quedan")} ${horas}h ${mins}m</span>
+        </span>
+        <button class="btn ${puede ? "btn-primary" : "btn-ghost"} btn-sm js-resc"
+                data-id="${pd.id}" ${puede ? "" : "disabled"}>
+          ${puede ? t("per_ir") : t("arm_caro")}
+        </button>
+      </div>`;
+    }).join("");
+
+    el("perLista").querySelectorAll(".js-resc").forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      try{
+        const r = await SolBruteDB.rescatar(Number(b.dataset.id));
+        balance = r.balance;
+        el("balNum").textContent = balance;
+        /* El objeto vuelve al bruto si tenia el hueco libre, asi que hay que
+           recargar: si no, el ludus seguiria dibujando al bruto sin el arma
+           hasta que el jugador entrara de nuevo. */
+        await loadMe();
+        renderRoster();
+        await renderPerdidas();
+      }catch(e){ b.disabled = false; }
+    });
   }
 
   function pintarEventos(){
@@ -2836,7 +2924,7 @@
     const aqui = id === "scTorneo" ? "scTorneos" : id;
     document.querySelectorAll("#salas .sala").forEach(b =>
       b.classList.toggle("aqui", b.dataset.sc === aqui));
-    if(id === "scRoster") renderRoster();
+    if(id === "scRoster"){ renderRoster(); renderPerdidas(); }
     window.scrollTo({ top:0, behavior:"instant" });
   }
   /* ═══════════ la puerta ═══════════
