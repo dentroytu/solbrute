@@ -200,10 +200,34 @@ cambiaría nada y la progresión —que es el motor del género— dejaría de e
 El tope de 10 no se toca sin rehacer las fórmulas de daño y esquiva, que están
 calibradas para ese rango.
 
-**Los brutos de la casa siguen la misma curva que un jugador** (`botStats`):
-reciben `nivel - 1` puntos repartidos al azar y `HP_NIVEL` de vida por nivel. Si
-usaran otra fórmula, el emparejamiento por nivel sería mentira — mismo número en
-la ficha, distinta fuerza real.
+**Los brutos de la casa suben como un jugador: UNA cosa por nivel.** Si usaran
+otra fórmula, el emparejamiento por nivel sería mentira — mismo número en la
+ficha, distinta fuerza real.
+
+### Y durante mucho tiempo lo fue
+
+`botStats` daba **las dos**: un punto de atributo Y `HP_NIVEL` de vida en cada
+nivel. Un jugador recibe una sola. Así que la casa se separaba más y más según
+subías:
+
+| nivel | jugador | bot | gana el jugador |
+|---|---|---|---|
+| 5 | 58 vida · 8,9 atr | 65 · 11,5 | **23,7%** |
+| 10 | 74 vida · 10,6 atr | 90 · 16,5 | **7,0%** |
+| 20 | 107 vida · 14,1 atr | 140 · 26,4 | **0,7%** |
+
+A nivel 20 el jugador ganaba **7 de cada 1.000**. Y el texto de arriba describía
+lo que hacía el código —«`nivel - 1` puntos y `HP_NIVEL` por nivel»— sin darse
+cuenta de que eso ES la otra fórmula contra la que avisa la frase siguiente.
+
+Se descubrió midiendo, a raíz de que el dueño dijera que los combates duraban
+mucho a nivel bajo. **No era la vida propia: era la del rival.** Arreglado,
+las duraciones vuelven solas a la tabla de abajo.
+
+Ahora `botStats` reparte con las mismas probabilidades que `aplicar()` —
+atributo, arma o vida— y **el bot se queda el arma**: antes peleaban todos a
+puño limpio. Como las armas están equilibradas entre sí, eso no le da ventaja,
+le da variedad.
 
 **Los atributos son escasos a propósito.** Un bruto de nivel 20 tiene 5,0 de
 media por atributo; con la regla anterior tenía 8,8.

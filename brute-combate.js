@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 9;   // 8: turno propio, caer != morir · 9: golpe partido, mascotas mas duras
+  const VERSION = 10;  // 8: turno propio, caer != morir · 9: golpe partido, mascotas mas duras · 10: los bots suben como un jugador
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -146,10 +146,41 @@
   /* Un bruto de la casa de nivel L sigue la MISMA curva que un jugador:
      L-1 puntos repartidos y HP_NIVEL de vida por nivel. Con otra fórmula, el
      emparejamiento por nivel sería mentira: mismo número, distinta fuerza. */
+  /* ── Un bruto de la casa sube como un jugador, UNA cosa por nivel ────────
+     Esto daba las DOS: un punto de atributo Y `HP_NIVEL` de vida en cada
+     nivel. Un jugador recibe una sola —es la regla «una cosa por nivel, no
+     dos»— asi que la casa se separaba mas y mas segun subias:
+
+         nivel  jugador          bot              gana el jugador
+           5    58 vida / 8,9    65 vida / 11,5        23,7%
+          10    74 vida / 10,6   90 vida / 16,5         7,0%
+          20   107 vida / 14,1  140 vida / 26,4         0,7%
+
+     Y no era un descuido pequeño: `CLAUDE.md` decia ya que si los bots usaran
+     otra formula «el emparejamiento por nivel seria mentira — mismo numero en
+     la ficha, distinta fuerza real». Era exactamente lo que pasaba.
+
+     Ahora se reparte con las mismas probabilidades que `aplicar()`: atributo,
+     arma, o vida. El arma se la queda el bot de verdad —antes peleaban todos a
+     puño limpio— y como las armas estan equilibradas entre si, eso no le da
+     ventaja: le da variedad. */
   function botStats(lv){
     const st = rollStats();
-    for(let i = 0; i < lv - 1; i++) subirAtributo(st);
-    st.hpMax += (lv - 1) * HP_NIVEL;
+    const tiene = [];
+    for(let i = 0; i < lv - 1; i++){
+      const dado = Math.random();
+      if(dado < PROB_ATRIBUTO){
+        if(!subirAtributo(st)) st.hpMax += HP_NIVEL;   // todo al tope: vida
+      }else if(dado < PROB_ATRIBUTO + PROB_ARMA){
+        const faltan = ARMAS_REALES.filter(x => !tiene.includes(x));
+        if(faltan.length) tiene.push(faltan[ri(faltan.length)]);
+        else st.hpMax += HP_NIVEL;
+      }else{
+        st.hpMax += HP_NIVEL;
+      }
+    }
+    /* La que lleva puesta: la ultima que le tocó. Un bruto solo empuña una. */
+    st.arma = tiene.length ? tiene[tiene.length - 1] : "ninguna";
     return st;
   }
 
@@ -178,7 +209,8 @@
     const nombre = (libres.length ? libres : NAMES)[ri(libres.length || NAMES.length)];
     nombresUsados.add(nombre);
     return { name: nombre, lv, hpMax: st.hpMax, str: st.str, agi: st.agi, spd: st.spd,
-             w: ri(lv * 3), l: ri(lv * 2), look: randomLook(), bot: true };
+             w: ri(lv * 3), l: ri(lv * 2), look: randomLook(), bot: true,
+             arma: st.arma || "ninguna" };
   }
 
   /* ═══════════ armas ═══════════
