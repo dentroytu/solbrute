@@ -193,8 +193,10 @@ Constantes en `app.html`, agrupadas bajo «equilibrio»: `STAT_INI`, `STAT_VAR`,
 `HP_INI`, `HP_VAR`, `HP_NIVEL`, `STAT_MAX`. **Tocar el equilibrio es tocar esas
 seis, no repartir números por el fichero.**
 
-Un bruto nuevo sale con **1-4 en cada atributo** sobre un tope de 10, y 40-50 de
-vida. Empieza flojo a propósito: si naciera cerca del tope, subir de nivel no
+Un bruto nuevo sale con **1-4 en cada atributo** sobre un tope de 10, y 38-48 de
+vida (media 43). Bajó un 5% desde los 40-50 originales: con los combates a
+mediana 6-7 turnos, lo que se hacía largo era la cola —el p95— y ahí quita un
+turno sin tocar el ritmo normal. Empieza flojo a propósito: si naciera cerca del tope, subir de nivel no
 cambiaría nada y la progresión —que es el motor del género— dejaría de existir.
 
 El tope de 10 no se toca sin rehacer las fórmulas de daño y esquiva, que están
@@ -251,10 +253,15 @@ Simulado con 8.000 combates por nivel:
 
 | Nivel | Atributos | Vida | Turnos (mediana / p95) |
 |---|---|---|---|
-| 1 | 2,5 | 45 | 6 / 10 |
-| 10 | 3,7 | 72 | 8 / 13 |
-| 20 | 5,0 | 102 | 10 / 15 |
-| 30 | 6,4 | 132 | 11 / 16 |
+| 1 | 2,5 | 43 | 6 / 9 |
+| 5 | 3,0 | 54 | 7 / 12 |
+| 10 | 3,7 | 69 | 8 / 14 |
+| 20 | 5,0 | 97 | 10 / 17 |
+| 30 | 6,4 | 126 | 11 / 19 |
+
+Vuelto a medir con `botStats` arreglado y la vida al 5% menos. Y el
+emparejamiento cuadra: **jugador contra bot de su mismo nivel, 49,6-49,9% a
+todos los niveles.**
 
 Ninguno llega al tope de 40 turnos.
 

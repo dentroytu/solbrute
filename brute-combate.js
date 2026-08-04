@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 10;  // 8: turno propio, caer != morir · 9: golpe partido, mascotas mas duras · 10: los bots suben como un jugador
+  const VERSION = 11;  // 9: golpe partido · 10: los bots suben como un jugador · 11: -5% de vida inicial
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -46,7 +46,7 @@
      —que es el motor del género— dejaría de existir.
      El tope de 10 no se toca sin recalibrar daño y esquiva. */
   const STAT_INI = 1, STAT_VAR = 4;    // atributos de partida: 1..4
-  const HP_INI = 40, HP_VAR = 11;      // vida de partida:      40..50
+  const HP_INI = 38, HP_VAR = 11;      // vida de partida:      38..48
   const HP_NIVEL = 5;                  // vida del nivel que toca vida
   const STAT_MAX = 10;
   const TOPE_TURNOS = 40;              // sin él, dos brutos muy esquivos no acabarían
