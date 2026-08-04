@@ -119,3 +119,90 @@ Quedan dos cosas y las dos son mías:
   inventario no está verificado.
 - **El tablón de eventos del ludus**, que necesita guardar en `fights` si
   subiste de nivel y si se rompió el arma — hoy no se guardan.
+
+---
+
+# La preventa
+
+Esto es aparte de todo lo de arriba. **No hace falta hacerlo para que el juego
+funcione**, y mientras no lo hagas la sección de preventa ni siquiera aparece
+en la landing.
+
+El orden importa por el mismo motivo de siempre: la Edge Function llama a
+funciones de Postgres que tiene que haber creado el SQL antes.
+
+## 1 · `supabase-31-preventa.sql`
+
+Pestaña nueva del SQL Editor, `cat supabase-31-preventa.sql | pbcopy`, pegar y
+Run. Crea tres tablas (`preventa`, `preventa_compras`, `preventa_reclamos`) y
+ocho funciones.
+
+**Nace apagada**: `activa = false` y `reclamos_abiertos = false`. Aplicarlo no
+enciende nada ni acepta un solo SOL.
+
+**Comprueba** que la primera consulta del final da **cero filas** (ninguna
+función abierta a `anon`) y que la segunda enseña las tres tablas con RLS
+activo y cero políticas.
+
+## 2 · Redesplegar `retirar`
+
+**Supabase → Edge Functions → `retirar` → Code**, ⌘A y pegar
+`supabase-funcion-retirar.ts` entero. Deploy.
+
+Después, busca dentro del código desplegado la palabra `pv_reservar`. Si no
+está, se ha desplegado la versión vieja — le pasa al editor y ya ha pasado
+antes.
+
+## 3 · Redesplegar `auth`
+
+Igual, con `supabase-funcion-auth.ts`. Trae las dos rutas del panel
+(`admin_preventa` y `admin_preventa_config`). Busca `admin_preventa_config`
+dentro del código desplegado para confirmarlo.
+
+## 4 · Los secretos
+
+**Supabase → Project Settings → Edge Functions → Secrets.**
+
+| Secreto | Qué es | Cuándo hace falta |
+|---|---|---|
+| `SOLANA_MINT` | el mint de $BRUTE | para entregar |
+| `SOLANA_PREVENTA` | clave de la wallet que ENTREGA los tokens, array JSON de 64 bytes | para entregar |
+| `SOLANA_RPC` | RPC de pago | **antes de cobrar a nadie** |
+
+Si no pones `SOLANA_PREVENTA`, se usa `SOLANA_TESORO`. Es mejor separarlas:
+así la wallet de la preventa lleva solo los tokens vendidos y no toda la
+operativa del juego.
+
+**El RPC público no vale aquí.** Cada compra pide `getTransaction` para
+comprobar el pago en la cadena, y el público empieza a devolver 429 enseguida.
+Un 429 en ese momento es un comprador que ha pagado y no ve sus tokens.
+
+## 5 · Configurar desde el panel
+
+`admin.html` → bloque **Preventa de $BRUTE**. Rellena y guarda **sin marcar
+«Preventa abierta»** todavía:
+
+- **Wallet que cobra el SOL** — la del dueño, no la operativa del juego.
+- **Precio por token, en lamports.** 1 SOL = 1.000.000.000 lamports. El panel
+  te enseña debajo cuánto entra si se vende el cupo entero.
+- **Cupo, tope por wallet y mínimo.**
+- **Mint** — solo hace falta para abrir los reclamos, no para vender.
+
+Guarda, míralo, y solo entonces marca «Preventa abierta». El panel te lo hace
+confirmar: a partir de ese clic la landing la enseña y la gente puede pagar.
+
+## 6 · Los reclamos, mucho después
+
+**No abras los reclamos hasta que la liquidez esté puesta.** Es el orden
+entero del diseño: se vende ahora y se entrega cuando existe el mercado. Quien
+recibe tokens sin pool los vende contra un pool que no está, y el precio lo
+pone él.
+
+Antes de abrirlos, la wallet de `SOLANA_PREVENTA` tiene que tener:
+
+- **los $BRUTE vendidos**, que el panel te dice en «vendidos»;
+- **SOL para las comisiones**, y para crear la cuenta de token de cada
+  comprador que no tenga una — unos 0,002 SOL cada uno.
+
+Quedarse sin ese SOL es lo que en devnet falló diciendo otra cosa. Ahora se
+comprueba antes, pero es dinero que hay que presupuestar.

@@ -305,6 +305,16 @@
       return await pedirAuth({ accion: "admin_torneo_borrar", token: token(), id });
     },
 
+    /* ═══════════ la preventa, desde el panel ═══════════
+       Las tres tablas tienen RLS y cero políticas: no se pueden leer con la
+       clave anon ni aunque quisieras. Todo sale por la función. */
+    async adminPreventa(){
+      return await pedirAuth({ accion: "admin_preventa", token: token() });
+    },
+    async adminPreventaConfig(campos, motivo){
+      return await pedirAuth({ accion: "admin_preventa_config", token: token(), campos, motivo });
+    },
+
     async adminResumen(){
       return (await pedirAuth({ accion: "admin_resumen", token: token() })).resumen;
     },

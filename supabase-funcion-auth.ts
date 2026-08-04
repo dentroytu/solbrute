@@ -1336,6 +1336,96 @@ async function manejar(req: Request): Promise<Response> {
       return responder({ resumen: r });
     }
 
+    /* ══════════ la preventa, desde el panel ══════════
+       Encender una preventa es empezar a aceptar dinero de gente, asi que
+       todo pasa por `preventa_config`, que exige motivo y deja el antes y el
+       despues en `admin_log`.
+
+       Las tres tablas tienen RLS y CERO politicas, o sea que ni el panel ni
+       nadie puede mirarlas desde el navegador: se leen aqui, con
+       `service_role`. */
+    if (accion === "admin_preventa") {
+      const pv = (await db("/preventa?id=eq.1&select=*"))?.[0] || null;
+      const compras = await db(
+        "/preventa_compras?select=*&order=creado.desc&limit=100");
+      const reclamos = await db(
+        "/preventa_reclamos?select=*&order=creado.desc&limit=50");
+      return responder({ preventa: pv, compras: compras || [], reclamos: reclamos || [] });
+    }
+
+    if (accion === "admin_preventa_config") {
+      const c = (cuerpo.campos || {}) as Record<string, unknown>;
+      const motivo = String(cuerpo.motivo || "");
+      if (motivo.trim().length < 10) {
+        return responder({ error: "hace falta un motivo de al menos 10 letras", clase: "motivo" }, 400);
+      }
+
+      /* Se sanea TODO, aunque el panel ya valide: el panel es una pagina del
+         navegador y cualquiera puede saltarsela. Lo que decide es esto.
+
+         Un precio negativo o un cupo absurdo aqui no es un numero feo: es el
+         precio al que se le cobra a gente real. */
+      const campos: Record<string, unknown> = {};
+      const entero = (v: unknown, max: number) => {
+        const n = Math.floor(Number(v));
+        if (!Number.isFinite(n) || n < 0 || n > max) throw new Error("rango");
+        return n;
+      };
+      try {
+        if (c.activa            !== undefined) campos.activa = !!c.activa;
+        if (c.reclamos_abiertos !== undefined) campos.reclamos_abiertos = !!c.reclamos_abiertos;
+        if (c.precio_lamports   !== undefined) campos.precio_lamports = entero(c.precio_lamports, 1e15);
+        if (c.cupo_total        !== undefined) campos.cupo_total  = entero(c.cupo_total, 1e12);
+        if (c.tope_wallet       !== undefined) campos.tope_wallet = entero(c.tope_wallet, 1e12);
+        if (c.minimo            !== undefined) campos.minimo      = entero(c.minimo, 1e12);
+        for (const k of ["desde", "hasta"]) {
+          if (c[k] === undefined) continue;
+          const txt = String(c[k] || "");
+          if (!txt) continue;
+          if (Number.isNaN(Date.parse(txt))) throw new Error("fecha");
+          campos[k] = new Date(txt).toISOString();
+        }
+        /* La wallet que cobra y el mint que se entrega son los dos campos que
+           de verdad mueven valor. Se comprueba que sean claves validas: una
+           direccion mal escrita es SOL enviado a un sitio del que no sale. */
+        for (const k of ["wallet", "mint"]) {
+          if (c[k] === undefined) continue;
+          const txt = String(c[k] || "").trim();
+          if (!txt) continue;
+          if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(txt)) throw new Error("direccion");
+          campos[k] = txt;
+        }
+      } catch (e) {
+        const m = (e as Error).message;
+        return responder({
+          error: m === "fecha" ? "fecha no valida"
+               : m === "direccion" ? "esa direccion de Solana no es valida"
+               : "algun numero esta fuera de rango",
+          clase: m,
+        }, 400);
+      }
+
+      /* Encenderla sin wallet donde cobrar es aceptar pagos que no llegan a
+         ningun sitio. Se comprueba contra lo que quedaria, no contra lo que
+         habia: el mismo guardado puede poner la wallet y encenderla a la vez. */
+      const antes = (await db("/preventa?id=eq.1&select=*"))?.[0] || {};
+      const queda = { ...antes, ...campos };
+      if (queda.activa) {
+        if (!queda.wallet) return responder({ error: "falta la wallet que cobra", clase: "sin_wallet" }, 400);
+        if (!Number(queda.precio_lamports)) return responder({ error: "falta el precio", clase: "sin_precio" }, 400);
+        if (!Number(queda.cupo_total)) return responder({ error: "falta el cupo", clase: "sin_cupo" }, 400);
+      }
+      if (queda.reclamos_abiertos && !queda.mint) {
+        return responder({ error: "falta el mint del token", clase: "sin_mint" }, 400);
+      }
+
+      const r = await db("/rpc/preventa_config", {
+        method: "POST",
+        body: JSON.stringify({ p_campos: campos, p_motivo: motivo }),
+      });
+      return responder({ preventa: r });
+    }
+
     /* ══════════ torneos, desde el panel ══════════
        Crear, listar y editar. Los borradores solo se ven por aquí: la política
        de lectura de `tournaments` los esconde del navegador a propósito, para

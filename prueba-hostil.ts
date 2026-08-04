@@ -179,7 +179,21 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
     const r=await pedir({accion:a,token:A.token,id:A.id,address:B.dir,campos:{coins:1e9}});
     if(r.s===200) admins++;
   }
-  probar("entrar en las rutas de admin", admins>0, `${admins} de 4 respondieron`);
+  for(const a of ["admin_preventa","admin_preventa_config"]){
+    const r=await pedir({accion:a,token:A.token,campos:{activa:true,precio_lamports:1},motivo:"me la abro yo solo"});
+    if(r.s===200) admins++;
+  }
+  probar("entrar en las rutas de admin", admins>0, `${admins} de 6 respondieron`);
+
+  /* La preventa es la unica parte del juego donde alguien manda SOL de verdad
+     antes de recibir nada. Encenderla desde fuera del panel seria abrir la
+     puerta a cobrar en una wallet que no es la del dueño. */
+  {
+    const r=await pedir({accion:"admin_preventa_config",token:A.token,
+                         campos:{wallet:"11111111111111111111111111111112",activa:true},
+                         motivo:"cambiar la wallet que cobra"});
+    probar("cambiar la wallet que cobra el SOL", r.s===200, `respondio ${r.s}`);
+  }
 
   // 13 · el candado de nivel: que la funcion se lo PASE a Postgres
   /* El candado vive en el .sql y ya se ataca contra el servidor real. Lo que

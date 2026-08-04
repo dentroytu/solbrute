@@ -47,11 +47,11 @@ experiencia y sube de nivel.
 | `supabase-28-cuadrar.sql` | Cuadra los libros tras el descuadre del panel. **Tras la Edge Function** | Una vez |
 | `supabase-29-valvula.sql` | La válvula: solo se paga lo que hay. **Con el token en mainnet** | Escrito |
 | `supabase-30-rescatar.sql` | Rescatar el arma rota y revivir la mascota | Repetible |
-| `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Repetible |
+| `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Escrito, sin aplicar |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
-| `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain** | Desplegada |
+| `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain y la preventa** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
 | `DESPLIEGUE.md` | En qué orden se aplica todo lo de arriba | Guía |
 | `BACKEND.md` | Esquema y contrato de API | Paso 1 hecho a medias |
@@ -149,7 +149,9 @@ El respaldo cuando falta una clave también es inglés: `t()` y `O()` caen a
 ## Flujo
 
 **Landing** (`index.html`) → botón "Entrar a la arena" → **app** (`app.html`).
-La landing nunca pide wallet. En el script de la landing:
+La landing solo pide wallet en **la preventa**, que es la única parte donde hace
+falta —se paga desde la wallet del comprador— y solo cuando el jugador pulsa. En
+el script de la landing:
 
 ```js
 const PROTOTYPE_URL = "app.html";   // vacío = botón en estado "próxima apertura"
@@ -817,7 +819,9 @@ válidas por los mismos tokens y la segunda falla **en la cadena, habiendo
 pagado ya la comisión de red**.
 
 Se reserva con `for update`, se firma después, y la reserva caduca sola a los
-tres minutos. Las caducadas se sueltan al reservar la siguiente, no en una
+**quince** minutos —tres eran pocos: firmar en el minuto 2:50 y que la red
+asiente la transacción en el 3:05 es normal, y no puede costarle el dinero a
+nadie. Las caducadas se sueltan al reservar la siguiente, no en una
 tarea aparte: si nadie ejecuta la limpieza, el cupo se quedaría bloqueado por
 reservas muertas.
 
@@ -834,6 +838,73 @@ $0,025/token con SOL a $73,62  →  339.582 lamports por token
 Y si el SOL se mueve durante la preventa, el precio en dólares se mueve con él
 — con SOL a $120 estarías vendiendo a $0,041. Se corrige cambiando el precio
 desde el panel.
+
+### El navegador no decide nada de lo que cuesta dinero
+
+**La transaccion de pago la construye el SERVIDOR.** `pv_reservar` la devuelve
+ya montada —con la wallet de destino y el importe dentro— y el comprador solo
+la firma. Si el destino saliera del navegador, bastaría con editar el
+JavaScript para pagarse a uno mismo y pedir los tokens igual.
+
+Y aun así **el pago se comprueba EN LA CADENA** antes de reservar nada, midiendo
+por `postBalances - preBalances` de la cuenta destino en vez de leer las
+instrucciones: un pago puede llegar de muchas formas —transferencia suelta,
+dentro de otra cosa— y todas dejan el mismo rastro. Se exige además que el
+pagador sea el firmante, o alguien podría reclamar el pago de otro.
+
+### No hay sesión, hay firma — salvo en una ruta
+
+La preventa vive en la landing, donde nadie ha iniciado sesión. Así que se firma
+un mensaje corto con la dirección dentro y una fecha de menos de cinco minutos.
+No abre sesión ni guarda nada: solo demuestra la propiedad de la wallet. Sin
+eso, cualquiera bloquearía el cupo entero reservando con direcciones ajenas cada
+pocos minutos.
+
+**`pv_mias` es la excepción, y no es un descuido.** Lo que devuelve —cuántos
+tokens compró una dirección y cuánto SOL pagó— ya está en la cadena: el pago es
+una transferencia pública. Pedir firma ahí no escondería nada; solo sacaría la
+ventanita de la wallet a alguien que acaba de entrar a mirar.
+
+### Una reserva CADUCADA también se confirma
+
+Es lo que evita quedarse con el dinero de alguien por quince segundos de red. El
+comprador firma dentro de la ventana y la red asienta la transacción después; si
+`preventa_confirmar` lo rechazara, ese SOL ya salió de su wallet y llegó a la
+nuestra. No es una puerta abierta: quien la llama es la Edge Function **después**
+de comprobar el pago en la cadena.
+
+Lo que sí cambia es la contabilidad — una caducada ya salió de `reservado` al
+caducar, y restarla otra vez vendería cupo que no queda. La ventana se subió de
+3 a 15 minutos por lo mismo.
+
+### El fallo que casi duplica tokens
+
+Al escribir el reclamo, la reconciliación se llamaba con
+`ultimoBloqueValido = 0`. Como cualquier altura de bloque es mayor que cero,
+`resolver()` devolvía **«muerta» siempre**: una entrega que SÍ había llegado se
+habría marcado fallida, las compras habrían vuelto a quedar pendientes, y el
+siguiente reclamo habría mandado los tokens otra vez.
+
+No da error, no sale en ninguna prueba, y solo pasa cuando algo falla — o sea,
+el día peor. Se vio leyendo la función que se estaba llamando, no ejecutándola.
+
+### El panel pide motivo y confirma dos veces
+
+Encender la venta y abrir los reclamos son los dos únicos botones del panel que
+empiezan a mover dinero de otras personas. Todo pasa por `preventa_config`, que
+exige un motivo de diez letras y deja el antes y el después en `admin_log`.
+
+Se valida **contra lo que quedaría**, no contra lo que había: el mismo guardado
+puede poner la wallet y encender la venta a la vez, y una preventa encendida sin
+wallet donde cobrar es aceptar pagos que no llegan a ningún sitio.
+
+### Lo que NO se escribe en la web
+
+Ninguna cifra de ganancias, ninguna cantidad, ni «cubre X días», ni cómo se
+reparte. Lo único que dice la landing es que **se ganan tokens $BRUTE jugando**.
+Es una decisión del dueño y se mantiene: un juego que promete un número y no lo
+puede pagar acaba incumpliendo, o pagando a los primeros con el dinero de los
+últimos.
 
 ### El tope por wallet no es contra ballenas
 
@@ -1347,6 +1418,10 @@ dos lados.
       PNG suelto no se puede rehacer cuando cambie la paleta.
 - [x] ~~Mascotas (el vivarium)~~ — hechas. Ver «Mascotas». La duda que las
       frenaba —«dos contra dos alarga las peleas»— se midió: no se alarga.
+- [ ] **La preventa** — escrita entera y sin aplicar. Falta: aplicar
+      `supabase-31-preventa.sql`, redesplegar las dos Edge Functions, poner
+      los secretos y configurarla desde el panel. Ver `DESPLIEGUE.md`.
+      Los ataques de `prueba-hostil.ts` (12b y 12c) hay que pasarlos antes.
 - [ ] **Torneos semanales** — anotado, sin construir. Lo que hay que decidir:
       · ¿Te apuntas o entran todos? Apuntarse da menos gente y más intención.
       · Cuadro de 8 o 16, eliminatorias. El servidor puede resolverlas de golpe,
@@ -1490,6 +1565,7 @@ Con 0,5 SOL alcanza para unas 245 retiradas a jugadores nuevos.
 
 El destino **sale siempre de la sesión**. La ruta no lee ninguna dirección del
 cuerpo, así que mandar la de otro no hace nada.
+
 
 ---
 

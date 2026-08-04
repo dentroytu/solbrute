@@ -180,7 +180,13 @@
       "Bash(curl -sS -m 20 https://solbrute.io/brute-render.js?x=__TRACKED_VAR__ -o /tmp/vr.js)",
       "Bash(python3 -c 'import sys,json; d=json.load\\(sys.stdin\\); print\\(\" SOL = $%s\" % d[\"solana\"][\"usd\"]\\)')",
       "Bash(curl -sS -m 15 \"https://price.jup.ag/v6/price?ids=SOL\")",
-      "Bash(python3 -c 'import sys,json; print\\(\" SOL =\", json.load\\(sys.stdin\\)\\)')"
+      "Bash(python3 -c 'import sys,json; print\\(\" SOL =\", json.load\\(sys.stdin\\)\\)')",
+      "Bash(python3 -c *)",
+      "Bash(npx --yes typescript@5 --noEmit)",
+      "Bash(node --experimental-strip-types --check /private/tmp/claude-501/-Users-alvaroreyesgiraldez-Desktop-solbrute/6e2c7416-7128-45ea-8ae1-be34cfe1dfa9/scratchpad/r.mts)",
+      "Bash(grep -n \"^## La preventa\\\\|^| \\\\`supabase-31\" CLAUDE.md)",
+      "Bash(grep -n \"^---$\" CLAUDE.md)",
+      "Bash(awk -F: '$1>890 && $1<930')"
     ]
   }
 }

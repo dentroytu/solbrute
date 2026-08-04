@@ -174,7 +174,7 @@ begin
   v_lam := p_tokens * pv.precio_lamports;
 
   insert into preventa_compras (address, tokens, lamports, caduca)
-  values (p_address, p_tokens, v_lam, now() + interval '3 minutes')
+  values (p_address, p_tokens, v_lam, now() + interval '15 minutes')
   returning id into v_id;
 
   update preventa set reservado = reservado + p_tokens, actualizado = now() where id = 1;
@@ -202,15 +202,30 @@ begin
   select * into c from preventa_compras where id = p_id for update;
   if not found            then raise exception 'no_existe';   end if;
   if c.estado = 'pagada'  then return json_build_object('ya', true, 'tokens', c.tokens); end if;
-  if c.estado <> 'reservada' then raise exception 'no_reservada'; end if;
+
+  -- Una reserva CADUCADA tambien se confirma, y esto no es laxitud.
+  --
+  -- El comprador firma su pago dentro de la ventana, pero la transaccion tarda
+  -- en confirmarse. Firmar en el minuto 14:50 y que la red la asiente en el
+  -- 15:05 es normal. Si aqui se rechazara, ese SOL ya salio de su wallet y
+  -- llego a la nuestra: nos habriamos quedado con su dinero por quince
+  -- segundos de red.
+  --
+  -- Y no es una puerta abierta: quien llama a esto es la Edge Function DESPUES
+  -- de comprobar el pago EN LA CADENA. Si no pago, no llega hasta aqui.
+  if c.estado not in ('reservada','caducada') then raise exception 'no_reservada'; end if;
 
   update preventa_compras
      set estado = 'pagada', firma = p_firma, confirmado = now()
    where id = p_id;
 
+  -- El descuento de `reservado` solo si seguia contando. Una caducada ya salio
+  -- de esa cuenta al caducar, y restarla otra vez descuadraria el cupo libre
+  -- hacia arriba: se venderian tokens que no quedan.
   update preventa
      set vendido   = vendido + c.tokens,
-         reservado = greatest(0, reservado - c.tokens),
+         reservado = case when c.estado = 'reservada'
+                          then greatest(0, reservado - c.tokens) else reservado end,
          actualizado = now()
    where id = 1;
 

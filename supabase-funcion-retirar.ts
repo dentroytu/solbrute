@@ -71,7 +71,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 
 import {
-  Connection, Keypair, PublicKey, Transaction,
+  Connection, Keypair, PublicKey, SystemProgram, Transaction,
 } from "npm:@solana/web3.js@1.98.4";
 import {
   createTransferInstruction,
@@ -195,11 +195,294 @@ function bs58(buf: Uint8Array): string {
 }
 
 
+/* ══════════════════════════════════════════════════════════════════════════
+   LA PREVENTA
+   ══════════════════════════════════════════════════════════════════════════
+   Vive aqui y no en `auth` porque necesita hablar con la cadena: comprobar un
+   pago y entregar tokens. Meter las librerias de Solana en `auth` haria que
+   cada login y cada pelea pagaran su arranque en frio (~2 s medidos).
+
+   ── No hay sesion, hay FIRMA ──────────────────────────────────────────────
+   La preventa esta en la landing, donde nadie ha iniciado sesion. Y hace falta
+   probar que quien reserva es dueño de esa direccion: sin eso, cualquiera
+   bloquea el cupo entero reservando con direcciones ajenas cada tres minutos.
+
+   Asi que se firma un mensaje corto. No abre sesion ni guarda nada: solo
+   demuestra la propiedad de la wallet, que es lo unico que hace falta. */
+const desde58 = (t: string): Uint8Array => {
+  const A = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let n = 0n;
+  for (const c of t) { const i = A.indexOf(c); if (i < 0) throw new Error("base58"); n = n * 58n + BigInt(i); }
+  const b: number[] = [];
+  while (n > 0n) { b.unshift(Number(n & 255n)); n >>= 8n; }
+  for (const c of t) { if (c === "1") b.unshift(0); else break; }
+  return Uint8Array.from(b);
+};
+
+const destinoPub = (t: string) => new PublicKey(t);
+
+/* base64 a mano y sin trocear: una transaccion de pago son ~200 bytes, asi
+   que `String.fromCharCode(...)` no llega a desbordar la pila. */
+const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
+
+async function firmaValida(address: string, mensaje: string, firma: string): Promise<boolean> {
+  try {
+    /* El mensaje tiene que llevar la propia direccion y una fecha reciente.
+       Sin la direccion, una firma dada en otro sitio valdria aqui; sin la
+       fecha, una capturada valdria para siempre. */
+    if (!mensaje.includes(address)) return false;
+    const m = /(\d{4}-\d{2}-\d{2}T[\d:.]+Z)/.exec(mensaje);
+    if (!m) return false;
+    const edad = Date.now() - Date.parse(m[1]);
+    if (!(edad > -60_000 && edad < 5 * 60_000)) return false;
+
+    const clave = await crypto.subtle.importKey(
+      "raw", desde58(address), { name: "Ed25519" }, false, ["verify"]);
+    return await crypto.subtle.verify(
+      { name: "Ed25519" }, clave, desde58(firma), new TextEncoder().encode(mensaje));
+  } catch { return false; }
+}
+
+/* Comprueba EN LA CADENA que ese pago existe y es el que dice ser.
+   Creerse al navegador aqui seria regalar tokens: bastaria con decir «ya he
+   pagado, esta es una firma cualquiera». */
+async function pagoValido(
+  con: Connection, firma: string, de: string, a: string, lamports: number,
+): Promise<{ ok: boolean; por: string }> {
+  let tx;
+  try {
+    tx = await con.getTransaction(firma, {
+      commitment: "confirmed", maxSupportedTransactionVersion: 0,
+    });
+  } catch { return { ok: false, por: "rpc" }; }
+  if (!tx)          return { ok: false, por: "no_encontrada" };
+  if (tx.meta?.err) return { ok: false, por: "fallo_en_cadena" };
+
+  /* Se mide por el SALDO, no por las instrucciones. Un pago puede llegar de
+     muchas formas —transferencia suelta, dentro de otra cosa, con varias
+     instrucciones— y todas dejan el mismo rastro: la cuenta destino sube. */
+  const claves = tx.transaction.message.getAccountKeys?.({
+    accountKeysFromLookups: tx.meta?.loadedAddresses,
+  });
+  const lista: string[] = [];
+  const n = claves?.length ?? 0;
+  for (let i = 0; i < n; i++) lista.push(claves!.get(i)!.toBase58());
+
+  const iDe = lista.indexOf(de), iA = lista.indexOf(a);
+  if (iDe < 0 || iA < 0) return { ok: false, por: "otras_cuentas" };
+
+  const subio = (tx.meta!.postBalances[iA] ?? 0) - (tx.meta!.preBalances[iA] ?? 0);
+  if (subio < lamports) return { ok: false, por: "cantidad" };
+
+  /* Y que el firmante sea quien dice. Sin esto, alguien podria reclamar el
+     pago de OTRO: la transaccion es real, pero no la hizo el. */
+  if (iDe !== 0) return { ok: false, por: "no_lo_firmo" };
+  return { ok: true, por: "" };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
     const cuerpo = await req.json().catch(() => ({}));
+
+    /* ══════════ LA PREVENTA ══════════
+       Va ANTES de la retirada porque no usa sesion: se identifica firmando.
+       Y `pv_estado` no pide ni eso — es lo que la landing enseña sin que nadie
+       haya conectado nada. */
+    const acc = String(cuerpo.accion || "");
+    if (acc.startsWith("pv_")) {
+      const conP = new Connection(RPC, "confirmed");
+
+      if (acc === "pv_estado") {
+        const e = await db("/rpc/preventa_estado", { method: "POST", body: "{}" });
+        return responder(e || {});
+      }
+
+      const dir = String(cuerpo.address || "");
+      if (!pubkey(dir)) return responder({ error: "direccion no valida" }, 400);
+
+      /* ── mirar lo tuyo, SIN firma ──
+         Es la unica que no la pide, y no es un descuido. Lo que devuelve —
+         cuantos tokens compro una direccion y cuanto SOL pago— ya esta en la
+         cadena: el pago es una transferencia publica a la wallet de la
+         preventa, y cualquiera puede leerla. Pedir firma aqui no escondaria
+         nada; solo obligaria a sacar la ventanita de la wallet nada mas
+         entrar en la pagina, a alguien que solo queria mirar. */
+      if (acc === "pv_mias") {
+        const r = await db("/rpc/preventa_mias", {
+          method: "POST", body: JSON.stringify({ p_address: dir }),
+        });
+        return responder(r || {});
+      }
+
+      /* De aqui en adelante SI hay que demostrar que la wallet es tuya:
+         reservar bloquea cupo y reclamar mueve tokens. */
+      if (!await firmaValida(dir, String(cuerpo.mensaje || ""), String(cuerpo.firma || ""))) {
+        return responder({ error: "firma no valida", clase: "firma" }, 401);
+      }
+
+      const fallo = (e: Error) => {
+        const m = e.message;
+        const con = (k: string) => m.includes(k);
+        if (con("cerrada"))           return responder({ error: "la preventa esta cerrada", clase: "cerrada" }, 403);
+        if (con("no_empezada"))       return responder({ error: "todavia no ha empezado", clase: "pronto" }, 403);
+        if (con("terminada"))         return responder({ error: "ya ha terminado", clase: "tarde" }, 403);
+        if (con("sin_cupo"))          return responder({ error: "no queda tanto", clase: "cupo",
+                                                        queda: Number((/sin_cupo:(\d+)/.exec(m) || [])[1] || 0) }, 409);
+        if (con("tope_wallet"))       return responder({ error: "pasa tu tope", clase: "tope",
+                                                        tope: Number((/tope_wallet:(\d+)/.exec(m) || [])[1] || 0) }, 403);
+        if (con("minimo"))            return responder({ error: "por debajo del minimo", clase: "minimo",
+                                                        minimo: Number((/minimo:(\d+)/.exec(m) || [])[1] || 0) }, 400);
+        if (con("reclamos_cerrados")) return responder({ error: "los reclamos no estan abiertos", clase: "cerrado" }, 403);
+        if (con("nada_que_reclamar")) return responder({ error: "no tienes nada que reclamar", clase: "nada" }, 404);
+        if (con("reclamo_en_curso"))  return responder({ error: "ya tienes uno en curso", clase: "en_curso" }, 409);
+        throw e;
+      };
+
+      /* ── reservar ──
+         Antes de que el comprador firme nada. Si el cupo se acaba entre medias,
+         mejor decirlo ahora que despues de que haya pagado la comision de red. */
+      if (acc === "pv_reservar") {
+        const tk = Math.floor(Number(cuerpo.tokens));
+        if (!Number.isFinite(tk) || tk <= 0) return responder({ error: "cantidad no valida" }, 400);
+        let r;
+        try {
+          r = await db("/rpc/preventa_reservar", {
+            method: "POST", body: JSON.stringify({ p_address: dir, p_tokens: tk }),
+          });
+        } catch (e) { return fallo(e as Error); }
+
+        /* La transaccion la construye el SERVIDOR, no el navegador.
+           Si el destino y el importe viniera de ahi, bastaria con editar el
+           JavaScript para pagarse a si mismo y pedir los tokens igual. Aqui
+           van cocidos dentro de lo que la wallet le enseña al comprador.
+
+           Se manda sin firmar: la unica firma que lleva es la suya. */
+        try {
+          const bh = await conP.getLatestBlockhash("confirmed");
+          const tx = new Transaction({ feePayer: destinoPub(dir), ...bh });
+          tx.add(SystemProgram.transfer({
+            fromPubkey: destinoPub(dir),
+            toPubkey:   destinoPub(String(r.wallet || "")),
+            lamports:   Number(r.lamports),
+          }));
+          const cruda = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+          return responder({ ...r, tx: b64(cruda), caduca_bloque: bh.lastValidBlockHeight });
+        } catch (e) {
+          /* La reserva ya existe y caduca sola en 15 minutos. Se dice que no
+             se pudo construir, no que no se pudo reservar: son cosas distintas
+             y el comprador tiene que saber que puede reintentar. */
+          console.error("preventa: no se pudo construir el pago", e);
+          return responder({ error: "no pude preparar el pago", clase: "rpc" }, 503);
+        }
+      }
+
+      /* ── he pagado ──
+         Se comprueba EN LA CADENA. Creerse al navegador aqui seria regalar
+         tokens: bastaria con decir «ya he pagado» y una firma cualquiera. */
+      if (acc === "pv_pagado") {
+        const id = Math.floor(Number(cuerpo.id));
+        const firma = String(cuerpo.firma_pago || "");
+        if (!id || firma.length < 32) return responder({ error: "faltan datos" }, 400);
+
+        const fila = (await db("/preventa?id=eq.1&select=wallet"))?.[0];
+        const compra = (await db("/preventa_compras?id=eq." + id + "&select=*"))?.[0];
+        if (!compra || compra.address !== dir) return responder({ error: "esa compra no es tuya" }, 403);
+        if (compra.estado === "pagada" || compra.estado === "entregada") {
+          return responder({ ya: true, tokens: compra.tokens });
+        }
+        if (compra.estado !== "reservada") return responder({ error: "esa reserva ya no vale", clase: "caducada" }, 410);
+
+        const v = await pagoValido(conP, firma, dir, String(fila?.wallet || ""), Number(compra.lamports));
+        if (!v.ok) {
+          /* Se dice el motivo: «no la encuentro» y «pagaste de menos» piden
+             cosas distintas del comprador. Un «no» mudo le deja sin saber si
+             esperar o volver a intentarlo. */
+          return responder({ error: "no pude comprobar el pago", clase: v.por }, 402);
+        }
+        const r = await db("/rpc/preventa_confirmar", {
+          method: "POST", body: JSON.stringify({ p_id: id, p_firma: firma }),
+        });
+        return responder(r);
+      }
+
+      /* ── reclamar ──
+         Mismo orden que la retirada: abrir, firmar, enviar, cerrar. */
+      if (acc === "pv_reclamar") {
+        const secreto = Deno.env.get("SOLANA_PREVENTA") || Deno.env.get("SOLANA_TESORO");
+        const mintTxt = Deno.env.get("SOLANA_MINT");
+        if (!secreto || !mintTxt) {
+          return responder({ error: "la entrega no esta configurada", clase: "sin_enviador" }, 503);
+        }
+        let cofre: Keypair, mint: PublicKey;
+        try {
+          cofre = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secreto)));
+          mint  = new PublicKey(mintTxt);
+        } catch {
+          console.error("SOLANA_PREVENTA o SOLANA_MINT mal formados");
+          return responder({ error: "la entrega no esta configurada", clase: "sin_enviador" }, 503);
+        }
+
+        let ab;
+        try {
+          ab = await db("/rpc/preventa_reclamar_abrir", {
+            method: "POST", body: JSON.stringify({ p_address: dir }),
+          });
+        } catch (e) { return fallo(e as Error); }
+
+        const rid = Number(ab.id), tokens = BigInt(ab.tokens);
+        const destino = new PublicKey(dir);
+        let firmaEnv = "";
+        /* Se declara FUERA del try porque lo necesita el catch. Con un 0 aqui,
+           `resolver` daria "muerta" siempre —cualquier altura de bloque es
+           mayor que cero— y una entrega que SI llego se marcaria fallida y se
+           volveria a mandar. Eso son tokens duplicados. */
+        let ultimoBloque = 0;
+        try {
+          const origen  = await getAssociatedTokenAddress(mint, cofre.publicKey);
+          const llegada = await getAssociatedTokenAddress(mint, destino);
+          const bh = await conP.getLatestBlockhash("confirmed");
+          ultimoBloque = bh.lastValidBlockHeight;
+          const tx = new Transaction({ feePayer: cofre.publicKey, ...bh });
+          tx.add(createAssociatedTokenAccountIdempotentInstruction(
+            cofre.publicKey, llegada, destino, mint));
+          tx.add(createTransferInstruction(
+            origen, llegada, cofre.publicKey, tokens * (10n ** DECIMALES)));
+          tx.sign(cofre);
+          firmaEnv = bs58(tx.signature!);
+
+          /* La firma se GUARDA antes de enviar. Si algo se rompe despues, se va
+             a mirar a la cadena en vez de adivinar. */
+          await db("/rpc/preventa_reclamar_firmar", {
+            method: "POST", body: JSON.stringify({ p_id: rid, p_firma: firmaEnv }),
+          });
+
+          await conP.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 3 });
+          await conP.confirmTransaction(
+            { signature: firmaEnv, blockhash: bh.blockhash, lastValidBlockHeight: bh.lastValidBlockHeight },
+            "confirmed");
+
+          await db("/rpc/preventa_reclamar_cerrar", {
+            method: "POST", body: JSON.stringify({ p_id: rid, p_estado: "enviado" }),
+          });
+          return responder({ ok: true, tokens: ab.tokens, firma: firmaEnv });
+        } catch (e) {
+          /* Se le PREGUNTA a la cadena. «Fallo el envio» y «llego y no vi la
+             confirmacion» se parecen demasiado desde aqui. */
+          const v = firmaEnv ? await resolver(conP, firmaEnv, ultimoBloque) : "muerta";
+          const estado = v === "llego" ? "enviado" : v === "muerta" ? "fallido" : "revision";
+          await db("/rpc/preventa_reclamar_cerrar", {
+            method: "POST", body: JSON.stringify({ p_id: rid, p_estado: estado }),
+          }).catch(() => {});
+          if (estado === "enviado") return responder({ ok: true, tokens: ab.tokens, firma: firmaEnv });
+          return responder({ error: "no pude entregar ahora", clase: estado, firma: firmaEnv || null }, 502);
+        }
+      }
+
+      return responder({ error: "accion desconocida" }, 400);
+    }
+
     const dueno = await duenoDe(cuerpo.token);
     if (!dueno) return responder({ error: "sesion no valida o caducada" }, 401);
 

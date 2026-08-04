@@ -117,6 +117,23 @@
   .tor-alta input{ background:var(--bg-deep); color:var(--text); border:1px solid var(--line);
         border-radius:7px; padding:6px 8px; font:inherit; }
 
+
+  /* ── preventa ── */
+  .pv-est{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+  .pv-pill{ font-size:10px; padding:3px 10px; border-radius:99px; border:1px solid var(--line);
+        color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .pv-pill.on{ background:rgba(20,241,149,0.12); color:var(--sol-teal); border-color:rgba(20,241,149,0.35); }
+  .pv-pill.off{ background:rgba(179,49,44,0.12); color:#e8908c; border-color:rgba(179,49,44,0.4); }
+  .pv-form{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .pv-form .campo{ display:flex; flex-direction:column; gap:4px; }
+  .pv-form .campo span{ font-size:10px; color:var(--muted); }
+  .pv-form input{ background:var(--bg-deep); color:var(--text); border:1px solid var(--line);
+        border-radius:7px; padding:6px 8px; font:inherit; }
+  .pv-form input.ancho{ width:330px; }
+  .pv-form label{ display:flex; gap:6px; align-items:center; font-size:12px; color:var(--text); }
+  .pv-eco{ font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6; }
+  .pv-eco b{ color:var(--bronze-light); font-family:'Cinzel',serif; }
+
   .tor-lista{ display:flex; flex-direction:column; gap:8px; }
   .tor-fila{ display:flex; align-items:center; gap:12px; padding:11px 14px; font-size:13px;
         background:var(--bg-deep); border:1px solid var(--line); border-radius:10px; }
@@ -278,6 +295,49 @@
       <h2>Torneos</h2>
       <p class="nota">Con gente apuntada, la entrada y las plazas se bloquean: el bote ya se cobró a ese precio. Y no se puede borrar — eso sería quedarse su dinero; hay que cancelarlo, que se lo devuelve.</p>
       <div class="tor-lista" id="torLista"></div>
+    </div>
+
+    <div class="bloque">
+      <h2>Preventa de $BRUTE</h2>
+      <p class="nota">Nace apagada y se queda apagada hasta que la enciendas aquí. Mientras esté apagada, la sección no aparece siquiera en la landing — enseñar una preventa cerrada invita a mandar SOL a mano, y ese SOL no lo recupera nadie.</p>
+      <p class="nota"><b>Los reclamos son una segunda puerta.</b> Se venden los tokens ahora y se entregan cuando la abras: no puedes entregar antes de que exista la liquidez, porque quien reciba tokens sin mercado los vende contra un pool que aún no está.</p>
+
+      <div class="pv-est" id="pvEst"></div>
+
+      <div class="pv-form">
+        <div class="campo"><span>Precio por token (lamports)</span>
+          <input id="pvPrecio" type="number" min="0" step="1"></div>
+        <div class="campo"><span>Cupo total (tokens)</span>
+          <input id="pvCupo" type="number" min="0" step="1"></div>
+        <div class="campo"><span>Tope por wallet (0 = sin tope)</span>
+          <input id="pvTope" type="number" min="0" step="1"></div>
+        <div class="campo"><span>Compra mínima (tokens)</span>
+          <input id="pvMinimo" type="number" min="0" step="1"></div>
+        <div class="campo"><span>Empieza</span>
+          <input id="pvDesde" type="datetime-local"></div>
+        <div class="campo"><span>Termina</span>
+          <input id="pvHasta" type="datetime-local"></div>
+        <div class="campo"><span>Wallet que cobra el SOL</span>
+          <input id="pvWallet" class="ancho" placeholder="direccion de Solana"></div>
+        <div class="campo"><span>Mint de $BRUTE (para entregar)</span>
+          <input id="pvMint" class="ancho" placeholder="direccion del mint"></div>
+        <div class="campo"><span>Motivo (queda en el registro)</span>
+          <input id="pvMotivo" class="ancho" placeholder="por que cambias esto"></div>
+      </div>
+
+      <div class="pv-form" style="margin-top:16px">
+        <label><input type="checkbox" id="pvActiva"> Preventa abierta</label>
+        <label><input type="checkbox" id="pvReclamos"> Reclamos abiertos</label>
+        <button class="btn" id="btnPvGuardar">Guardar</button>
+      </div>
+
+      <div class="pv-eco" id="pvEco"></div>
+    </div>
+
+    <div class="bloque">
+      <h2>Compras de la preventa</h2>
+      <p class="nota">Sale de las tablas con RLS y cero políticas: esto no se puede consultar desde ningún navegador, solo desde aquí.</p>
+      <div class="scroll"><table id="tablaPreventa"></table></div>
     </div>
 
     <div class="bloque">
@@ -686,6 +746,7 @@
      mano: así lo que ves es lo que hay guardado, no lo que creemos que quedó. */
   async function recargar(){
     cargarTorneos();
+    cargarPreventa();
     const resumen = await SolBruteDB.adminResumen();
     const { jugadores, brutos } = await SolBruteDB.adminJugadores();
     datos.brutos = brutos || [];
@@ -900,6 +961,140 @@
       .join(", ") || "sin cambios";
   }
 
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     LA PREVENTA
+     ═══════════════════════════════════════════════════════════════════════
+     Encenderla es empezar a aceptar dinero de gente. Por eso el guardado pide
+     motivo y todo queda en `admin_log` con el antes y el despues: el dia que
+     alguien pregunte por su compra, tiene que poder demostrarse a que precio
+     estaba la preventa en ese momento y quien lo cambio. */
+  let preventa = null;
+
+  /* El navegador lee y escribe fechas locales; la base guarda UTC. Convertir
+     aqui y no en el servidor evita que un cambio de horario mueva una preventa
+     una hora sin que nadie lo toque. */
+  const aLocal = iso => {
+    if(!iso) return "";
+    const d = new Date(iso);
+    const p = x => String(x).padStart(2, "0");
+    return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) +
+           "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+  };
+  const SOL = 1e9;
+
+  async function cargarPreventa(){
+    let r;
+    /* Si el paso 31 no esta aplicado todavia, las tablas no existen y esto
+       falla. No es un error del panel: es que la preventa aun no vive. */
+    try{ r = await SolBruteDB.adminPreventa(); }
+    catch(e){ el("pvEst").innerHTML = '<span class="pv-pill off">sin instalar</span> ' +
+      '<span class="nota">aplica supabase-31-preventa.sql</span>'; return; }
+
+    preventa = r.preventa || {};
+    const p = preventa;
+    el("pvPrecio").value  = p.precio_lamports || 0;
+    el("pvCupo").value    = p.cupo_total  || 0;
+    el("pvTope").value    = p.tope_wallet || 0;
+    el("pvMinimo").value  = p.minimo      || 0;
+    el("pvDesde").value   = aLocal(p.desde);
+    el("pvHasta").value   = aLocal(p.hasta);
+    el("pvWallet").value  = p.wallet || "";
+    el("pvMint").value    = p.mint   || "";
+    el("pvActiva").checked   = !!p.activa;
+    el("pvReclamos").checked = !!p.reclamos_abiertos;
+
+    el("pvEst").innerHTML =
+      '<span class="pv-pill ' + (p.activa ? "on" : "off") + '">' +
+        (p.activa ? "venta abierta" : "venta cerrada") + '</span>' +
+      '<span class="pv-pill ' + (p.reclamos_abiertos ? "on" : "off") + '">' +
+        (p.reclamos_abiertos ? "reclamos abiertos" : "reclamos cerrados") + '</span>' +
+      '<span class="pv-pill">' + n(p.vendido) + ' vendidos</span>' +
+      '<span class="pv-pill">' + n(p.reservado) + ' en vuelo</span>' +
+      '<span class="pv-pill">' + n(Math.max(0, (p.cupo_total||0) - (p.vendido||0) - (p.reservado||0))) + ' libres</span>';
+
+    pintarEcoPreventa();
+    pintarComprasPreventa(r.compras || [], r.reclamos || []);
+  }
+
+  /* Lo que se recauda si se vende el cupo entero. Es el numero que de verdad
+     decide si la preventa tiene sentido: con el se paga la liquidez, y una
+     preventa que no da para el pool deja el token sin mercado. */
+  function pintarEcoPreventa(){
+    const precio = Number(el("pvPrecio").value) || 0;
+    const cupo   = Number(el("pvCupo").value)   || 0;
+    const vendido = Number((preventa && preventa.vendido) || 0);
+    const total = precio * cupo / SOL;
+    const ya    = precio * vendido / SOL;
+    el("pvEco").innerHTML =
+      "Si se vende el cupo entero entran <b>" + total.toFixed(3) + " SOL</b>. " +
+      "Llevas <b>" + ya.toFixed(3) + " SOL</b> recaudados. " +
+      "Precio por token: <b>" + (precio / SOL).toPrecision(3) + " SOL</b>." +
+      "<br>Recuerda que ese SOL no es beneficio: la mayor parte tiene que volver " +
+      "al pool de liquidez, o el token sale al mercado sin nada detras.";
+  }
+
+  function pintarComprasPreventa(compras, reclamos){
+    const porReclamo = {};
+    for(const r of reclamos) porReclamo[r.id] = r;
+    if(!compras.length){
+      el("tablaPreventa").innerHTML = '<tr><td class="vacio">Todavia no ha comprado nadie.</td></tr>';
+      return;
+    }
+    el("tablaPreventa").innerHTML =
+      "<tr><th>id</th><th>wallet</th><th>tokens</th><th>SOL</th><th>estado</th><th>pago</th><th>fecha</th></tr>" +
+      compras.map(c => {
+        const rec = c.reclamo_id ? porReclamo[c.reclamo_id] : null;
+        const est = c.estado + (rec ? " · reclamo " + rec.estado : "");
+        return "<tr><td>" + c.id + "</td>" +
+          "<td title=\"" + escapar(c.address) + "\">" + escapar(c.address.slice(0,4) + "…" + c.address.slice(-4)) + "</td>" +
+          "<td>" + n(c.tokens) + "</td>" +
+          "<td>" + (Number(c.lamports)/SOL).toFixed(4) + "</td>" +
+          "<td>" + escapar(est) + "</td>" +
+          "<td>" + (c.firma ? escapar(c.firma.slice(0,8)) + "…" : "—") + "</td>" +
+          "<td>" + fecha(c.creado) + "</td></tr>";
+      }).join("");
+  }
+
+  async function guardarPreventa(){
+    const motivo = el("pvMotivo").value.trim();
+    if(motivo.length < 10){ msg("Escribe un motivo de al menos 10 letras", "err"); return; }
+
+    /* Encenderla se confirma a mano. Es el unico boton de este panel que
+       empieza a cobrar dinero a gente, y un clic de mas aqui no se deshace
+       devolviendo el SOL: ya salio de la wallet de alguien. */
+    if(el("pvActiva").checked && !(preventa && preventa.activa)){
+      if(!confirm("Vas a ABRIR la preventa. A partir de ese momento la landing " +
+                  "la enseña y la gente puede pagar SOL de verdad. ¿Seguro?")) return;
+    }
+    if(el("pvReclamos").checked && !(preventa && preventa.reclamos_abiertos)){
+      if(!confirm("Vas a ABRIR los reclamos. Los compradores podran retirar sus " +
+                  "$BRUTE a sus wallets. Hazlo solo con la liquidez ya puesta. ¿Seguro?")) return;
+    }
+
+    const campos = {
+      activa:            el("pvActiva").checked,
+      reclamos_abiertos: el("pvReclamos").checked,
+      precio_lamports:   Number(el("pvPrecio").value) || 0,
+      cupo_total:        Number(el("pvCupo").value)   || 0,
+      tope_wallet:       Number(el("pvTope").value)   || 0,
+      minimo:            Number(el("pvMinimo").value) || 0,
+      wallet:            el("pvWallet").value.trim(),
+      mint:              el("pvMint").value.trim()
+    };
+    if(el("pvDesde").value) campos.desde = new Date(el("pvDesde").value).toISOString();
+    if(el("pvHasta").value) campos.hasta = new Date(el("pvHasta").value).toISOString();
+
+    try{
+      await SolBruteDB.adminPreventaConfig(campos, motivo);
+      el("pvMotivo").value = "";
+      msg("Preventa guardada", "ok");
+      await cargarPreventa();
+    }catch(e){
+      msg(e.message || "no se pudo guardar", "err");
+    }
+  }
+
   function msg(txt, tipo){
     const e = el("msg");
     e.textContent = txt;
@@ -911,6 +1106,9 @@
   const fecha = f => f ? new Date(f).toLocaleDateString("es-ES", { day:"2-digit", month:"2-digit", year:"2-digit" }) : "—";
   /* Los nombres los eligen los jugadores: van escapados sí o sí. */
   const escapar = t => String(t).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+  el("btnPvGuardar").addEventListener("click", guardarPreventa);
+  ["pvPrecio","pvCupo"].forEach(k => el(k).addEventListener("input", pintarEcoPreventa));
 
   ["torEntrada","torPlazas","tp1","tp2","tp3","tpc","torPrecio"]
     .forEach(id => { const n = el(id); if(n) n.oninput = calcTorneo; });

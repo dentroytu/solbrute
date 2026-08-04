@@ -329,6 +329,60 @@
   .rm-status.done{ background:rgba(201,138,58,0.10); color:var(--bronze-light); border:1px solid rgba(201,138,58,0.28); }
   .rm-status.soon{ background:var(--surface-hi); color:var(--muted); border:1px solid var(--line); }
 
+  /* ---------- PREVENTA ----------
+     Nace OCULTA. La ensena `pv_estado`, no el marcado: una preventa que se ve
+     porque el HTML la trae puesta seguiria vista el dia que se apague desde el
+     panel, y eso es aceptar dinero sin querer. */
+  #preventa[hidden]{ display:none; }
+  .pv-wrap{ max-width:560px; margin:0 auto; }
+  .pv-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:26px 24px;
+  }
+  .pv-barra{
+    height:10px; border-radius:999px; background:var(--bg-deep);
+    border:1px solid var(--line); overflow:hidden; display:flex; margin:4px 0 10px;
+  }
+  .pv-vendido{ background:var(--sol-teal); }
+  .pv-reservado{ background:rgba(20,241,149,0.28); }
+  .pv-cifras{
+    display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted);
+    margin-bottom:22px;
+  }
+  .pv-cifras b{ color:var(--text); font-family:'Cinzel',serif; }
+  .pv-fila{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:9px 0; border-top:1px solid var(--line); font-size:13.5px;
+  }
+  /* `[hidden]` es `display:none`, pero cualquier `display` puesto en una clase
+     le gana por especificidad. Ya paso con la barra de vida de la mascota en la
+     app: la fila seguia ahi con la mascota muerta. Todo lo que se esconda con
+     `hidden` y tenga display propio necesita esta linea. */
+  .pv-fila[hidden], .btn[hidden]{ display:none; }
+  .pv-fila span{ color:var(--muted); }
+  .pv-fila b{ font-family:'Cinzel',serif; font-weight:700; color:var(--bronze-light); font-size:15px; }
+  .pv-fila b.teal{ color:var(--sol-teal); }
+  .pv-usd{ color:var(--muted); font-family:'Space Grotesk',sans-serif; font-size:11.5px; font-weight:400; }
+  .pv-compra{ display:flex; gap:10px; margin-top:20px; }
+  .pv-compra input{
+    flex:1; min-width:0; background:var(--bg-deep); color:var(--text);
+    border:1px solid var(--line); border-radius:9px; padding:12px 14px;
+    font-family:'Cinzel',serif; font-size:15px;
+  }
+  .pv-compra input:focus{ outline:none; border-color:var(--bronze); }
+  .pv-nota{ font-size:11.5px; color:var(--muted); margin-top:14px; line-height:1.6; }
+  .pv-aviso{
+    margin-top:14px; font-size:12.5px; border-radius:9px; padding:10px 12px;
+    border:1px solid var(--line); background:var(--bg-deep); color:var(--muted);
+  }
+  .pv-aviso[hidden]{ display:none; }
+  .pv-aviso.mal{ border-color:var(--blood); color:#f0b6b3; }
+  .pv-aviso.bien{ border-color:rgba(20,241,149,0.35); color:var(--sol-teal); }
+  .pv-mias{ margin-top:22px; padding-top:6px; border-top:1px dashed var(--line); }
+  .pv-mias[hidden]{ display:none; }
+  .btn.pv-full{ width:100%; justify-content:center; text-align:center; margin-top:16px; }
+  .btn[disabled]{ opacity:.5; cursor:not-allowed; pointer-events:none; }
+
   /* ---------- CTA FINAL ---------- */
   .final-cta{
     text-align:center; padding:90px 24px; border-top:1px solid var(--line);
@@ -566,6 +620,66 @@
   </div>
 </section>
 
+<section class="section" id="preventa" hidden>
+  <div class="section-head">
+    <div class="section-eyebrow" data-i18n="pv_eyebrow">Presale</div>
+    <h2 data-i18n="pv_h2">$BRUTE presale</h2>
+    <p data-i18n="pv_p">$BRUTE is the game's token: you earn it by playing. The presale is for anyone who wants in before the market opens.</p>
+  </div>
+
+  <div class="pv-wrap">
+    <div class="pv-card">
+      <div class="pv-barra">
+        <div class="pv-vendido"  id="pvBarV" style="width:0%"></div>
+        <div class="pv-reservado" id="pvBarR" style="width:0%"></div>
+      </div>
+      <div class="pv-cifras">
+        <div><b id="pvVendido">0</b> <span data-i18n="pv_sold">sold</span></div>
+        <div><b id="pvQueda">0</b> <span data-i18n="pv_left">left</span></div>
+      </div>
+
+      <div class="pv-fila">
+        <span data-i18n="pv_price">Price per token</span>
+        <b id="pvPrecio">—</b>
+      </div>
+      <div class="pv-fila" id="pvFilaMin" hidden>
+        <span data-i18n="pv_min">Minimum</span>
+        <b id="pvMin">—</b>
+      </div>
+      <div class="pv-fila" id="pvFilaTope" hidden>
+        <span data-i18n="pv_cap">Cap per wallet</span>
+        <b id="pvTope">—</b>
+      </div>
+
+      <div class="pv-compra">
+        <input id="pvCantidad" type="number" min="1" step="1" inputmode="numeric" placeholder="0">
+        <button class="btn btn-primary" id="pvComprar" data-i18n="pv_buy">Buy</button>
+      </div>
+      <div class="pv-fila" id="pvFilaCoste" hidden>
+        <span data-i18n="pv_total">You pay</span>
+        <b class="teal" id="pvCoste">—</b>
+      </div>
+
+      <div class="pv-aviso" id="pvAviso" hidden></div>
+
+      <div class="pv-mias" id="pvMias" hidden>
+        <div class="pv-fila">
+          <span data-i18n="pv_yours">Your reserved tokens</span>
+          <b class="teal" id="pvMisTokens">0</b>
+        </div>
+        <div class="pv-fila">
+          <span data-i18n="pv_paid">You paid</span>
+          <b id="pvMiPago">—</b>
+        </div>
+        <button class="btn btn-primary pv-full" id="pvReclamar" hidden data-i18n="pv_claim">Claim my $BRUTE</button>
+        <div class="pv-nota" id="pvNotaReclamo" data-i18n="pv_claim_wait">Your tokens are reserved. The claim button turns on when the market opens.</div>
+      </div>
+
+      <div class="pv-nota" data-i18n="pv_note">You pay now and claim your tokens when the market opens. Payment is made in SOL from your own wallet, and it is verified on-chain before anything is reserved for you.</div>
+    </div>
+  </div>
+</section>
+
 <section class="final-cta" id="jugar">
   <h2 data-i18n="finalcta_h2">The arena is already open</h2>
   <p data-i18n="finalcta_p">Try the current prototype, create your brute, and fight other players while we keep building the on-chain version.</p>
@@ -584,6 +698,7 @@
 </footer>
 
 <script src="brute-render.js"></script>
+<script src="wallet-solana.js"></script>
 <script>
 (function(){
   const translations = {
@@ -624,6 +739,35 @@
       finalcta_p:"Try the current prototype, create your brute, and fight other players while we keep building the on-chain version.",
       finalcta_btn:"⚔️ Enter the prototype", finalcta_btn_soon:"⚔️ Opening soon",
       cta_pending:"The prototype isn't open to the public yet — follow the project for the launch.",
+      pv_eyebrow:"Presale", pv_h2:"$BRUTE presale",
+      pv_p:"$BRUTE is the game's token: you earn it by playing. The presale is for anyone who wants in before the market opens.",
+      pv_sold:"sold", pv_left:"left", pv_price:"Price per token", pv_min:"Minimum",
+      pv_cap:"Cap per wallet", pv_buy:"Buy", pv_total:"You pay",
+      pv_yours:"Your reserved tokens", pv_paid:"You paid",
+      pv_claim:"Claim my $BRUTE",
+      pv_claim_wait:"Your tokens are reserved. The claim button turns on when the market opens.",
+      pv_note:"You pay now and claim your tokens when the market opens. Payment is made in SOL from your own wallet, and it is verified on-chain before anything is reserved for you.",
+      pv_connect:"Connect wallet", pv_working:"Working\u2026", pv_signing:"Confirm in your wallet\u2026",
+      pv_checking:"Checking your payment on-chain\u2026",
+      pv_no_wallet:"No Solana wallet found in this browser. Install Phantom or Solflare and reload.",
+      pv_rejected:"Cancelled in the wallet.",
+      pv_e_amount:"Enter how many tokens you want.",
+      pv_e_closed:"The presale is closed right now.",
+      pv_e_soon:"The presale hasn't started yet.",
+      pv_e_late:"The presale has ended.",
+      pv_e_quota:"There aren't that many left. Available: {n}.",
+      pv_e_cap:"That's over the cap per wallet ({n}).",
+      pv_e_min:"The minimum is {n} tokens.",
+      pv_e_sign:"Signature not valid. Try again.",
+      pv_e_pay:"We can't see your payment on-chain yet. If your wallet says it went through, wait a moment and press Buy again \u2014 nothing is charged twice.",
+      pv_e_net:"Network problem. Nothing was charged.",
+      pv_e_claim_closed:"Claims aren't open yet.",
+      pv_e_claim_none:"You have nothing to claim.",
+      pv_e_claim_busy:"You already have a claim in progress.",
+      pv_ok_buy:"Payment confirmed. {n} $BRUTE are reserved for you.",
+      pv_ok_claim:"Sent. {n} $BRUTE are on their way to your wallet.",
+      pv_claim_open:"The market is open \u2014 you can claim your tokens.",
+      pv_claim_done:"Your tokens have already been delivered.",
       footer_note:"SolBrute is currently a prototype-stage project. There is no token yet, no contract deployed on mainnet, and no reward with real-world value. This site is for demonstration and development purposes only."
     },
     es: {
@@ -663,6 +807,35 @@
       finalcta_p:"Probá el prototipo actual, creá tu bruto y pelea contra otros jugadores mientras seguimos construyendo la versión on-chain.",
       finalcta_btn:"⚔️ Entrar al prototipo", finalcta_btn_soon:"⚔️ Próxima apertura",
       cta_pending:"El prototipo todavía no está abierto al público — sigue el proyecto para enterarte del lanzamiento.",
+      pv_eyebrow:"Preventa", pv_h2:"Preventa de $BRUTE",
+      pv_p:"$BRUTE es el token del juego: se gana jugando. La preventa es para quien quiera entrar antes de que abra el mercado.",
+      pv_sold:"vendidos", pv_left:"quedan", pv_price:"Precio por token", pv_min:"Mínimo",
+      pv_cap:"Tope por wallet", pv_buy:"Comprar", pv_total:"Pagas",
+      pv_yours:"Tus tokens reservados", pv_paid:"Has pagado",
+      pv_claim:"Reclamar mis $BRUTE",
+      pv_claim_wait:"Tus tokens están reservados. El botón de reclamar se enciende cuando abra el mercado.",
+      pv_note:"Pagas ahora y reclamas tus tokens cuando abra el mercado. El pago se hace en SOL desde tu propia wallet, y se comprueba en la cadena antes de reservarte nada.",
+      pv_connect:"Conectar wallet", pv_working:"Un momento\u2026", pv_signing:"Confirma en tu wallet\u2026",
+      pv_checking:"Comprobando tu pago en la cadena\u2026",
+      pv_no_wallet:"No hay ninguna wallet de Solana en este navegador. Instala Phantom o Solflare y recarga.",
+      pv_rejected:"Cancelado en la wallet.",
+      pv_e_amount:"Escribe cuántos tokens quieres.",
+      pv_e_closed:"La preventa está cerrada ahora mismo.",
+      pv_e_soon:"La preventa todavía no ha empezado.",
+      pv_e_late:"La preventa ha terminado.",
+      pv_e_quota:"No quedan tantos. Disponibles: {n}.",
+      pv_e_cap:"Eso pasa el tope por wallet ({n}).",
+      pv_e_min:"El mínimo son {n} tokens.",
+      pv_e_sign:"La firma no es válida. Inténtalo otra vez.",
+      pv_e_pay:"Todavía no vemos tu pago en la cadena. Si tu wallet dice que salió, espera un momento y vuelve a pulsar Comprar \u2014 no se cobra dos veces.",
+      pv_e_net:"Problema de red. No se ha cobrado nada.",
+      pv_e_claim_closed:"Los reclamos todavía no están abiertos.",
+      pv_e_claim_none:"No tienes nada que reclamar.",
+      pv_e_claim_busy:"Ya tienes un reclamo en curso.",
+      pv_ok_buy:"Pago confirmado. Tienes {n} $BRUTE reservados.",
+      pv_ok_claim:"Enviado. {n} $BRUTE van de camino a tu wallet.",
+      pv_claim_open:"El mercado está abierto \u2014 ya puedes reclamar tus tokens.",
+      pv_claim_done:"Tus tokens ya se han entregado.",
       footer_note:"SolBrute es un proyecto en fase de prototipo. No existe todavía ningún token, contrato desplegado en mainnet, ni recompensa con valor real. Este sitio es solo para fines de demostración y desarrollo."
     },
     fr: {
@@ -702,6 +875,35 @@
       finalcta_p:"Essaie le prototype actuel, crée ta brute et combats d'autres joueurs pendant que nous continuons à construire la version on-chain.",
       finalcta_btn:"⚔️ Entrer dans le prototype", finalcta_btn_soon:"⚔️ Ouverture prochaine",
       cta_pending:"Le prototype n'est pas encore ouvert au public — suis le projet pour le lancement.",
+      pv_eyebrow:"Prévente", pv_h2:"Prévente de $BRUTE",
+      pv_p:"$BRUTE est le token du jeu : il se gagne en jouant. La prévente s'adresse à qui veut entrer avant l'ouverture du marché.",
+      pv_sold:"vendus", pv_left:"restants", pv_price:"Prix par token", pv_min:"Minimum",
+      pv_cap:"Plafond par wallet", pv_buy:"Acheter", pv_total:"Tu paies",
+      pv_yours:"Tes tokens réservés", pv_paid:"Tu as payé",
+      pv_claim:"Réclamer mes $BRUTE",
+      pv_claim_wait:"Tes tokens sont réservés. Le bouton de réclamation s'active à l'ouverture du marché.",
+      pv_note:"Tu paies maintenant et tu réclames tes tokens à l'ouverture du marché. Le paiement se fait en SOL depuis ton propre wallet, et il est vérifié sur la chaîne avant que quoi que ce soit ne te soit réservé.",
+      pv_connect:"Connecter le wallet", pv_working:"Un instant\u2026", pv_signing:"Confirme dans ton wallet\u2026",
+      pv_checking:"Vérification de ton paiement sur la chaîne\u2026",
+      pv_no_wallet:"Aucun wallet Solana dans ce navigateur. Installe Phantom ou Solflare et recharge.",
+      pv_rejected:"Annulé dans le wallet.",
+      pv_e_amount:"Indique combien de tokens tu veux.",
+      pv_e_closed:"La prévente est fermée pour le moment.",
+      pv_e_soon:"La prévente n'a pas encore commencé.",
+      pv_e_late:"La prévente est terminée.",
+      pv_e_quota:"Il n'en reste pas autant. Disponibles : {n}.",
+      pv_e_cap:"Cela dépasse le plafond par wallet ({n}).",
+      pv_e_min:"Le minimum est de {n} tokens.",
+      pv_e_sign:"Signature non valide. Réessaie.",
+      pv_e_pay:"Nous ne voyons pas encore ton paiement sur la chaîne. Si ton wallet dit qu'il est parti, attends un instant et appuie de nouveau sur Acheter \u2014 rien n'est débité deux fois.",
+      pv_e_net:"Problème de réseau. Rien n'a été débité.",
+      pv_e_claim_closed:"Les réclamations ne sont pas encore ouvertes.",
+      pv_e_claim_none:"Tu n'as rien à réclamer.",
+      pv_e_claim_busy:"Tu as déjà une réclamation en cours.",
+      pv_ok_buy:"Paiement confirmé. {n} $BRUTE te sont réservés.",
+      pv_ok_claim:"Envoyé. {n} $BRUTE sont en route vers ton wallet.",
+      pv_claim_open:"Le marché est ouvert \u2014 tu peux réclamer tes tokens.",
+      pv_claim_done:"Tes tokens ont déjà été livrés.",
       footer_note:"SolBrute est actuellement un projet au stade de prototype. Il n'y a pas encore de token, aucun contrat déployé sur le mainnet, et aucune récompense ayant une valeur réelle. Ce site est uniquement destiné à des fins de démonstration et de développement."
     }
   };
@@ -744,7 +946,14 @@
   if(pvA) pvA.innerHTML = bust(HERO_A);
   if(pvB) pvB.innerHTML = bust(HERO_B);
 
+  let idioma = 'en';
+  const t = (k, n) => {
+    const s = (translations[idioma] && translations[idioma][k]) || translations.en[k] || k;
+    return n === undefined ? s : s.replace('{n}', n);
+  };
+
   function applyLang(lang){
+    idioma = lang;
     document.documentElement.lang = lang;
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
@@ -761,6 +970,9 @@
       const soon = translations[lang].finalcta_btn_soon;
       document.querySelectorAll('.final-cta .js-play').forEach(a => { if(soon){ a.textContent = soon; } });
     }
+    /* El panel de preventa lleva cifras y etiquetas que no son data-i18n
+       (precios, cantidades, avisos), asi que hay que repintarlo a mano. */
+    if(PV.estado) pvPintar();
   }
 
   document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -783,8 +995,348 @@
     });
   }
 
+
+  /* ══════════════════════════════════════════════════════════════════════
+     LA PREVENTA
+     ══════════════════════════════════════════════════════════════════════
+     Es lo unico de la landing que pide wallet. El resto de la pagina no lo
+     hace a proposito —quien viene a mirar no tiene que conectar nada— pero
+     aqui no hay alternativa: se paga desde la wallet del comprador.
+
+     ── Lo que este codigo NO decide ──────────────────────────────────────
+     Ni el precio, ni la direccion que cobra, ni cuanto queda. Todo eso viene
+     del servidor, y la transaccion de pago la construye EL SERVIDOR con la
+     wallet de destino dentro. Si la eligiera el navegador, bastaria con
+     editar este fichero para pagarse a uno mismo y pedir los tokens igual.
+
+     Aqui solo se pinta y se pide firma.
+
+     ── Y esta OCULTA hasta que el servidor diga otra cosa ────────────────
+     La seccion nace con `hidden` en el marcado. Si el servidor no contesta,
+     o la preventa esta apagada, no se enseña nada — que es lo correcto:
+     enseñar una preventa cerrada invita a mandar SOL a mano. */
+  const PV = {
+    fn: "https://ihrcvartuuyvftxdxztt.supabase.co/functions/v1/retirar",
+    anon: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlocmN2YXJ0dXV5dmZ0eGR4enR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MjYyMzcsImV4cCI6MjEwMTAwMjIzN30.rhX_iI5qZROciWSBP3m0RhkMQXTSz6ttQz2zpXj_uxk",
+    estado: null,    // lo que devuelve pv_estado
+    mias: null,      // lo que ese comprador tiene
+    wallet: null,    // { id, proveedor, direccion }
+    prueba: null,    // { mensaje, firma, hecha }  la firma de propiedad
+    solUsd: null,
+    ocupado: false
+  };
+
+  const $pv = id => document.getElementById(id);
+  const LAMPORTS = 1e9;
+
+  /* Nueve decimales dan cifras ilegibles para un precio de preventa. Se
+     enseñan los significativos y se quitan los ceros de la cola. */
+  function sol(lamports){
+    const v = Number(lamports) / LAMPORTS;
+    if(!isFinite(v)) return "—";
+    let txt = v >= 1 ? v.toFixed(3) : v.toPrecision(3);
+    if(txt.indexOf('e') < 0 && txt.indexOf('.') >= 0) txt = txt.replace(/0+$/,'').replace(/\.$/,'');
+    return txt + " SOL";
+  }
+  function usd(lamports){
+    if(!PV.solUsd) return "";
+    const v = Number(lamports) / LAMPORTS * PV.solUsd;
+    if(!isFinite(v) || v <= 0) return "";
+    return " · $" + (v >= 1 ? v.toFixed(2) : v.toPrecision(2));
+  }
+  const miles = n => Number(n || 0).toLocaleString(idioma === 'en' ? 'en-US' : idioma);
+
+  async function pvLlamar(accion, extra){
+    const r = await fetch(PV.fn, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: PV.anon, Authorization: "Bearer " + PV.anon },
+      body: JSON.stringify(Object.assign({ accion }, extra || {}))
+    });
+    let cuerpo = {};
+    try{ cuerpo = await r.json(); }catch(e){}
+    if(!r.ok){
+      const err = new Error(cuerpo.error || ("HTTP " + r.status));
+      err.clase = cuerpo.clase; err.datos = cuerpo;
+      throw err;
+    }
+    return cuerpo;
+  }
+
+  function pvAviso(texto, tipo){
+    const el = $pv('pvAviso');
+    if(!texto){ el.hidden = true; return; }
+    el.hidden = false; el.textContent = texto;
+    el.className = 'pv-aviso' + (tipo ? ' ' + tipo : '');
+  }
+
+  function pvPintar(){
+    const e = PV.estado; if(!e) return;
+    const cupo = Number(e.cupo) || 0, vendido = Number(e.vendido) || 0;
+    const queda = Number(e.queda) || 0;
+    const reservado = Math.max(0, cupo - vendido - queda);
+
+    $pv('pvBarV').style.width = cupo ? (vendido / cupo * 100) + '%' : '0%';
+    $pv('pvBarR').style.width = cupo ? (reservado / cupo * 100) + '%' : '0%';
+    $pv('pvVendido').textContent = miles(vendido);
+    $pv('pvQueda').textContent   = miles(queda);
+    $pv('pvPrecio').innerHTML = sol(e.precio) +
+      (usd(e.precio) ? '<span class="pv-usd">' + usd(e.precio) + '</span>' : '');
+
+    $pv('pvFilaMin').hidden  = !(Number(e.minimo) > 0);
+    $pv('pvMin').textContent  = miles(e.minimo) + " $BRUTE";
+    $pv('pvFilaTope').hidden = !(Number(e.tope) > 0);
+    $pv('pvTope').textContent = miles(e.tope) + " $BRUTE";
+
+    pvCoste();
+
+    /* Comprar solo si esta abierta Y queda algo. Un boton que se puede pulsar
+       para recibir un «no» del servidor es peor que uno apagado. */
+    const puede = !!e.activa && queda > 0;
+    $pv('pvComprar').disabled = !puede || PV.ocupado;
+    $pv('pvCantidad').disabled = !puede;
+    if(!e.activa) $pv('pvComprar').textContent = t('pv_e_closed');
+    else if(queda <= 0) $pv('pvComprar').textContent = t('pv_e_quota', 0);
+    else $pv('pvComprar').textContent = PV.wallet ? t('pv_buy') : t('pv_connect');
+
+    /* Lo tuyo */
+    const m = PV.mias;
+    const tuyos = m ? Number(m.pagado) + Number(m.entregado) : 0;
+    $pv('pvMias').hidden = !(m && tuyos > 0);
+    if(m && tuyos > 0){
+      $pv('pvMisTokens').textContent = miles(tuyos) + " $BRUTE";
+      $pv('pvMiPago').innerHTML = sol(m.lamports) +
+        (usd(m.lamports) ? '<span class="pv-usd">' + usd(m.lamports) + '</span>' : '');
+      const porEntregar = Number(m.pagado) > 0;
+      const abierto = !!e.reclamos && porEntregar;
+      $pv('pvReclamar').hidden = !abierto;
+      $pv('pvReclamar').textContent = t('pv_claim');
+      $pv('pvNotaReclamo').textContent =
+        abierto ? t('pv_claim_open') : porEntregar ? t('pv_claim_wait') : t('pv_claim_done');
+    }
+  }
+
+  function pvCoste(){
+    const e = PV.estado; if(!e) return;
+    const n = Math.floor(Number($pv('pvCantidad').value));
+    const bien = Number.isFinite(n) && n > 0;
+    $pv('pvFilaCoste').hidden = !bien;
+    if(bien) $pv('pvCoste').innerHTML = sol(n * Number(e.precio)) +
+      (usd(n * Number(e.precio)) ? '<span class="pv-usd">' + usd(n * Number(e.precio)) + '</span>' : '');
+  }
+
+  /* ── La firma de propiedad ──────────────────────────────────────────────
+     No abre sesion ni guarda nada: solo demuestra que esa wallet es tuya.
+     Sin ella cualquiera bloquearia el cupo entero reservando con direcciones
+     ajenas cada pocos minutos.
+
+     El servidor solo la acepta si tiene menos de cinco minutos, asi que se
+     rehace cuando pasan tres. Es lo que evita pedirle al comprador que firme
+     en cada paso. */
+  async function pvPrueba(){
+    if(PV.prueba && Date.now() - PV.prueba.hecha < 3 * 60 * 1000) return PV.prueba;
+    const fecha = new Date().toISOString();
+    const mensaje = [
+      location.host + " wants you to verify your Solana account:",
+      PV.wallet.direccion,
+      "",
+      "SolBrute presale. Signing is free and moves no funds.",
+      "The payment itself is a separate transaction you approve after this.",
+      "",
+      "Issued At: " + fecha
+    ].join("\n");
+    const firma = await window.SolBruteWallet.firmar(PV.wallet, mensaje);
+    PV.prueba = { mensaje, firma, hecha: Date.now() };
+    return PV.prueba;
+  }
+
+  async function pvConectar(){
+    const W = window.SolBruteWallet;
+    if(!W || !W.hayAlguna()){ pvAviso(t('pv_no_wallet'), 'mal'); return false; }
+    const detectadas = W.detectar();
+    const cual = Object.keys(detectadas).find(k => detectadas[k].instalada);
+    PV.wallet = await W.conectar(cual);
+    PV.prueba = null;
+    return true;
+  }
+
+  /* Sin firma a proposito: lo que devuelve ya esta en la cadena —el pago es
+     una transferencia publica— asi que pedirla solo serviria para sacar la
+     ventanita de la wallet a quien acaba de entrar a mirar. */
+  async function pvVerLoMio(){
+    if(!PV.wallet) return;
+    try{
+      PV.mias = await pvLlamar('pv_mias', { address: PV.wallet.direccion });
+      pvPintar();
+    }catch(e){}
+  }
+
+  /* web3.js solo hace falta para deserializar la transaccion que manda el
+     servidor, asi que se carga cuando se va a comprar y no antes: el 99% de
+     quien visita la landing nunca llega aqui y no tiene por que pagar 200 KB.
+     La version va FIJADA — sin ella, el CDN sirve la ultima y el
+     comportamiento cambia solo. */
+  function pvWeb3(){
+    if(window.solanaWeb3) return Promise.resolve(window.solanaWeb3);
+    return new Promise((ok, mal) => {
+      const sc = document.createElement('script');
+      sc.src = "https://unpkg.com/@solana/web3.js@1.98.4/lib/index.iife.min.js";
+      sc.onload  = () => window.solanaWeb3 ? ok(window.solanaWeb3) : mal(new Error("web3"));
+      sc.onerror = () => mal(new Error("web3"));
+      document.head.appendChild(sc);
+    });
+  }
+
+  function pvTraducir(err){
+    const c = err && err.clase, d = (err && err.datos) || {};
+    if(c === 'cerrada')  return t('pv_e_closed');
+    if(c === 'pronto')   return t('pv_e_soon');
+    if(c === 'tarde')    return t('pv_e_late');
+    if(c === 'cupo')     return t('pv_e_quota', miles(d.queda));
+    if(c === 'tope')     return t('pv_e_cap',   miles(d.tope));
+    if(c === 'minimo')   return t('pv_e_min',   miles(d.minimo));
+    if(c === 'firma')    return t('pv_e_sign');
+    /* Todo lo que sale de comprobar el pago se cuenta como «no lo veo». Decir
+       «problema de red, no se ha cobrado nada» cuando el SOL puede haber
+       salido de su wallet seria mentirle en el peor momento posible. */
+    if(c === 'no_encontrada' || c === 'rpc' || c === 'fallo_en_cadena' ||
+       c === 'otras_cuentas' || c === 'cantidad' || c === 'no_lo_firmo' ||
+       c === 'caducada') return t('pv_e_pay');
+    if(c === 'sin_enviador') return t('pv_e_claim_closed');
+    if(c === 'cerrado')  return t('pv_e_claim_closed');
+    if(c === 'nada')     return t('pv_e_claim_none');
+    if(c === 'en_curso') return t('pv_e_claim_busy');
+    if(err && err.rechazo) return t('pv_rejected');
+    return t('pv_e_net');
+  }
+
+  async function pvComprar(){
+    if(PV.ocupado) return;
+    PV.ocupado = true; pvAviso('');
+    const boton = $pv('pvComprar'); boton.disabled = true;
+    try{
+      if(!PV.wallet){
+        if(!await pvConectar()){ return; }
+        boton.textContent = t('pv_buy');
+        await pvVerLoMio();
+        return;   // primer clic conecta; el segundo compra
+      }
+
+      const n = Math.floor(Number($pv('pvCantidad').value));
+      if(!Number.isFinite(n) || n <= 0){ pvAviso(t('pv_e_amount'), 'mal'); return; }
+
+      boton.textContent = t('pv_working');
+      const pr = await pvPrueba();
+      const res = await pvLlamar('pv_reservar', {
+        address: PV.wallet.direccion, mensaje: pr.mensaje, firma: pr.firma, tokens: n
+      });
+
+      boton.textContent = t('pv_signing');
+      const web3 = await pvWeb3();
+      const cruda = Uint8Array.from(atob(res.tx), c => c.charCodeAt(0));
+      const tx = web3.Transaction.from(cruda);
+      const prov = PV.wallet.proveedor;
+      if(!prov.signAndSendTransaction) throw new Error("wallet sin signAndSendTransaction");
+      let firmaPago;
+      try{
+        const r = await prov.signAndSendTransaction(tx);
+        firmaPago = (r && (r.signature || r)) + "";
+      }catch(e){
+        const err = new Error("rechazo"); err.rechazo = true; throw err;
+      }
+
+      /* La red tarda en asentar la transaccion, asi que el servidor puede no
+         verla todavia. Se reintenta en vez de dar el pago por perdido: el SOL
+         ya salio de su wallet y decirle «no lo veo» y parar seria dejarle sin
+         tokens y sin dinero. */
+      boton.textContent = t('pv_checking');
+      let ok = null;
+      for(let i = 0; i < 8 && !ok; i++){
+        try{
+          const pr2 = await pvPrueba();
+          ok = await pvLlamar('pv_pagado', {
+            address: PV.wallet.direccion, mensaje: pr2.mensaje, firma: pr2.firma,
+            id: res.id, firma_pago: firmaPago
+          });
+        }catch(e){
+          if(e.clase !== 'no_encontrada' && e.clase !== 'rpc') throw e;
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      }
+      if(!ok){ pvAviso(t('pv_e_pay'), 'mal'); return; }
+
+      pvAviso(t('pv_ok_buy', miles(n)), 'bien');
+      $pv('pvCantidad').value = '';
+      PV.estado = await pvLlamar('pv_estado');
+      await pvVerLoMio();
+    }catch(e){
+      pvAviso(pvTraducir(e), 'mal');
+    }finally{
+      PV.ocupado = false;
+      pvPintar();
+    }
+  }
+
+  async function pvReclamar(){
+    if(PV.ocupado || !PV.wallet) return;
+    PV.ocupado = true; pvAviso('');
+    const boton = $pv('pvReclamar'); boton.disabled = true; boton.textContent = t('pv_working');
+    try{
+      const pr = await pvPrueba();
+      const r = await pvLlamar('pv_reclamar', {
+        address: PV.wallet.direccion, mensaje: pr.mensaje, firma: pr.firma
+      });
+      pvAviso(t('pv_ok_claim', miles(r.tokens)), 'bien');
+      await pvVerLoMio();
+    }catch(e){
+      pvAviso(pvTraducir(e), 'mal');
+    }finally{
+      PV.ocupado = false; boton.disabled = false; pvPintar();
+    }
+  }
+
+  async function pvArrancar(){
+    let e;
+    try{ e = await pvLlamar('pv_estado'); }
+    catch(err){ return; }              // sin respuesta, la seccion no aparece
+    if(!e || !e.cupo) return;          // sin cupo configurado no hay preventa
+
+    /* Se enseña tambien apagada si ya se vendio algo o si los reclamos estan
+       abiertos: quien pago tiene que poder encontrar sus tokens despues de que
+       la venta cierre. Lo que no se enseña es una preventa que nunca existio. */
+    if(!e.activa && !e.vendido && !e.reclamos) return;
+
+    PV.estado = e;
+    $pv('preventa').hidden = false;
+
+    /* El dolar es informativo y sale de fuera. Si el precio no se puede
+       consultar, se enseña el precio en SOL a secas — que es el unico que de
+       verdad se cobra. */
+    fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd")
+      .then(r => r.json())
+      .then(j => { const v = j && j.solana && j.solana.usd; if(v > 0){ PV.solUsd = v; pvPintar(); } })
+      .catch(() => {});
+
+    $pv('pvCantidad').addEventListener('input', pvCoste);
+    $pv('pvComprar').addEventListener('click', pvComprar);
+    $pv('pvReclamar').addEventListener('click', pvReclamar);
+    pvPintar();
+
+    /* Reconexion silenciosa: si ya autorizo este sitio, se le enseña lo suyo
+       sin ventanita. La FIRMA si la pedira, y solo cuando haga falta. */
+    const W = window.SolBruteWallet;
+    if(W && W.hayAlguna()){
+      const det = W.detectar();
+      for(const id of Object.keys(det)){
+        if(!det[id].instalada) continue;
+        const s = await W.reconectar(id);
+        if(s){ PV.wallet = s; pvPintar(); await pvVerLoMio(); break; }
+      }
+    }
+  }
+
   wirePlayLinks();
   applyLang('en');
+  pvArrancar();
 })();
 </script>
 
