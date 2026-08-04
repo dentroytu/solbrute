@@ -126,16 +126,26 @@ if (!CLAVE) {
    Una copia inutil que parece perfecta es peor que ninguna: te enteras el dia
    que vas a restaurar. Asi que se mira el `role` de dentro del token, que va en
    claro y no hace falta verificarlo para leerlo. */
-function rolDe(jwt) {
+/* Supabase tiene dos formatos de clave y hay que aceptar los dos:
+
+     antiguo   un JWT con `role` dentro, en claro     eyJ…
+     nuevo     una cadena opaca con el tipo delante   sb_secret_… / sb_publishable_…
+
+   La opaca no lleva nada que leer, asi que ahi lo unico que se puede mirar es
+   el prefijo. Basta: lo que se quiere evitar es usar la publica por descuido. */
+function rolDe(clave) {
+  if (clave.startsWith("sb_secret_")) return "service_role";
+  if (clave.startsWith("sb_publishable_")) return "anon";
   try {
-    const p = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const p = clave.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
     return JSON.parse(Buffer.from(p, "base64").toString("utf8")).role || "?";
   } catch { return "?"; }
 }
 const ROL = rolDe(CLAVE);
 if (ROL !== "service_role") {
   console.log(`
-  Esa clave es "${ROL}", no "service_role".
+  Esa clave es "${ROL}", no "service_role". Busca la que pone service_role
+  (o "Secret key", si tu panel usa el formato sb_secret_…).
 
   Con ella, las tablas con RLS y cero politicas —movimientos, withdrawals,
   preventa_compras, admin_log— devuelven [] y la copia saldria vacia
