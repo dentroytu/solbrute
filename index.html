@@ -431,8 +431,7 @@
       <a href="#solana" data-i18n="nav_why">Why Solana</a>
       <a href="#features" data-i18n="nav_features">Features</a>
       <a href="#preventa" class="js-pv-nav" data-i18n="nav_presale" hidden>Presale</a>
-      <a href="#preventa" class="js-pv-nav" data-i18n="nav_presale" hidden>Presale</a>
-    <a href="#roadmap" data-i18n="nav_roadmap">Roadmap</a>
+      <a href="#roadmap" data-i18n="nav_roadmap">Roadmap</a>
     </div>
     <div class="nav-right">
       <div class="lang-switch">
@@ -450,6 +449,7 @@
     <a href="#ciclo" data-i18n="nav_how">How it works</a>
     <a href="#solana" data-i18n="nav_why">Why Solana</a>
     <a href="#features" data-i18n="nav_features">Features</a>
+    <a href="#preventa" class="js-pv-nav" data-i18n="nav_presale" hidden>Presale</a>
     <a href="#roadmap" data-i18n="nav_roadmap">Roadmap</a>
     <a class="nav-cta js-play" data-i18n="nav_cta">Enter the arena</a>
   </div>
@@ -1342,7 +1342,6 @@
     $pv('preventa').hidden = false;
     /* El enlace del menu se enciende con la seccion. Un ancla a algo oculto no
        hace nada al pulsarla, y eso se lee como que la web esta rota. */
-    document.querySelectorAll('.js-pv-nav').forEach(a => { a.hidden = false; });
     $pv('pvPanel').hidden  = !(viva || cerradaConHistoria);
     $pv('pvPrevia').hidden =  (viva || cerradaConHistoria);
     if($pv('pvPanel').hidden) return;   // en previa no hay nada mas que hacer
