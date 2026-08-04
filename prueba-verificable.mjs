@@ -32,14 +32,42 @@ const PAGINA = readFileSync(new URL("./pelea.html", import.meta.url), "utf8");
    si algun dia se separan, esta prueba deja de medir lo que cree medir — y por
    eso el ultimo bloque comprueba que el codigo de la pagina sigue diciendo lo
    mismo que esto. */
+/* Postgres guarda el registro como `jsonb` y jsonb NO conserva el orden de las
+   claves. Sin ordenarlas antes de comparar, toda pelea honesta sale «no
+   cuadra» — y esta prueba no lo veia porque fabricaba las peleas en memoria,
+   sin pasar por la base. Se veia en la pantalla, con una pelea de verdad. */
+function canonico(v) {
+  if (Array.isArray(v)) return v.map(canonico);
+  if (v && typeof v === "object") {
+    const o = {};
+    for (const k of Object.keys(v).sort()) o[k] = canonico(v[k]);
+    return o;
+  }
+  return v;
+}
+const mismoLog = (a, b) => JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));
+
 function verificar(f) {
   if (!f.a_snapshot) return "antigua";
   const mio = JSON.parse(JSON.stringify(f.a_snapshot));
   const foe = JSON.parse(JSON.stringify(f.b_snapshot));
   const calc = C.simulate(mio, foe, Number(f.seed));
-  const mismo = JSON.stringify(calc.log) === JSON.stringify(f.log);
+  const mismo = mismoLog(calc.log, f.log);
   return (mismo && calc.winner === f.winner && calc.turns === f.turns) ? "cuadra" : "no_cuadra";
 }
+
+/* Lo que le hace `jsonb` a un objeto: te lo devuelve con las claves en otro
+   orden. Se imita barajandolas. */
+const barajarClaves = (v) => {
+  if (Array.isArray(v)) return v.map(barajarClaves);
+  if (v && typeof v === "object") {
+    const ks = Object.keys(v).sort((a, b) => (a.length - b.length) || a.localeCompare(b));
+    const o = {};
+    for (const k of ks) o[k] = barajarClaves(v[k]);
+    return o;
+  }
+  return v;
+};
 
 const A = { name:"Galba", lv:7, xp:0, hpMax:66, str:5, agi:3, spd:4, w:3, l:1,
             arma:"daga", mascota:"lobo", look:{ sex:0, skin:2, hair:2, hairC:3,
@@ -78,6 +106,22 @@ console.log("\n¿Sirve de algo la verificacion?\n");
   const f = hacer(4242);
   const a = verificar(f), b = verificar(f), c = verificar(f);
   P("verificar tres veces da lo mismo", `${a}/${b}/${c}`, "cuadra/cuadra/cuadra");
+}
+
+// ── 2b · pasar por `jsonb` no puede romper la verificacion ────────────────
+/* El fallo que esto existe para no repetir: la pagina daba «no cuadra» en una
+   pelea perfectamente honesta, solo porque Postgres devuelve las claves en otro
+   orden. Un verificador que hace que la verdad parezca mentira es peor que uno
+   que no existe: cuando de verdad falle algo, nadie se lo creera. */
+{
+  const f = hacer(777);
+  const comoPostgres = { ...f, log: barajarClaves(f.log),
+                         a_snapshot: barajarClaves(f.a_snapshot),
+                         b_snapshot: barajarClaves(f.b_snapshot) };
+  P("el registro con las claves reordenadas por jsonb", verificar(comoPostgres), "cuadra");
+  /* Y que el orden de los EVENTOS siga importando: ahi no se ordena nada. */
+  const alReves = { ...f, log: f.log.slice().reverse() };
+  P("pero los eventos en otro orden si cuentan", verificar(alReves), "no_cuadra");
 }
 
 // ── 3 · las mentiras que un servidor podria contar ────────────────────────
@@ -136,7 +180,7 @@ console.log("\n¿Sirve de algo la verificacion?\n");
   const trozo = /function verificar\(f\)\{?[\s\S]*?\n  \}/.exec(PAGINA.replace(/\s+/g, " ")) ||
                 /function verificar\(f\)[\s\S]*?^  \}/m.exec(PAGINA);
   const src = trozo ? trozo[0] : "";
-  const compara = /JSON\.stringify\(calc\.log\)\s*===\s*JSON\.stringify\(f\.log\)/.test(src);
+  const compara = /mismoLog\(calc\.log,\s*f\.log\)/.test(src);
   const turnos  = /calc\.turns\s*===\s*f\.turns/.test(src);
   const gana    = /calc\.winner\s*===\s*f\.winner/.test(src);
   const copia   = /JSON\.parse\(JSON\.stringify\(f\.a_snapshot\)\)/.test(src);

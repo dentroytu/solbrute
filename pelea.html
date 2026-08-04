@@ -239,6 +239,31 @@
      quisiera mentir cambiaría el ganador, sí, pero también podría inflar los
      turnos — que es lo que decide las monedas — y eso solo se ve mirándolo
      todo. */
+  /* ── Comparar registros, y por qué no vale `JSON.stringify` a secas ──────
+     Postgres guarda el registro como `jsonb`, y **jsonb no conserva el orden
+     de las claves**: las reordena por longitud y alfabéticamente. Así que el
+     mismo evento sale distinto según venga de la base o de recalcularlo:
+
+       guardado   {"hp":40,"att":"Ev8","dmg":7,"side":"A","turn":1,"type":"hit"}
+       calculado  {"turn":1,"type":"hit","att":"Ev8","side":"A","dmg":7,"hp":40}
+
+     Comparado a pelo, TODA pelea honesta salía «no cuadra». Es el peor fallo
+     que puede tener un verificador: no deja pasar una mentira, hace que la
+     verdad parezca mentira — y entonces nadie se cree el «✓» tampoco.
+
+     Se ordenan las claves antes de comparar. Los arrays NO se tocan: el orden
+     de los eventos es justamente lo que hay que comprobar. */
+  function canonico(v){
+    if (Array.isArray(v)) return v.map(canonico);
+    if (v && typeof v === "object") {
+      const o = {};
+      for (const k of Object.keys(v).sort()) o[k] = canonico(v[k]);
+      return o;
+    }
+    return v;
+  }
+  const mismoLog = (a, b) => JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));
+
   function verificar(f){
     if (!f.a_snapshot) return { estado: "antigua" };
     try {
@@ -247,7 +272,7 @@
       const mio = JSON.parse(JSON.stringify(f.a_snapshot));
       const foe = JSON.parse(JSON.stringify(f.b_snapshot));
       const calc = C.simulate(mio, foe, Number(f.seed));
-      const mismo = JSON.stringify(calc.log) === JSON.stringify(f.log);
+      const mismo = mismoLog(calc.log, f.log);
       return {
         estado: (mismo && calc.winner === f.winner && calc.turns === f.turns) ? "cuadra" : "no_cuadra",
         calc,
