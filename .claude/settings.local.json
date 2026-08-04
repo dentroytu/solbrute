@@ -186,7 +186,9 @@
       "Bash(node --experimental-strip-types --check /private/tmp/claude-501/-Users-alvaroreyesgiraldez-Desktop-solbrute/6e2c7416-7128-45ea-8ae1-be34cfe1dfa9/scratchpad/r.mts)",
       "Bash(grep -n \"^## La preventa\\\\|^| \\\\`supabase-31\" CLAUDE.md)",
       "Bash(grep -n \"^---$\" CLAUDE.md)",
-      "Bash(awk -F: '$1>890 && $1<930')"
+      "Bash(awk -F: '$1>890 && $1<930')",
+      "Bash(awk '{print $5\"\\\\t\"$9}')",
+      "Bash(curl -s \"https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd\")"
     ]
   }
 }

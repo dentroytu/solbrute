@@ -339,6 +339,16 @@
     background:var(--surface); border:1px solid var(--line); border-radius:14px;
     padding:26px 24px;
   }
+  .pv-card[hidden]{ display:none; }
+  /* La previa NO tiene nada que pulsar, y eso es el diseño entero: mientras no
+     haya precio no puede haber ningún camino que acabe en alguien mandando SOL.
+     La direccion que cobra sale del servidor al reservar, nunca del marcado. */
+  .pv-previa{ text-align:center; }
+  .pv-previa-t{
+    font-family:'Cinzel',serif; font-size:19px; font-weight:700;
+    color:var(--bronze-light); margin-bottom:10px;
+  }
+  .pv-previa p{ color:var(--muted); font-size:13.5px; line-height:1.7; }
   .pv-barra{
     height:10px; border-radius:999px; background:var(--bg-deep);
     border:1px solid var(--line); overflow:hidden; display:flex; margin:4px 0 10px;
@@ -628,7 +638,12 @@
   </div>
 
   <div class="pv-wrap">
-    <div class="pv-card">
+    <div class="pv-card pv-previa" id="pvPrevia" hidden>
+      <div class="pv-previa-t" data-i18n="pv_soon_t">Presale coming</div>
+      <p data-i18n="pv_soon_p">The price, the amount and the dates will be announced here. Nothing is on sale yet — if anyone asks you to send SOL for $BRUTE today, it isn't us.</p>
+    </div>
+
+    <div class="pv-card" id="pvPanel">
       <div class="pv-barra">
         <div class="pv-vendido"  id="pvBarV" style="width:0%"></div>
         <div class="pv-reservado" id="pvBarR" style="width:0%"></div>
@@ -739,6 +754,8 @@
       finalcta_p:"Try the current prototype, create your brute, and fight other players while we keep building the on-chain version.",
       finalcta_btn:"⚔️ Enter the prototype", finalcta_btn_soon:"⚔️ Opening soon",
       cta_pending:"The prototype isn't open to the public yet — follow the project for the launch.",
+      pv_soon_t:"Presale coming",
+      pv_soon_p:"The price, the amount and the dates will be announced here. Nothing is on sale yet \u2014 if anyone asks you to send SOL for $BRUTE today, it isn't us.",
       pv_eyebrow:"Presale", pv_h2:"$BRUTE presale",
       pv_p:"$BRUTE is the game's token: you earn it by playing. The presale is for anyone who wants in before the market opens.",
       pv_sold:"sold", pv_left:"left", pv_price:"Price per token", pv_min:"Minimum",
@@ -807,6 +824,8 @@
       finalcta_p:"Probá el prototipo actual, creá tu bruto y pelea contra otros jugadores mientras seguimos construyendo la versión on-chain.",
       finalcta_btn:"⚔️ Entrar al prototipo", finalcta_btn_soon:"⚔️ Próxima apertura",
       cta_pending:"El prototipo todavía no está abierto al público — sigue el proyecto para enterarte del lanzamiento.",
+      pv_soon_t:"Preventa próximamente",
+      pv_soon_p:"El precio, la cantidad y las fechas se anunciarán aquí. Todavía no hay nada a la venta \u2014 si alguien te pide que mandes SOL por $BRUTE hoy, no somos nosotros.",
       pv_eyebrow:"Preventa", pv_h2:"Preventa de $BRUTE",
       pv_p:"$BRUTE es el token del juego: se gana jugando. La preventa es para quien quiera entrar antes de que abra el mercado.",
       pv_sold:"vendidos", pv_left:"quedan", pv_price:"Precio por token", pv_min:"Mínimo",
@@ -875,6 +894,8 @@
       finalcta_p:"Essaie le prototype actuel, crée ta brute et combats d'autres joueurs pendant que nous continuons à construire la version on-chain.",
       finalcta_btn:"⚔️ Entrer dans le prototype", finalcta_btn_soon:"⚔️ Ouverture prochaine",
       cta_pending:"Le prototype n'est pas encore ouvert au public — suis le projet pour le lancement.",
+      pv_soon_t:"Prévente à venir",
+      pv_soon_p:"Le prix, la quantité et les dates seront annoncés ici. Rien n'est encore en vente \u2014 si quelqu'un te demande d'envoyer du SOL pour $BRUTE aujourd'hui, ce n'est pas nous.",
       pv_eyebrow:"Prévente", pv_h2:"Prévente de $BRUTE",
       pv_p:"$BRUTE est le token du jeu : il se gagne en jouant. La prévente s'adresse à qui veut entrer avant l'ouverture du marché.",
       pv_sold:"vendus", pv_left:"restants", pv_price:"Prix par token", pv_min:"Minimum",
@@ -1071,6 +1092,9 @@
 
   function pvPintar(){
     const e = PV.estado; if(!e) return;
+    /* En previa no hay panel que pintar. Sin esto, cambiar de idioma repintaria
+       cifras contra un cupo de 0 y las barras saldrian en NaN%. */
+    if($pv('pvPanel').hidden) return;
     const cupo = Number(e.cupo) || 0, vendido = Number(e.vendido) || 0;
     const queda = Number(e.queda) || 0;
     const reservado = Math.max(0, cupo - vendido - queda);
@@ -1297,16 +1321,26 @@
   async function pvArrancar(){
     let e;
     try{ e = await pvLlamar('pv_estado'); }
-    catch(err){ return; }              // sin respuesta, la seccion no aparece
-    if(!e || !e.cupo) return;          // sin cupo configurado no hay preventa
+    catch(err){ return; }   // sin servidor no se enseña nada: no sabemos que decir
 
-    /* Se enseña tambien apagada si ya se vendio algo o si los reclamos estan
-       abiertos: quien pago tiene que poder encontrar sus tokens despues de que
-       la venta cierre. Lo que no se enseña es una preventa que nunca existio. */
-    if(!e.activa && !e.vendido && !e.reclamos) return;
+    /* ── Tres estados, y la diferencia importa ──────────────────────────────
+       previa   no hay precio todavia → se anuncia y NO hay nada que pulsar
+       viva     se puede comprar
+       cerrada  se acabo, pero quien compro tiene que seguir viendo lo suyo
+
+       La previa existe porque hay que poder hablar del proyecto antes de tener
+       el precio puesto. Lo que NO puede haber es un camino que acabe en alguien
+       mandando SOL sin que el servidor lo haya montado — por eso la previa no
+       lleva ni boton, ni casilla, ni ninguna direccion. */
+    const hay = !!(e && Number(e.cupo) > 0 && Number(e.precio) > 0);
+    const viva = hay && !!e.activa;
+    const cerradaConHistoria = hay && (Number(e.vendido) > 0 || !!e.reclamos);
 
     PV.estado = e;
     $pv('preventa').hidden = false;
+    $pv('pvPanel').hidden  = !(viva || cerradaConHistoria);
+    $pv('pvPrevia').hidden =  (viva || cerradaConHistoria);
+    if($pv('pvPanel').hidden) return;   // en previa no hay nada mas que hacer
 
     /* El dolar es informativo y sale de fuera. Si el precio no se puede
        consultar, se enseña el precio en SOL a secas — que es el unico que de

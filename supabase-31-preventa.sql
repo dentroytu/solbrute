@@ -373,7 +373,20 @@ $$;
 -- Todo cambio queda en admin_log con el antes y el despues. Encender una
 -- preventa es empezar a aceptar dinero de gente: tiene que quedar rastro de
 -- quien la encendio, cuando, y con que precio.
-create or replace function preventa_config(p_campos jsonb, p_motivo text)
+-- OJO: en Postgres, anadir un parametro NO reemplaza la funcion, crea otra. La
+-- version de dos parametros hay que tirarla a mano o quedan las dos, y PostgREST
+-- puede acabar llamando a la vieja.
+--
+-- Nacio con dos y le faltaba `admin`, que en `admin_log` es NOT NULL: el insert
+-- de auditoria reventaba y se llevaba por delante el guardado entero. El sintoma
+-- era «algo ha fallado en el servidor» al pulsar Guardar, sin decir por que.
+--
+-- Y arreglarlo pasandole un '?' habria sido peor que el fallo: un registro de
+-- auditoria que no dice QUIEN no es auditoria. Con un token de por medio, el
+-- primer sospechoso de un precio raro es siempre quien tiene el panel.
+drop function if exists preventa_config(jsonb, text);
+
+create or replace function preventa_config(p_admin text, p_campos jsonb, p_motivo text)
 returns json
 language plpgsql
 security definer
@@ -383,6 +396,7 @@ declare
   v_val   jsonb;
 begin
   if p_motivo is null or length(btrim(p_motivo)) < 10 then raise exception 'motivo_corto'; end if;
+  if p_admin is null or length(btrim(p_admin)) = 0 then raise exception 'sin_admin'; end if;
   select * into v_antes from preventa where id = 1 for update;
 
   update preventa set
@@ -400,8 +414,8 @@ begin
   where id = 1;
 
   select to_jsonb(p.*) into v_val from preventa p where p.id = 1;
-  insert into admin_log (accion, objetivo, antes, despues)
-  values ('preventa_config', 'preventa', to_jsonb(v_antes),
+  insert into admin_log (admin, accion, objetivo, antes, despues)
+  values (p_admin, 'preventa_config', 'preventa', to_jsonb(v_antes),
           v_val || jsonb_build_object('motivo', p_motivo));
 
   return v_val;
@@ -418,11 +432,11 @@ $$;
 revoke execute on function preventa_estado()                  from public, anon, authenticated;
 revoke execute on function preventa_reservar(text, bigint)    from public, anon, authenticated;
 revoke execute on function preventa_confirmar(bigint, text)   from public, anon, authenticated;
-revoke execute on function preventa_config(jsonb, text)       from public, anon, authenticated;
+revoke execute on function preventa_config(text, jsonb, text) from public, anon, authenticated;
 grant  execute on function preventa_estado()                  to service_role;
 grant  execute on function preventa_reservar(text, bigint)    to service_role;
 grant  execute on function preventa_confirmar(bigint, text)   to service_role;
-grant  execute on function preventa_config(jsonb, text)       to service_role;
+grant  execute on function preventa_config(text, jsonb, text) to service_role;
 
 revoke execute on function preventa_mias(text)                    from public, anon, authenticated;
 revoke execute on function preventa_reclamar_abrir(text)          from public, anon, authenticated;

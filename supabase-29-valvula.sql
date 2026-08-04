@@ -106,7 +106,14 @@ $$;
 -- Solo el servidor. Y deja rastro: el respaldo es el numero del que depende
 -- lo que cobra todo el mundo, asi que cambiarlo sin registro seria poder
 -- subir o bajar las ganancias de todos sin que quede constancia.
-create or replace function respaldo_fijar(p_tokens bigint, p_motivo text)
+-- `admin_log.admin` es NOT NULL. Sin este parametro el insert de auditoria
+-- revienta y se lleva por delante el cambio entero — el mismo fallo que tuvo
+-- `preventa_config` el primer dia. Y un registro que no dice quien movio el
+-- respaldo no vale para nada: es el numero del que depende lo que cobra todo
+-- el mundo.
+drop function if exists respaldo_fijar(bigint, text);
+
+create or replace function respaldo_fijar(p_admin text, p_tokens bigint, p_motivo text)
 returns json
 language plpgsql
 security definer
@@ -121,8 +128,8 @@ begin
   select respaldo_tokens into v_antes from economia where id = 1 for update;
   update economia set respaldo_tokens = p_tokens, actualizado = now() where id = 1;
 
-  insert into admin_log (accion, objetivo, antes, despues)
-  values ('respaldo_fijar', 'economia',
+  insert into admin_log (admin, accion, objetivo, antes, despues)
+  values (coalesce(nullif(btrim(p_admin), ''), '?'), 'respaldo_fijar', 'economia',
           jsonb_build_object('respaldo_tokens', v_antes),
           jsonb_build_object('respaldo_tokens', p_tokens, 'motivo', p_motivo));
 
@@ -137,9 +144,9 @@ $$;
 -- Las dos son `security definer` y las dos escriben. `respaldo_fijar` abierta
 -- a anon es dejar que cualquiera decida cuanto cobran todos.
 revoke execute on function valvula_recalcular()              from public, anon, authenticated;
-revoke execute on function respaldo_fijar(bigint, text)      from public, anon, authenticated;
+revoke execute on function respaldo_fijar(text, bigint, text) from public, anon, authenticated;
 grant  execute on function valvula_recalcular()              to service_role;
-grant  execute on function respaldo_fijar(bigint, text)      to service_role;
+grant  execute on function respaldo_fijar(text, bigint, text) to service_role;
 
 
 -- ══════════════════════════════════════════════════════════════════════════

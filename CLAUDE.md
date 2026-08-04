@@ -767,8 +767,29 @@ dice nada.
 ## La preventa
 
 `supabase-31-preventa.sql`. **Nace apagada** y no se enciende desde el código:
-se enciende desde el panel, a mano. Mientras esté apagada la landing no enseña
-nada.
+se enciende desde el panel, a mano.
+
+### Tres estados, y la previa no es decoración
+
+```
+previa    no hay precio todavía  →  se anuncia y NO hay nada que pulsar
+viva      se puede comprar
+cerrada   se acabó, pero quien compró sigue viendo lo suyo
+```
+
+La previa existe porque **hay que poder hablar del proyecto antes de tener el
+precio puesto** — si no, no se puede empezar en Twitter sin una landing que
+mienta o que no diga nada.
+
+Lo que la hace segura no es que ponga «próximamente»: es que **no lleva ni
+botón, ni casilla, ni ninguna dirección**. La wallet que cobra sale del servidor
+al reservar y no está escrita en el marcado en ningún estado, así que en previa
+no existe ningún camino que acabe en alguien mandando SOL. Y el texto lo dice
+sin rodeos: si hoy alguien te pide SOL por $BRUTE, no somos nosotros — que es
+la estafa que aparece sola en cuanto un proyecto anuncia preventa.
+
+Se pasa a «viva» solo cuando hay cupo, precio **y** el interruptor puesto: los
+tres, no uno.
 
 ### Se paga ahora y se reclama después
 
@@ -887,6 +908,27 @@ siguiente reclamo habría mandado los tokens otra vez.
 
 No da error, no sale en ninguna prueba, y solo pasa cuando algo falla — o sea,
 el día peor. Se vio leyendo la función que se estaba llamando, no ejecutándola.
+
+### El registro de auditoría casi se lleva por delante el guardado
+
+`admin_log.admin` es `not null` y `preventa_config` nació sin ese parámetro. El
+insert de auditoría reventaba y arrastraba consigo el cambio entero: pulsabas
+Guardar y salía **«algo ha fallado en el servidor»**, sin más.
+
+Dos cosas que dejó claras:
+
+- **Arreglarlo poniendo `'?'` habría sido peor que el fallo.** Un registro que
+  no dice QUIÉN no es auditoría. Con un token de por medio, el primer
+  sospechoso de un precio raro es siempre quien tiene el panel. Así que
+  `p_admin` sale de la sesión, nunca del cuerpo.
+- **Un 500 mudo en la pantalla que enciende una preventa es inaceptable**: deja
+  al dueño sin saber si guardó o no. Ahora la ruta traduce lo que lanza
+  Postgres y, si la función no existe, dice que falta aplicar el SQL.
+
+Y la trampa de siempre: **añadir un parámetro no reemplaza la función, crea
+otra**. Hay que tirar la firma vieja a mano o quedan las dos y PostgREST puede
+llamar a la que no es. `supabase-29-valvula.sql` tenía el mismo fallo en
+`respaldo_fijar` y se arregló antes de aplicarlo.
 
 ### El panel pide motivo y confirma dos veces
 

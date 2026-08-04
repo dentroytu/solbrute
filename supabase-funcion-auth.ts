@@ -1419,11 +1419,34 @@ async function manejar(req: Request): Promise<Response> {
         return responder({ error: "falta el mint del token", clase: "sin_mint" }, 400);
       }
 
-      const r = await db("/rpc/preventa_config", {
-        method: "POST",
-        body: JSON.stringify({ p_campos: campos, p_motivo: motivo }),
-      });
-      return responder({ preventa: r });
+      /* `p_admin` NO es decorativo: `admin_log.admin` es NOT NULL, asi que sin
+         el, el insert de auditoria revienta y se lleva por delante el guardado
+         entero. Fue el primer fallo de este panel, y el sintoma era «algo ha
+         fallado en el servidor» sin decir por que.
+
+         Sale de la SESION, nunca del cuerpo. Si el navegador pudiera mandarlo,
+         el registro diria lo que quisiera el que lo edita — y un registro de
+         auditoria que el auditado escribe no vale nada. */
+      try {
+        const r = await db("/rpc/preventa_config", {
+          method: "POST",
+          body: JSON.stringify({ p_admin: dueno, p_campos: campos, p_motivo: motivo }),
+        });
+        return responder({ preventa: r });
+      } catch (e) {
+        /* Y aqui NO se deja caer al 500 generico. Un error mudo en la unica
+           pantalla que enciende una preventa deja al dueño sin saber si guardo
+           o no, que es la peor manera de perder dinero de otros. */
+        const m = (e as Error).message;
+        console.error("preventa_config: " + m);
+        if (marca(m, "motivo_corto")) return responder({ error: "el motivo es demasiado corto", clase: "motivo" }, 400);
+        if (marca(m, "sin_admin"))    return responder({ error: "sesion sin administrador", clase: "sesion" }, 401);
+        if (marca(m, "PGRST202"))     return responder({
+          error: "falta aplicar la ultima version de supabase-31-preventa.sql",
+          clase: "sin_funcion",
+        }, 503);
+        return responder({ error: "Postgres rechazo el cambio: " + m.slice(0, 300), clase: "sql" }, 500);
+      }
     }
 
     /* ══════════ torneos, desde el panel ══════════
