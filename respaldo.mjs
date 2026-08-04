@@ -51,7 +51,10 @@ const TABLAS = [
   "admin_log",
 ];
 
-const CLAVE = process.env.SUPABASE_SERVICE_KEY || "";
+/* `.trim()` no es cosmetica: al pegar en la terminal es facil colar un salto de
+   linea o un espacio al final, y Supabase responde «Invalid API key» a las
+   quince tablas sin decir que el problema es ese. */
+const CLAVE = (process.env.SUPABASE_SERVICE_KEY || "").trim();
 const DIR = new URL("./respaldos/", import.meta.url);
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -156,6 +159,33 @@ if (ROL !== "service_role") {
   process.exit(1);
 }
 
+/* ── Probar la clave antes de tocar nada ──────────────────────────────────
+   El formato puede ser correcto y la clave no valer igual: caducada, rotada, o
+   pegada a medias. Sin esta comprobacion, el sintoma son quince errores
+   seguidos de «Invalid API key» y ninguna pista de que el problema es la clave
+   y no la base. */
+{
+  const r = await fetch(`${REST}/economia?select=id&limit=1`, {
+    headers: { apikey: CLAVE, Authorization: "Bearer " + CLAVE },
+  });
+  if (!r.ok) {
+    const t = (await r.text()).slice(0, 200);
+    console.log(`
+  Supabase rechaza esa clave (${r.status}).
+
+  ${t}
+
+  Cosas que suelen ser:
+    · se pego a medias — la service_role es larga, comprueba el final
+    · se copio la publica en vez de la secreta
+    · se roto y esta es la vieja
+
+  Supabase → Project Settings → API → boton "Reveal" de service_role.
+`);
+    process.exit(1);
+  }
+}
+
 /* PostgREST devuelve 1000 filas por defecto. `fights` pasa de eso enseguida, y
    una copia truncada en silencio es exactamente el fallo que este script
    existe para no tener. */
@@ -184,7 +214,7 @@ async function traer(tabla) {
 }
 
 const copia = { fecha: new Date().toISOString(), origen: BASE, tablas: {}, cuentas: {} };
-let fallos = 0;
+let fallos = 0, ausentes = 0;
 
 console.log("\nCopiando " + BASE + "\n");
 for (const t of TABLAS) {
@@ -194,11 +224,32 @@ for (const t of TABLAS) {
     copia.cuentas[t] = filas.length;
     console.log(`  ✓ ${t.padEnd(20)} ${String(filas.length).padStart(7)} filas`);
   } catch (e) {
-    /* Una tabla que no existe todavia no es un fallo: los pasos del SQL se
-       aplican en orden y puede que este por aplicar. Se apunta y se sigue. */
-    console.log(`  · ${t.padEnd(20)} ${e.message.slice(0, 70)}`);
+    /* Una tabla que no existe todavia NO es lo mismo que una que no se puede
+       leer, y meterlas en el mismo saco es lo que dejo guardar un fichero de
+       0 KB despues de fallar las quince: la comprobacion de «economia trae 0
+       filas» no salto porque al fallar se apuntaba `null`, no `0`.
+
+       Los pasos del SQL se aplican en orden, asi que una tabla que aun no
+       existe es normal y se tolera. Un permiso denegado no. */
+    const m = e.message;
+    const noExiste = /PGRST205|does not exist|42P01/.test(m);
+    console.log(`  ${noExiste ? "·" : "✗"} ${t.padEnd(20)} ${m.slice(0, 70)}`);
     copia.cuentas[t] = null;
-    fallos++;
+    if (noExiste) ausentes++; else fallos++;
+  }
+}
+
+/* Aqui es donde se decide si esto vale para algo. Guardar una copia que no se
+   pudo leer entera es peor que no guardar nada: parece que tienes respaldo. */
+if (fallos) {
+  console.log(`\n  ✗ ${fallos} tabla(s) no se pudieron leer. La copia NO se guarda.`);
+  console.log("    Un respaldo incompleto que parece correcto es peor que ninguno.\n");
+  process.exit(1);
+}
+for (const t of ["players", "brutes", "economia"]) {
+  if (!copia.cuentas[t]) {
+    console.log(`\n  ✗ ${t} viene vacia y no puede estarlo. La copia NO se guarda.\n`);
+    process.exit(1);
   }
 }
 
@@ -221,4 +272,4 @@ writeFileSync(ruta, JSON.stringify(copia, null, 1));
 const kb = (readFileSync(ruta).length / 1024).toFixed(0);
 console.log(`\n  respaldos/${nombre}  (${kb} KB)`);
 console.log(`\n  Compruebala:  node respaldo.mjs --ver respaldos/${nombre}`);
-console.log(fallos ? `\n  ${fallos} tabla(s) no se pudieron leer.\n` : "\n");
+console.log(ausentes ? `\n  ${ausentes} tabla(s) todavia no existen (SQL sin aplicar). El resto esta.\n` : "\n");

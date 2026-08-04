@@ -201,7 +201,9 @@
       "Bash(awk '{print $NF}')",
       "Bash(open /Users/alvaroreyesgiraldez/Desktop/aduanas/index.html)",
       "Bash(node --check respaldo.mjs)",
-      "Bash(node respaldo.mjs)"
+      "Bash(node respaldo.mjs)",
+      "Bash(SUPABASE_SERVICE_KEY=\"sb_secret_estonovale\" node respaldo.mjs)",
+      "Bash(echo \"  \\(salida $?\\)\")"
     ]
   }
 }
