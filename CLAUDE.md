@@ -21,6 +21,9 @@ experiencia y sube de nivel.
 | `supabase-07-peleas.sql` | Tabla `fights` y resumen para el panel | Aplicado |
 | `supabase-08-admin.sql` | Tabla `admin_log` (auditoría) | Aplicado |
 | `supabase-09-armas.sql` | `brutes.arma` y `brutes.armas` | Aplicado (`armas` **ya no se usa**, ver paso 14) |
+| `pelea.html` | **Una pelea, con su enlace, y se verifica sola** | Funcionando |
+| `prueba-verificable.mjs` | Comprueba que la verificación detecta una pelea manipulada | Herramienta |
+| `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Escrito |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -735,6 +738,74 @@ las estadísticas completas del juego.
 Y hay que repetir el `revoke` **cada vez** que se haga `create or replace` de
 la función, porque recrearla vuelve a conceder el permiso por defecto. Fue lo
 que pasó: el paso 8 deshizo en silencio lo que había puesto el 7.
+
+---
+
+## La pelea tiene su propio enlace, y se verifica sola
+
+`pelea.html?id=1284`. Sin cuenta, sin wallet, sin sesión: `fights` tiene lectura
+pública desde el paso 7 y una pelea la ve el rival igual que tú.
+
+**Lo importante no es que la enseñe: es que la RECALCULA.** En el navegador de
+quien mira, con `brute-combate.js` —el mismo fichero que carga el servidor— y
+compara evento por evento con lo guardado.
+
+### La promesa estaba sin cumplir, y el agujero era de datos
+
+La landing dice «combate verificable» desde el primer día. La arquitectura lo
+permitía —`simulate()` es puro, se guardan semilla y registro— pero **nadie
+podía comprobar nada**, porque para recalcular hacen falta tres cosas y `fights`
+solo guardaba dos:
+
+```
+seed         ✓
+b_snapshot   ✓   copia congelada del rival
+a_brute      ✗   una REFERENCIA a tu bruto
+```
+
+El comentario que justifica `b_snapshot` dice «el rival sube de nivel después, y
+sin congelarlo la pelea dejaría de poder reproducirse». Es igual de cierto para
+tu propio bruto, y ahí no se hizo. Peor: `mio` se **muta** con `aplicar()` justo
+después de simular, así que al escribir la fila ya no queda ni en memoria como
+entró.
+
+O sea que la promesa era cierta **en el momento** —el navegador tenía el bruto
+que acababa de mandar— y falsa un segundo después.
+
+`supabase-32-verificable.sql` añade `a_snapshot`. **Las peleas viejas no se
+pueden arreglar**: ese dato no existe en ningún sitio. La página lo dice en vez
+de fingir que las verifica.
+
+### Un verificador que aprueba todo es peor que ninguno
+
+Por eso existe `prueba-verificable.mjs`: fabrica peleas honestas y peleas
+manipuladas, y exige que las primeras pasen y las segundas no. Detecta el
+ganador cambiado, los turnos inflados —que son los que deciden las monedas—, un
+evento borrado, uno inventado, **un solo golpe retocado en 1 de daño**, y los
+atributos hinchados en cualquiera de los dos snapshots.
+
+Y comprueba que la propia página sigue comparando el registro entero: si
+`verificar()` se relajara a mirar solo el ganador, todo lo demás seguiría en
+verde midiendo otra cosa.
+
+### `side` no significa lo mismo en todos los eventos
+
+Es el tercer fallo de esta familia en el proyecto, y salió a la primera al
+mirar la página renderizada: decía **«el animal de Rufus falla»** cuando el lobo
+era de Galba.
+
+```
+hit · crit · dodge · cubre · ko · muerde    side = el que RECIBE
+disarm · cae_mascota                        side = el que ACTÚA
+```
+
+La solución no es acordarse: es **no usar `side`**. Los eventos ya traen `att`,
+`def` y `mascota` dentro, y con eso no hay nada que deducir.
+
+De paso apareció otro: el mordisco se llama `muerde`, no `mascota`, así que ese
+`case` no encajaba nunca y **los mordiscos se tiraban en silencio**. Lo cazó la
+comprobación barata de siempre — enumerar los tipos que produce `simulate()` y
+exigir que la página nombre cada uno—, que ahora está dentro de la prueba.
 
 ---
 

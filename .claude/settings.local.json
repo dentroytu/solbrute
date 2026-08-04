@@ -203,7 +203,8 @@
       "Bash(node --check respaldo.mjs)",
       "Bash(node respaldo.mjs)",
       "Bash(SUPABASE_SERVICE_KEY=\"sb_secret_estonovale\" node respaldo.mjs)",
-      "Bash(echo \"  \\(salida $?\\)\")"
+      "Bash(echo \"  \\(salida $?\\)\")",
+      "Bash(node prueba-verificable.mjs)"
     ]
   }
 }

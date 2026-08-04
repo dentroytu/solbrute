@@ -271,8 +271,8 @@ Mi orden, y el porqué:
 
 1. **Lo legal.** Bloquea todo lo demás y no depende de ti que sea rápido.
 2. ~~**Copia de seguridad.**~~ Hecha.
-3. **El enlace por combate + el verificador.** Poco trabajo, cumple una promesa
-   que hoy está sin cumplir, y es lo único de la lista que trae gente sola.
+3. ~~**El enlace por combate + el verificador.**~~ Hecho: `pelea.html`. Falta
+   enlazarlo desde el juego y animar el combate (hoy es registro en texto).
 4. **Skins.** El sumidero más barato y el único que no toca el equilibrio.
 5. **Token en mainnet y preventa de verdad**, con la lista del apartado 2.
 6. **Torneos**, ya con jugadores dentro.

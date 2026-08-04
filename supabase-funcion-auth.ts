@@ -916,6 +916,17 @@ async function manejar(req: Request): Promise<Response> {
       mascota: fila.mascota || "ninguna",
     };
 
+    /* Copia de A ANTES de nada, y esta línea es lo que hace verificable la
+       pelea. `aplicar()` muta `mio` dos renglones más abajo —sube el nivel, la
+       experiencia, las victorias— así que al escribir la fila ya no queda ni en
+       memoria como entró a la arena.
+
+       Sin esto, `fights` guardaba una copia congelada del rival y una simple
+       REFERENCIA a tu bruto. O sea que la promesa de «cualquiera puede
+       recalcular la pelea» era cierta en el momento —el navegador tenía el
+       bruto que acababa de mandar— y falsa un segundo después. */
+    const aAntes = { ...mio };
+
     /* La semilla la genera el SERVIDOR. Si la eligiera el cliente, elegiría su
        victoria: probaría semillas hasta encontrar una que gane. */
     const seed = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000000;
@@ -1033,13 +1044,15 @@ async function manejar(req: Request): Promise<Response> {
     /* Se guarda la pelea. Sale casi gratis —el resultado ya está calculado— y
        es lo que permite el historial, el panel, y sobre todo saber cuántas
        monedas se emiten al día.
-       El snapshot del rival es imprescindible: sube de nivel después, y sin
-       congelarlo la pelea dejaría de poder reproducirse. */
+       Los DOS snapshots son imprescindibles: los dos suben de nivel después, y
+       sin congelarlos la pelea deja de poder reproducirse. Durante mucho tiempo
+       solo se guardó el del rival, y por eso `pelea.html` distingue las peleas
+       antiguas —que no se pueden verificar y lo dice— de las nuevas. */
     await db("/fights", {
       method: "POST",
       headers: { Prefer: "return=minimal" },
       body: JSON.stringify({
-        seed, a_brute: fila.id, a_owner: dueno,
+        seed, a_brute: fila.id, a_owner: dueno, a_snapshot: aAntes,
         b_brute: foe.rid || null, b_name: String(foe.name || "?").slice(0, 32),
         b_bot: !!foe.bot, b_snapshot: foe,
         winner: fight.winner, turns: fight.turns, log: fight.log,

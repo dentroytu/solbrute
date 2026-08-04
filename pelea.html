@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SolBrute — Fight</title>
+<meta name="description" content="A SolBrute fight, replayable and verifiable by anyone.">
+<meta property="og:title" content="SolBrute — Fight">
+<meta property="og:description" content="Same seed, same fight. Recompute it yourself.">
+<meta property="og:image" content="https://solbrute.io/og-image.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  ══════════════════════════════════════════════════════════════════════════
+  La pelea, con su propio enlace y verificable por cualquiera
+  ══════════════════════════════════════════════════════════════════════════
+
+    pelea.html?id=1284
+
+  ── Por que existe ────────────────────────────────────────────────────────
+  La landing promete «combate verificable» desde el primer dia, y hasta hoy
+  nadie podia verificar nada: no habia donde. La arquitectura lo permitia
+  —`simulate()` es puro, la semilla y el registro se guardan— pero faltaba la
+  herramienta, y una promesa sin herramienta es una frase bonita.
+
+  ── Lo que hace ──────────────────────────────────────────────────────────
+  1. Lee la pelea de `fights` con la clave publica. Sin sesion y sin wallet:
+     una pelea la ve el rival igual que tu, asi que no hay nada que decidir.
+  2. La pinta entera, turno a turno.
+  3. La RECALCULA en tu navegador con `brute-combate.js` —el mismo fichero que
+     usa el servidor— y compara el resultado con lo guardado.
+
+  El punto 3 es todo. Si el servidor hubiera mentido sobre una pelea, aqui se
+  veria: mismo seed y mismos brutos tienen que dar exactamente el mismo
+  registro, evento por evento.
+
+  ── Lo que NO puede verificar ────────────────────────────────────────────
+  Las peleas anteriores al paso 32. `fights` guardaba una copia congelada del
+  rival pero solo una referencia a tu bruto, y ese dato ya no existe en ningun
+  sitio. No se puede reconstruir, asi que la pagina lo dice en vez de fingir.
+
+  ── Sin dependencias, y se abre con doble clic ───────────────────────────
+  Como el resto del proyecto: `brute-render.js` y `brute-combate.js` son
+  scripts clasicos, no modulos ES, para que `file://` siga funcionando.
+  ══════════════════════════════════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --bg-deep:#0c0a07; --bg:#14110d; --surface:#1c1710; --surface-hi:#251e14;
+    --line:#3a2e1c; --blood:#b3312c; --blood-bright:#e0453f;
+    --bronze:#c98a3a; --bronze-light:#e5ab5c; --torch:#ff9d42;
+    --text:#efe7d8; --muted:#a8998a; --sol-teal:#14f195;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:radial-gradient(ellipse 900px 450px at 50% -10%, #2c2013 0%, transparent 55%), var(--bg-deep);
+    color:var(--text); font-family:'Space Grotesk',sans-serif;
+    min-height:100vh; padding:28px 20px 60px;
+  }
+  a{ color:var(--bronze-light); }
+  .caja{ max-width:760px; margin:0 auto; }
+  .marca{ font-family:'Cinzel',serif; font-weight:800; font-size:17px; letter-spacing:.04em;
+        color:var(--bronze); text-decoration:none; display:inline-block; margin-bottom:26px; }
+  .marca span{ color:var(--blood-bright); }
+
+  .cargando,.error{ text-align:center; color:var(--muted); padding:60px 0; font-size:14px; }
+  .error b{ color:var(--blood-bright); font-family:'Cinzel',serif; display:block; margin-bottom:8px; font-size:17px; }
+
+  /* los dos combatientes */
+  .duelo{ display:flex; align-items:stretch; gap:14px; margin-bottom:22px; }
+  .lado{ flex:1; min-width:0; background:var(--surface); border:1px solid var(--line);
+        border-radius:14px; padding:16px 14px; text-align:center; position:relative; }
+  .lado.gana{ border-color:rgba(20,241,149,.4); }
+  .lado.gana::after{ content:"★"; position:absolute; top:8px; right:11px; color:var(--sol-teal); font-size:13px; }
+  .retrato{ width:96px; margin:0 auto 8px; }
+  .retrato svg{ width:100%; height:auto; display:block; }
+  .nom{ font-family:'Cinzel',serif; font-weight:700; font-size:16px; color:var(--bronze-light);
+        overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nom .bot{ font-family:'Space Grotesk',sans-serif; font-size:9px; color:var(--muted);
+        border:1px solid var(--line); border-radius:99px; padding:1px 6px; margin-left:5px;
+        vertical-align:middle; letter-spacing:.06em; }
+  .nv{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .atrs{ display:flex; justify-content:center; gap:12px; margin-top:9px; font-size:11px; color:var(--muted); }
+  .atrs b{ color:var(--text); font-family:'Cinzel',serif; font-size:13px; display:block; }
+  .lleva{ margin-top:9px; font-size:11px; color:var(--muted); }
+  .versus{ align-self:center; font-family:'Cinzel',serif; font-size:15px; color:var(--blood-bright); }
+
+  /* datos de la pelea */
+  .datos{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
+  .dato{ flex:1; min-width:104px; background:var(--surface); border:1px solid var(--line);
+        border-radius:10px; padding:10px 12px; }
+  .dato span{ display:block; font-size:10px; color:var(--muted); text-transform:uppercase;
+        letter-spacing:.09em; margin-bottom:3px; }
+  .dato b{ font-family:'Cinzel',serif; font-size:15px; color:var(--bronze-light);
+        word-break:break-all; font-weight:700; }
+
+  /* el veredicto */
+  .veredicto{ border-radius:12px; padding:15px 17px; margin-bottom:22px; font-size:13.5px;
+        line-height:1.65; border:1px solid var(--line); background:var(--surface); color:var(--muted); }
+  .veredicto b{ font-family:'Cinzel',serif; display:block; font-size:15px; margin-bottom:5px; }
+  .veredicto.si{ border-color:rgba(20,241,149,.4); background:rgba(20,241,149,.06); }
+  .veredicto.si b{ color:var(--sol-teal); }
+  .veredicto.no{ border-color:var(--blood-bright); background:rgba(179,49,44,.09); }
+  .veredicto.no b{ color:var(--blood-bright); }
+  .veredicto.gris b{ color:var(--bronze-light); }
+  .veredicto code{ font-size:11.5px; color:var(--text); word-break:break-all; }
+
+  /* el registro */
+  h2{ font-family:'Cinzel',serif; font-size:15px; color:var(--bronze); margin:0 0 12px;
+        text-transform:uppercase; letter-spacing:.08em; }
+  .registro{ background:var(--surface); border:1px solid var(--line); border-radius:12px;
+        padding:6px 0; }
+  .ev{ display:flex; gap:10px; padding:7px 15px; font-size:13px; align-items:baseline;
+        border-top:1px solid rgba(58,46,28,.5); }
+  .ev:first-child{ border-top:none; }
+  .ev .t{ font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums;
+        min-width:22px; flex-shrink:0; }
+  .ev .x{ flex:1; min-width:0; }
+  .ev .d{ font-family:'Cinzel',serif; color:var(--blood-bright); font-size:13px; flex-shrink:0; }
+  .ev.ko{ background:rgba(179,49,44,.1); }
+  .ev.ko .x{ color:var(--blood-bright); font-family:'Cinzel',serif; }
+  .ev.cae .x{ color:var(--torch); }
+  .pie{ text-align:center; color:var(--muted); font-size:11.5px; margin-top:28px; line-height:1.7; }
+</style>
+</head>
+<body>
+
+<div class="caja">
+  <a class="marca" href="index.html">SOL<span>BRUTE</span></a>
+  <div id="salida"><div class="cargando">Cargando la pelea…</div></div>
+  <div class="pie">
+    Cualquiera puede recalcular esta pelea: misma semilla y mismos brutos dan el mismo
+    registro, evento por evento.<br>
+    <a href="index.html">SolBrute</a> · combate automático por turnos sobre Solana
+  </div>
+</div>
+
+<script src="brute-render.js"></script>
+<script src="brute-combate.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  const URL_BASE = "https://ihrcvartuuyvftxdxztt.supabase.co";
+  const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlocmN2YXJ0dXV5dmZ0eGR4enR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MjYyMzcsImV4cCI6MjEwMTAwMjIzN30.rhX_iI5qZROciWSBP3m0RhkMQXTSz6ttQz2zpXj_uxk";
+
+  const C = window.BruteCombate;
+  const { bust } = window.BruteRender;
+  const $ = id => document.getElementById(id);
+  const esc = t => String(t == null ? "" : t).replace(/[&<>"']/g,
+    c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+  const fallo = (titulo, txt) =>
+    $("salida").innerHTML = `<div class="error"><b>${esc(titulo)}</b>${esc(txt)}</div>`;
+
+  /* Un `look` fuera de rango hace que el renderizador lance, y aquí eso dejaría
+     la página en blanco por culpa del bruto de OTRO. Se recorta a rango legal. */
+  function lookSano(l){
+    const R = window.BruteRender;
+    const n = (v, max) => Math.min(Math.max(Math.floor(Number(v) || 0), 0), max);
+    l = l || {};
+    return {
+      sex: n(l.sex, 1), skin: n(l.skin, R.SKIN.length - 1),
+      hair: n(l.hair, 5), hairC: n(l.hairC, R.HAIRC.length - 1),
+      cloth: n(l.cloth, R.CLOTHS.length - 1), clothC: n(l.clothC, R.CLOTHC.length - 1),
+      face: n(l.face, R.FACES.length - 1), eyeC: n(l.eyeC, R.EYEC.length - 1),
+      tat: n(l.tat, R.TATS.length - 1), tatC: n(l.tatC, R.INK.length - 1),
+    };
+  }
+
+  const NOMBRE_ARMA = { ninguna:"puños", daga:"daga", escudo:"escudo", lanza:"lanza", mandoble:"mandoble" };
+  const NOMBRE_MASC = { ninguna:"", perro:"perro", lobo:"lobo", oso:"oso" };
+
+  function ficha(b, gana, nombre, bot){
+    const lleva = [];
+    if (b.arma && b.arma !== "ninguna") lleva.push(NOMBRE_ARMA[b.arma] || b.arma);
+    if (b.mascota && b.mascota !== "ninguna") lleva.push(NOMBRE_MASC[b.mascota] || b.mascota);
+    return `<div class="lado${gana ? " gana" : ""}">
+      <div class="retrato">${bust(lookSano(b.look))}</div>
+      <div class="nom">${esc(nombre)}${bot ? '<span class="bot">BOT</span>' : ""}</div>
+      <div class="nv">Nivel ${Number(b.lv) || 1}</div>
+      <div class="atrs">
+        <div><b>${Number(b.str) || 0}</b>fuerza</div>
+        <div><b>${Number(b.agi) || 0}</b>agilidad</div>
+        <div><b>${Number(b.spd) || 0}</b>velocidad</div>
+        <div><b>${Number(b.hpMax) || 0}</b>vida</div>
+      </div>
+      ${lleva.length ? `<div class="lleva">${esc(lleva.join(" · "))}</div>` : ""}
+    </div>`;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     Poner en palabras cada evento
+     ══════════════════════════════════════════════════════════════════════
+     Cada tipo se nombra, y lo que no se reconoce NO se pinta. Un evento sin
+     dibujar es un hueco; un evento dibujado como otra cosa es una mentira. Ya
+     pasó en la arena del juego: un `else` final convertía cualquier evento
+     desconocido en un KO, y los desarmes salían como «undefined queda fuera de
+     combate» — en 1.201 de cada 3.000 combates con arma.
+
+     ── Se usan los NOMBRES que trae el evento, no el `side` ──────────────
+     No es preferencia de estilo. `side` significa cosas distintas según el
+     tipo, y deducirlo mal es el error que ya se cometió dos veces en este
+     proyecto:
+
+         hit · crit · dodge · cubre · ko · muerde   side = el que RECIBE
+         disarm · cae_mascota                       side = el que ACTÚA
+
+     La primera versión de esta página decía «el animal de Rufus falla» cuando
+     el lobo era de Galba. Con `att`, `def` y `mascota` dentro del evento no hay
+     nada que deducir — y por eso se usan esos. */
+  function frase(e){
+    switch (e.type) {
+      case "hit":   return [`${esc(e.att)} golpea a ${esc(e.def)}`, e.dmg];
+      case "crit":  return [`${esc(e.att)} acierta un golpe crítico a ${esc(e.def)}`, e.dmg];
+      case "dodge": return [`${esc(e.def)} esquiva el golpe de ${esc(e.att)}`, null];
+      case "disarm":return [`${esc(e.att)} pierde su ${esc(String(e.arma || "arma").toLowerCase())}`, null];
+      /* `def` es el CUBIERTO, o sea el DUEÑO del animal. Escrito al revés, el
+         registro decía «el oso encaja el golpe de Galba», que era su amo. */
+      case "cubre": return [`el ${esc(e.mascota)} de ${esc(e.def)} se interpone al golpe de ${esc(e.att)}`, e.dmg];
+      case "muerde":        return [`el ${esc(e.mascota)} muerde a ${esc(e.def)}`, e.dmg];
+      case "mascota_falla": return [`el ${esc(e.mascota)} falla contra ${esc(e.def)}`, null];
+      case "cae_mascota":   return [`cae el ${esc(e.mascota)}` + (e.definitiva ? " y no se levanta" : ""), null];
+      case "ko":    return [`${esc(e.def)} queda fuera de combate`, null];
+      default:      return null;
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     LA VERIFICACIÓN
+     ══════════════════════════════════════════════════════════════════════
+     Se recalcula la pelea aquí, en el navegador de quien mira, con el MISMO
+     fichero de reglas que usa el servidor. Si cuadra evento por evento, el
+     servidor no se inventó nada.
+
+     Se comparan los registros ENTEROS y no solo el ganador. Un servidor que
+     quisiera mentir cambiaría el ganador, sí, pero también podría inflar los
+     turnos — que es lo que decide las monedas — y eso solo se ve mirándolo
+     todo. */
+  function verificar(f){
+    if (!f.a_snapshot) return { estado: "antigua" };
+    try {
+      /* Copia profunda: `simulate()` MUTA los combatientes que recibe. Sin
+         esto, verificar dos veces daría resultados distintos. */
+      const mio = JSON.parse(JSON.stringify(f.a_snapshot));
+      const foe = JSON.parse(JSON.stringify(f.b_snapshot));
+      const calc = C.simulate(mio, foe, Number(f.seed));
+      const mismo = JSON.stringify(calc.log) === JSON.stringify(f.log);
+      return {
+        estado: (mismo && calc.winner === f.winner && calc.turns === f.turns) ? "cuadra" : "no_cuadra",
+        calc,
+      };
+    } catch (e) {
+      return { estado: "error", detalle: e.message };
+    }
+  }
+
+  function pintarVeredicto(v, f){
+    if (v.estado === "cuadra") {
+      return `<div class="veredicto si"><b>✓ Comprobado</b>
+        Se ha recalculado esta pelea <b style="display:inline;font-size:13.5px">en tu propio
+        navegador</b>, con la semilla <code>${esc(f.seed)}</code>, los dos brutos tal y como
+        entraron a la arena, y las mismas reglas que usa el servidor
+        (<code>brute-combate.js</code> v${esc(C.VERSION)}).
+        Sale exactamente el mismo combate: los ${esc(f.turns)} turnos y los
+        ${esc((f.log || []).length)} eventos, uno por uno.</div>`;
+    }
+    if (v.estado === "antigua") {
+      return `<div class="veredicto gris"><b>Esta pelea no se puede recalcular</b>
+        Es anterior al registro completo: se guardaba una copia congelada del rival, pero del
+        bruto de casa solo una referencia — y ese dato ya no existe en ningún sitio.
+        Se enseña tal cual quedó guardada. Las peleas nuevas sí se pueden comprobar.</div>`;
+    }
+    if (v.estado === "error") {
+      return `<div class="veredicto gris"><b>No se ha podido recalcular</b>${esc(v.detalle || "")}</div>`;
+    }
+    return `<div class="veredicto no"><b>✗ No cuadra</b>
+      Recalculada con la misma semilla y los mismos brutos, esta pelea da un resultado distinto
+      al guardado. O las reglas han cambiado desde que se jugó, o hay algo mal.
+      Merece la pena decirlo aquí: esta página existe justamente para que esto se vea.</div>`;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  async function arrancar(){
+    const id = Math.floor(Number(new URLSearchParams(location.search).get("id")));
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return fallo("Falta la pelea", "Este enlace tiene que llevar un identificador: pelea.html?id=1284");
+    }
+
+    let f;
+    try {
+      const r = await fetch(`${URL_BASE}/rest/v1/fights?id=eq.${id}&select=*`, {
+        headers: { apikey: ANON, Authorization: "Bearer " + ANON },
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      f = (await r.json())[0];
+    } catch (e) {
+      return fallo("No he podido cargarla", "El servidor no responde. Prueba a recargar.");
+    }
+    if (!f) return fallo("Esa pelea no existe", "Puede que el bruto se borrara: al borrarlo se van sus peleas.");
+
+    const A = f.a_snapshot || {};
+    const B = f.b_snapshot || {};
+    const nA = String(A.name || "?");
+    const nB = String(f.b_name || B.name || "?");
+    const ganaA = f.winner === "A";
+
+    /* Sin `a_snapshot` no hay ni nombre ni aspecto de A. Se enseña lo que hay en
+       vez de inventarlo: media pelea de verdad vale más que una entera falsa. */
+    const fichaA = f.a_snapshot
+      ? ficha(A, ganaA, nA, false)
+      : `<div class="lado${ganaA ? " gana" : ""}">
+           <div class="nom">?</div>
+           <div class="nv">no se guardó</div>
+           <div class="lleva">pelea anterior al registro completo</div>
+         </div>`;
+
+    const v = verificar(f);
+    const eventos = (f.log || []).map(e => {
+      const p = frase(e);
+      if (!p) return "";
+      const clase = e.type === "ko" ? " ko" : e.type === "cae_mascota" ? " cae" : "";
+      return `<div class="ev${clase}"><span class="t">${esc(e.turn == null ? "" : e.turn)}</span>` +
+             `<span class="x">${p[0]}</span>` +
+             `${p[1] == null ? "" : `<span class="d">−${esc(p[1])}</span>`}</div>`;
+    }).join("");
+
+    document.title = `${nA} vs ${nB} — SolBrute`;
+
+    $("salida").innerHTML = `
+      <div class="duelo">
+        ${fichaA}
+        <div class="versus">VS</div>
+        ${ficha(B, !ganaA, nB, !!f.b_bot)}
+      </div>
+
+      <div class="datos">
+        <div class="dato"><span>Gana</span><b>${esc(ganaA ? nA : nB)}</b></div>
+        <div class="dato"><span>Turnos</span><b>${esc(f.turns)}</b></div>
+        <div class="dato"><span>Semilla</span><b>${esc(f.seed)}</b></div>
+        <div class="dato"><span>Pelea</span><b>#${esc(f.id)}</b></div>
+      </div>
+
+      ${pintarVeredicto(v, f)}
+
+      <h2>El combate, turno a turno</h2>
+      <div class="registro">${eventos || '<div class="ev"><span class="x">Sin eventos.</span></div>'}</div>
+    `;
+  }
+
+  arrancar();
+})();
+</script>
+</body>
+</html>
