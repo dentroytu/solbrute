@@ -194,7 +194,9 @@
       "Bash(sed -n '/async function cargar\\(dir\\)/,/^  }/p' admin.html)",
       "Bash(node prueba-pago-devnet.mjs)",
       "Bash(curl -s https://api.devnet.solana.com -X POST -H 'Content-Type: application/json' -d '{ *)",
-      "Bash(node --check prueba-preventa.mjs)"
+      "Bash(node --check prueba-preventa.mjs)",
+      "Bash(mkdir -p /Users/alvaroreyesgiraldez/Desktop/aduanas)",
+      "Read(//Users/alvaroreyesgiraldez/Desktop/**)"
     ]
   }
 }

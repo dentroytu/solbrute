@@ -57,6 +57,7 @@ experiencia y sube de nivel.
 | `DESPLIEGUE.md` | En qué orden se aplica todo lo de arriba | Guía |
 | `BACKEND.md` | Esquema y contrato de API | Paso 1 hecho a medias |
 | `TOKEN.md` | Diseño económico del token | Modelo decidido, nada creado |
+| `IDEAS.md` | **La lista larga**: lo que falta, los sumideros y las ideas | Guía |
 | `EMPEZAR.md` | Guía de arranque para novato | — |
 
 **Los `.sql` van numerados y en orden.** Varios dependen del anterior —el 12
@@ -1552,6 +1553,7 @@ dos lados.
         Instinto: prestigio y un arma rara, no un montón de monedas.
       · Las peleas del torneo **no deberían gastar las 3 diarias**, o la gente
         tendría que elegir entre torneo y jugar.
+- [ ] **Ver `IDEAS.md`** para la lista completa, ordenada y razonada.
 - [ ] **Skins y aspectos** — el mejor sumidero que existe, y el más barato de
       hacer aquí: el aspecto ya son diez enteros pequeños, así que añadir un
       peinado o un tatuaje es añadir una entrada a una lista.
