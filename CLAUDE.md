@@ -697,6 +697,19 @@ Con un sitio estático **el marcado del panel no se puede esconder** —cualquie
 puede leer `admin.html`— y no se pretende: lo que no puede pasar es que la
 página se comporte como si hubieras entrado.
 
+### Pestañas, porque nueve bloques en fila no se leen
+
+El panel era una tira de nueve bloques y había que bajar media pantalla para
+llegar a la preventa. Cinco pestañas: resumen, preventa, torneos, jugadores y
+brutos, registro.
+
+No esconden nada: separan lo que se mira a diario de lo que se toca una vez.
+Las tarjetas del resumen se quedan **fuera de las pestañas**, siempre visibles,
+porque son la cabecera del panel y no una sección más.
+
+La pestaña viva va en el hash. Recargar mientras miras la preventa y volver al
+resumen es molesto justo cuando más se recarga.
+
 ### Todo cambio queda en `admin_log`
 
 Con el **antes y el después** — sin el antes, un registro solo dice que algo
@@ -980,6 +993,21 @@ panel.
 Se arregla con `p_campos ? 'desde'`, que mira si la clave **viene** en el
 objeto — distinto de que venga vacía. Presente y nula = bórrala. Y el panel las
 manda siempre, con `null` cuando están vacías.
+
+### Antes de abrir los reclamos, se mira si hay con qué pagarlos
+
+`pv_fondos` compara lo que se debe con lo que hay **en la wallet que entrega**:
+tokens, SOL para comisiones, y ~0,002 SOL de renta por cada comprador que
+todavía no tiene cuenta de ese token.
+
+Sin esto, abrir los reclamos con la wallet vacía no da un error bonito: cada
+reclamo falla, queda en «revisión», y hay que desatascarlos a mano mientras la
+gente pregunta dónde están sus tokens. Es el mismo gasto que en devnet falló
+diciendo otra cosa — quedarse sin SOL en la operativa.
+
+Vive en `retirar` y no en `auth` porque es la función que tiene la clave del
+cofre. Se identifica con la **sesión** del panel, no firmando: pedir la firma
+para mirar un saldo sería sacarle la ventanita de la wallet al administrador.
 
 ### El panel pide motivo y confirma dos veces
 

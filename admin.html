@@ -55,6 +55,21 @@
   .tarjeta .sub{ font-size:11px; color:var(--muted); margin-top:3px; }
 
   h2{ font-size:16px; color:var(--bronze-light); margin:0 0 12px; letter-spacing:.04em; }
+  /* ── pestañas ──
+     El panel era una tira de nueve bloques y habia que bajar media pantalla
+     para llegar a la preventa. Las pestañas no esconden nada: separan lo que
+     se mira a diario de lo que se toca una vez. */
+  .tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px;
+        border-bottom:1px solid var(--line); padding-bottom:12px; }
+  .tab-btn{ font:inherit; font-size:13px; font-weight:600; cursor:pointer;
+        background:transparent; color:var(--muted); border:1px solid transparent;
+        border-radius:9px; padding:8px 14px; }
+  .tab-btn:hover{ color:var(--text); }
+  .tab-btn.on{ background:var(--surface); color:var(--bronze-light);
+        border-color:var(--line); }
+  .tab{ display:none; }
+  .tab.on{ display:block; }
+
   .bloque{ background:var(--surface); border:1px solid var(--line); border-radius:14px;
            padding:18px 20px; margin-bottom:24px; }
   .nota{ font-size:12px; color:var(--muted); margin-bottom:14px; }
@@ -125,6 +140,7 @@
   .pv-red.mainnet{ border-color:var(--blood-bright); color:#f0b6b3; }
   .pv-red.devnet{ border-color:rgba(20,241,149,.35); color:var(--sol-teal); }
   .pv-red.mal{ border-color:var(--blood); color:#f0b6b3; }
+  .pv-red[hidden]{ display:none; }
   .pv-est{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
   .pv-pill{ font-size:10px; padding:3px 10px; border-radius:99px; border:1px solid var(--line);
         color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
@@ -233,8 +249,17 @@
   <!-- ═══ panel ═══ -->
   <section class="panel" id="scPanel">
 
+    <div class="tabs" id="tabs">
+      <button class="tab-btn on" data-ir="resumen">Resumen</button>
+      <button class="tab-btn" data-ir="preventa">Preventa</button>
+      <button class="tab-btn" data-ir="torneos">Torneos</button>
+      <button class="tab-btn" data-ir="gente">Jugadores y brutos</button>
+      <button class="tab-btn" data-ir="registro">Registro</button>
+    </div>
+
     <div class="tarjetas" id="tarjetas"></div>
 
+    <div class="tab" data-tab="resumen">
     <div class="bloque">
       <h2>Monedas emitidas por día</h2>
       <p class="nota">El número que avisa de que la economía se ha roto, mucho antes de que se note en el precio. Si sube sin que suba el número de jugadores, algo está imprimiendo dinero.</p>
@@ -247,6 +272,8 @@
       <div id="porNivel"></div>
     </div>
 
+    </div>
+    <div class="tab" data-tab="torneos">
     <div class="bloque">
       <h2>Torneos - calculador de precios</h2>
       <p class="nota">Mueve la entrada y el reparto y mira qué sale. Todo se mide en <b>días de juego</b> (un bruto gana ~40 monedas al día): es la unidad que sigue significando lo mismo valga lo que valga el token en euros.</p>
@@ -303,6 +330,8 @@
       <div class="tor-lista" id="torLista"></div>
     </div>
 
+    </div>
+    <div class="tab" data-tab="preventa">
     <div class="bloque">
       <h2>Preventa de $BRUTE</h2>
       <p class="nota">Nace apagada y se queda apagada hasta que la enciendas aquí. Mientras esté apagada, la sección no aparece siquiera en la landing — enseñar una preventa cerrada invita a mandar SOL a mano, y ese SOL no lo recupera nadie.</p>
@@ -332,6 +361,8 @@
           <input id="pvMotivo" class="ancho" placeholder="por que cambias esto"></div>
       </div>
 
+      <div class="pv-red" id="pvFondos" hidden></div>
+
       <div class="pv-form" style="margin-top:16px">
         <label><input type="checkbox" id="pvActiva"> Preventa abierta</label>
         <label><input type="checkbox" id="pvReclamos"> Reclamos abiertos</label>
@@ -347,6 +378,8 @@
       <div class="scroll"><table id="tablaPreventa"></table></div>
     </div>
 
+    </div>
+    <div class="tab" data-tab="gente">
     <div class="bloque">
       <h2>Brutos</h2>
       <div class="scroll"><table id="tablaBrutos"></table></div>
@@ -357,6 +390,8 @@
       <div class="scroll"><table id="tablaJugadores"></table></div>
     </div>
 
+    </div>
+    <div class="tab" data-tab="registro">
     <div class="bloque">
       <h2>Registro de administración</h2>
       <p class="nota">Todo lo que se cambia desde este panel queda anotado con el antes y el después. No está para vigilarte: está para que puedas demostrar qué pasó si algún día alguien pregunta por un saldo.</p>
@@ -367,6 +402,7 @@
       Los datos salen de la Edge Function, que comprueba tu dirección antes de responder.
       Esta página no tiene permisos propios: sin una sesión de administrador no obtiene nada.
     </footer>
+    </div>
   </section>
 
 </div>
@@ -1048,6 +1084,38 @@
   }
   const SolBruteRed = () => SolBruteDB.adminRed();
 
+  /* Abrir los reclamos con la wallet de entrega vacia no da un error bonito:
+     cada reclamo falla, queda en «revision», y hay que desatascarlos a mano
+     mientras la gente pregunta donde estan sus tokens. Asi que se mira antes.
+
+     Y no se enseña si no hay nada vendido: un recuadro que dice «faltan 0
+     tokens» es ruido. */
+  async function cargarFondos(){
+    const e = el("pvFondos");
+    if(!preventa || !Number(preventa.vendido)){ e.hidden = true; return; }
+    let r;
+    try{ r = await SolBruteDB.preventaFondos(); }
+    catch(err){ e.hidden = true; return; }
+    e.hidden = false;
+
+    if(r.motivo){
+      e.className = "pv-red mal";
+      e.innerHTML = "<b>No se puede entregar todavia</b> — " + escapar(r.motivo) + ".";
+      return;
+    }
+    const cab = "Wallet que entrega <b>" + escapar((r.wallet||"").slice(0,4) + "…" + (r.wallet||"").slice(-4)) +
+      "</b>: " + n(r.tokens) + " $BRUTE y " + Number(r.sol).toFixed(4) + " SOL. " +
+      "Se deben <b>" + n(r.debido) + "</b> a " + n(r.compradores) + " compradores" +
+      " (hacen falta ~" + Number(r.sol_necesario).toFixed(4) + " SOL de comisiones y cuentas). ";
+    if(r.listo){
+      e.className = "pv-red devnet";
+      e.innerHTML = cab + "<b>Hay con que pagar los reclamos.</b>";
+    }else{
+      e.className = "pv-red mal";
+      e.innerHTML = cab + "<b>NO abras los reclamos:</b> " + escapar(r.faltan.join("; ")) + ".";
+    }
+  }
+
   async function cargarPreventa(){
     let r;
     /* Si el paso 31 no esta aplicado todavia, las tablas no existen y esto
@@ -1080,6 +1148,7 @@
 
     pintarEcoPreventa();
     pintarComprasPreventa(r.compras || [], r.reclamos || []);
+    cargarFondos();
   }
 
   /* Lo que se recauda si se vende el cupo entero. Es el numero que de verdad
@@ -1174,6 +1243,18 @@
   const fecha = f => f ? new Date(f).toLocaleDateString("es-ES", { day:"2-digit", month:"2-digit", year:"2-digit" }) : "—";
   /* Los nombres los eligen los jugadores: van escapados sí o sí. */
   const escapar = t => String(t).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+  /* La pestaña viva se guarda en el hash: recargar el panel mientras miras la
+     preventa y volver al resumen es molesto justo cuando mas se recarga. */
+  function irA(id){
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.tab === id));
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("on", b.dataset.ir === id));
+    if(location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
+  }
+  document.querySelectorAll(".tab-btn").forEach(b =>
+    b.addEventListener("click", () => irA(b.dataset.ir)));
+  irA(document.querySelectorAll('.tab[data-tab="' + location.hash.slice(1) + '"]').length
+      ? location.hash.slice(1) : "resumen");
 
   el("btnPvGuardar").addEventListener("click", guardarPreventa);
   ["pvPrecio","pvCupo"].forEach(k => el(k).addEventListener("input", pintarEcoPreventa));

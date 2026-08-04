@@ -88,6 +88,12 @@ const RPC     = Deno.env.get("SOLANA_RPC") || "https://api.devnet.solana.com";
    con los decimales equivocados es enviar mil veces de más o de menos. */
 const DECIMALES = 9n;
 
+/* La misma lista que usa `auth`, leida del mismo secreto. Se repite aqui en vez
+   de preguntarle a la otra funcion porque una funcion que mueve dinero conviene
+   que dependa de lo menos posible. */
+const ADMINS = (Deno.env.get("ADMIN_WALLETS") || "")
+  .split(",").map((x) => x.trim()).filter(Boolean);
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -298,6 +304,78 @@ Deno.serve(async (req) => {
         const e = await db("/rpc/preventa_estado", { method: "POST", body: "{}" });
         return responder(e || {});
       }
+
+      /* ── ¿hay con que pagar los reclamos? ──
+         Abrir los reclamos con la wallet de entrega vacia no da un error
+         bonito: cada reclamo falla, se queda en «revision», y hay que
+         desatascarlos a mano uno por uno mientras la gente pregunta donde
+         estan sus tokens.
+
+         Asi que se puede mirar ANTES. Es admin porque enseña el saldo del
+         tesoro, que no es asunto de nadie mas. */
+      if (acc === "pv_fondos") {
+        /* Se identifica con la SESION del panel, no firmando: quien llama aqui
+           es el administrador desde `admin.html`, que ya tiene una abierta.
+           Pedirle ademas la firma seria sacarle la ventanita de la wallet para
+           mirar un saldo. */
+        const quien = await duenoDe(cuerpo.token);
+        if (!quien || !ADMINS.includes(quien)) {
+          return responder({ error: "sesion no valida o caducada" }, 401);
+        }
+
+        const secreto = Deno.env.get("SOLANA_PREVENTA") || Deno.env.get("SOLANA_TESORO");
+        const mintTxt = Deno.env.get("SOLANA_MINT");
+        if (!secreto) return responder({ listo: false, motivo: "falta el secreto SOLANA_PREVENTA" });
+        if (!mintTxt) return responder({ listo: false, motivo: "falta el secreto SOLANA_MINT" });
+
+        let cofre: Keypair, mint: PublicKey;
+        try {
+          cofre = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secreto)));
+          mint  = new PublicKey(mintTxt);
+        } catch {
+          return responder({ listo: false, motivo: "SOLANA_PREVENTA o SOLANA_MINT mal formados" });
+        }
+
+        const pv = (await db("/preventa?id=eq.1&select=vendido,mint"))?.[0] || {};
+        const entregadas = (await db(
+          "/preventa_compras?estado=eq.entregada&select=tokens")) || [];
+        const yaEntregado = entregadas.reduce((a: number, c: { tokens: number }) => a + Number(c.tokens), 0);
+        const debido = Math.max(0, Number(pv.vendido || 0) - yaEntregado);
+
+        /* Cuantos compradores NO tienen todavia cuenta de ese token. Cada uno
+           cuesta ~0,002 SOL de renta, y lo paga el tesoro. Es el gasto que en
+           devnet fallo diciendo otra cosa. */
+        const pendientes = (await db(
+          "/preventa_compras?estado=eq.pagada&select=address")) || [];
+        const quedan = new Set(pendientes.map((c: { address: string }) => c.address));
+
+        let sol = 0, tokens = 0;
+        try {
+          sol = await conP.getBalance(cofre.publicKey) / 1e9;
+          const cuenta = await getAssociatedTokenAddress(mint, cofre.publicKey);
+          const b = await conP.getTokenAccountBalance(cuenta).catch(() => null);
+          tokens = Number(b?.value?.uiAmount || 0);
+        } catch (e) {
+          return responder({ listo: false, motivo: "el RPC no responde: " + (e as Error).message });
+        }
+
+        const solHace = quedan.size * 0.00204 + quedan.size * 0.00001;
+        const faltan: string[] = [];
+        if (String(pv.mint || "") !== mintTxt) {
+          faltan.push("el mint del panel no es el del secreto SOLANA_MINT");
+        }
+        if (tokens < debido) faltan.push(`faltan ${(debido - tokens).toLocaleString("es-ES")} $BRUTE`);
+        if (sol < solHace)   faltan.push(`faltan ${(solHace - sol).toFixed(4)} SOL para comisiones y cuentas`);
+
+        return responder({
+          listo: faltan.length === 0,
+          wallet: cofre.publicKey.toBase58(),
+          tokens, debido, sol, sol_necesario: Number(solHace.toFixed(4)),
+          compradores: quedan.size,
+          faltan,
+        });
+      }
+
 
       const dir = String(cuerpo.address || "");
       if (!pubkey(dir)) return responder({ error: "direccion no valida" }, 400);

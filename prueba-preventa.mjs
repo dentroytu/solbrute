@@ -297,7 +297,18 @@ for (const mala of ["", "0x1234", "'; drop table preventa; --", "1".repeat(200)]
          `${r.s} pagado=${r.j.pagado} entregado=${r.j.entregado}`);
 }
 
-// ── 15 · acciones inventadas ──────────────────────────────────────────────
+// ── 15 · la ruta de admin de `retirar` ────────────────────────────────────
+/* `pv_fondos` enseña el saldo del cofre. Va por sesion, no por firma, asi que
+   se ataca con un token inventado y sin token. */
+for (const [nombre, cuerpo] of [
+  ["sin token", { accion: "pv_fondos" }],
+  ["con un token inventado", { accion: "pv_fondos", token: "a".repeat(43) }],
+]) {
+  const r = await pedir(cuerpo);
+  probar("mirar el saldo del cofre " + nombre, r.s === 200, `${r.s} ${r.j.error || ""}`);
+}
+
+// ── 16 · acciones inventadas ──────────────────────────────────────────────
 for (const a of ["pv_", "pv_regalar", "pv_config", "pv_admin", "pv_estado_"]) {
   const r = await pedir({ accion: a, address: yo.dir });
   probar(`la accion inventada "${a}"`, r.s === 200, `${r.s} ${r.j.error || ""}`);

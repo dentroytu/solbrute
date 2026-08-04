@@ -193,7 +193,8 @@
       "Bash(sed -n '/async function entrar/,/^  }/p' admin.html)",
       "Bash(sed -n '/async function cargar\\(dir\\)/,/^  }/p' admin.html)",
       "Bash(node prueba-pago-devnet.mjs)",
-      "Bash(curl -s https://api.devnet.solana.com -X POST -H 'Content-Type: application/json' -d '{ *)"
+      "Bash(curl -s https://api.devnet.solana.com -X POST -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(node --check prueba-preventa.mjs)"
     ]
   }
 }

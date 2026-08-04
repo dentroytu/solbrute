@@ -313,6 +313,20 @@
     async adminRed(){
       return await pedirAuth({ accion: "admin_red", token: token() });
     },
+    /* Vive en `retirar`, no en `auth`: es la función que tiene la clave del
+       cofre y sabe hablar con la cadena. Se identifica con la sesión del
+       panel, no firmando. */
+    async preventaFondos(){
+      const r = await fetch(FUNCIONES + "/retirar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON },
+        body: JSON.stringify({ accion: "pv_fondos", token: token() })
+      });
+      const cuerpo = await r.json().catch(() => ({}));
+      if(!r.ok) throw Object.assign(new Error(cuerpo.error || ("HTTP " + r.status)), { clase: cuerpo.clase });
+      return cuerpo;
+    },
+
     async adminPreventa(){
       return await pedirAuth({ accion: "admin_preventa", token: token() });
     },
