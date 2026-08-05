@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 11;  // 9: golpe partido · 10: los bots suben como un jugador · 11: -5% de vida inicial
+  const VERSION = 12;  // 10: los bots suben como un jugador · 11: -5% de vida inicial · 12: nueve armas
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -291,12 +291,41 @@
        4. MEDIRLA contra las que ya hay y contra los punos. Si pasa de +8, no
           entra. Se ajusta hasta que quepa.
        5. subir VERSION y repegar este fichero en la Edge Function */
+  /* ── NUEVE armas, y las nueve entre 48,5% y 50,9% ─────────────────────────
+     Enfrentandolas todas contra todas con brutos identicos. Los daños salen de
+     una calibracion, no de la intuicion: la primera tanda dejaba a la guadaña
+     en 61% y a los puños en 37%.
+
+     Y hubo que recalibrar TAMBIEN las cinco viejas. Estaban cuadradas entre
+     ellas, pero eso deja de valer cuando entran cuatro mas: con nueve, la
+     lanza se iba al 55,6% y los puños al 42% sin haberles tocado un numero.
+     Medir solo las nuevas contra un grupo desequilibrado es medir contra nada.
+
+     `ninguna` es la VARA DE MEDIR y su daño se queda en 1,000. Moverlo
+     cambiaria el daño absoluto de todo el juego y habria que rehacer la curva
+     de vida entera.
+
+     ── Cada una se apoya en un mando distinto ──────────────────────────────
+     Si solo cambiara el daño serian reskins con otro nombre:
+
+       daga      dos golpes flojos, rapida, critica
+       escudo    encaja mucho menos (def 0,75) a cambio de pegar poco
+       lanza     alcance: pega mas y se defiende algo peor
+       mandoble  el golpe mas fuerte, lento y torpe de esquivar
+       hacha     brutal y CRITICA, pero se te cae mucho y se rompe pronto
+       maza      lenta de verdad (ini -3) y solida: aguanta y no se rompe
+       guadaña   dos tajos amplios, la mas fragil de todas
+       baston    defensivo y velocisimo, pega poquisimo, dura 50 combates */
   const ARMAS = {
-    ninguna:  { id:"ninguna",  nombre:"Puños",    nivel:1,  golpes:1, dmg:1.000, crit:0.00, esq:0.00, ini:0,  def:1.00, perder:0,     fragil:0    },
-    daga:     { id:"daga",     nombre:"Daga",     nivel:1,  golpes:2, dmg:0.470, crit:0.05, esq:0.02, ini:2,  def:1.00, perder:0.015, fragil:0.03 },
-    escudo:   { id:"escudo",   nombre:"Escudo",   nivel:2,  golpes:1, dmg:0.782, crit:0.00, esq:0.01, ini:-1, def:0.72, perder:0.025, fragil:0.05 },
-    lanza:    { id:"lanza",    nombre:"Lanza",    nivel:4,  golpes:1, dmg:1.123, crit:0.02, esq:0.00, ini:1,  def:1.06, perder:0.035, fragil:0.06 },
-    mandoble: { id:"mandoble", nombre:"Mandoble", nivel:7, golpes:1, dmg:1.422, crit:0.00, esq:-0.05,ini:-2, def:1.12, perder:0.055, fragil:0.09 },
+    ninguna:  { id:"ninguna",  nombre:"Puños",    nivel:1, golpes:1, dmg:1.000, crit:0.00, esq: 0.00, ini: 0, def:1.00, perder:0,     fragil:0    },
+    daga:     { id:"daga",     nombre:"Daga",     nivel:1, golpes:2, dmg:0.456, crit:0.05, esq: 0.02, ini: 2, def:1.00, perder:0.015, fragil:0.03 },
+    escudo:   { id:"escudo",   nombre:"Escudo",   nivel:2, golpes:1, dmg:0.748, crit:0.00, esq: 0.01, ini:-1, def:0.72, perder:0.025, fragil:0.05 },
+    maza:     { id:"maza",     nombre:"Maza",     nivel:3, golpes:1, dmg:1.026, crit:0.00, esq:-0.02, ini:-3, def:0.92, perder:0.020, fragil:0.04 },
+    lanza:    { id:"lanza",    nombre:"Lanza",    nivel:4, golpes:1, dmg:1.025, crit:0.02, esq: 0.00, ini: 1, def:1.06, perder:0.035, fragil:0.06 },
+    baston:   { id:"baston",   nombre:"Baston",   nivel:5, golpes:2, dmg:0.399, crit:0.00, esq: 0.04, ini: 3, def:0.85, perder:0.010, fragil:0.02 },
+    hacha:    { id:"hacha",    nombre:"Hacha",    nivel:6, golpes:1, dmg:1.175, crit:0.08, esq:-0.04, ini:-1, def:1.10, perder:0.060, fragil:0.10 },
+    mandoble: { id:"mandoble", nombre:"Mandoble", nivel:7, golpes:1, dmg:1.306, crit:0.00, esq:-0.05, ini:-2, def:1.12, perder:0.055, fragil:0.09 },
+    guadana:  { id:"guadana",  nombre:"Guadana",  nivel:9, golpes:2, dmg:0.510, crit:0.04, esq: 0.00, ini: 0, def:1.05, perder:0.030, fragil:0.11 },
   };
   const PUNOS = ARMAS.ninguna;
 
@@ -316,11 +345,15 @@
      Es un primer número, no una verdad. Cuando haya jugadores, el panel dirá
      si sobra o falta: si nadie compra, están caras; si todo el mundo lleva
      siempre la misma, están baratas. */
-  ARMAS.daga.precio     = 130;   // ~33 combates
-  ARMAS.escudo.precio   = 100;   // ~20
-  ARMAS.lanza.precio    = 110;   // ~17
-  ARMAS.mandoble.precio =  90;   // ~11
   ARMAS.ninguna.precio  =   0;
+  ARMAS.daga.precio     = 130;   // ~33 combates  →  4,0 monedas por pelea
+  ARMAS.baston.precio   = 150;   // ~50           →  3,0
+  ARMAS.maza.precio     = 110;   // ~25           →  4,4
+  ARMAS.escudo.precio   = 100;   // ~20           →  5,0
+  ARMAS.lanza.precio    = 110;   // ~17           →  6,5
+  ARMAS.hacha.precio    =  75;   // ~10           →  7,5
+  ARMAS.mandoble.precio =  90;   // ~11           →  8,0
+  ARMAS.guadana.precio  =  65;   // ~9            →  7,2
 
   /* ── Lo que cuesta recuperar algo perdido ─────────────────────────────────
      El 60% del precio. Y sube el sumidero en vez de bajarlo, aunque parezca lo
@@ -340,7 +373,10 @@
      comprar a ciegas algo que se rompe es una mala experiencia. */
   const duracion = id => { const w = ARMAS[id]; return w && w.fragil ? Math.round(1 / w.fragil) : 0; };
   /* Las que pueden tocar o comprarse. Los puños no son un arma, son no llevar. */
-  const ARMAS_REALES = ["daga","mandoble","lanza","escudo"];
+  /* Se DERIVA de la tabla. Escrita a mano se desincroniza el primer dia que
+     se añada un arma: el premio por subir de nivel seguiria sorteando entre
+     las de antes y las nuevas no saldrian nunca sin que nada fallara. */
+  const ARMAS_REALES = Object.keys(ARMAS).filter(x => x !== "ninguna");
 
   /* ═══════════ mascotas ═══════════
      A diferencia de las armas, una mascota SÍ es una ventaja: quien lleva una

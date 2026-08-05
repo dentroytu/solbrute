@@ -206,6 +206,20 @@ el servidor— y te dice si cuadra. Es media tarde de trabajo y convierte
 Lo digo claro: **hoy la promesa de combate verificable no está cumplida.** La
 arquitectura la permite desde el principio, pero no existe la herramienta.
 
+**Un blog de noticias.** Una página con las novedades del juego: qué cambió, qué
+se añadió, qué se arregló. Tres cosas a la vez, y ninguna cuesta casi nada:
+
+- **Da algo que enlazar en Twitter** que no sea «mirad mi juego» otra vez.
+- **Es lo que hace creíble el tono del proyecto.** El pie de la landing dice
+  abiertamente que no hay token ni recompensa real; un registro de cambios con
+  fechas es la prueba de que eso se mantiene por costumbre y no por casualidad.
+- **Google indexa texto.** Una landing sola no posiciona; veinte entradas sí.
+
+Lo barato es hacerlo como el resto: una carpeta de ficheros y una página que los
+lista, sin base de datos ni panel. El historial de commits ya tiene el contenido
+escrito — cada mensaje de este repositorio explica **qué se rompió y por qué**,
+que es justo lo que la gente lee.
+
 ### Otras
 
 **Torneo de lanzamiento** con premio de verdad, anunciado con fecha. Da un

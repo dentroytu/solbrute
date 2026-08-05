@@ -63,10 +63,14 @@
      Elegidos los planos de nivel 1-2, sin brillos magicos: es lo que pega con
      el registro de gladiador romano. */
   const ICONOS = {
-    daga:     "icon_14.png",
-    mandoble: "icon_03.png",
-    lanza:    "icon_43.png",
-    escudo:   "icon_62.png",
+    daga:     "icon_14.png",   // espadas cortas
+    mandoble: "icon_03.png",   // espadas
+    lanza:    "icon_43.png",   // lanzas
+    escudo:   "icon_62.png",   // escudos
+    maza:     "icon_52.png",   // mazas y martillos
+    guadana:  "icon_72.png",   // guadañas
+    hacha:    "icon_82.png",   // hachas
+    baston:   "icon_92.png",   // bastones
   };
   /* Al girar -45 grados sobre la empuñadura, la punta sube `1.414 x tam` desde
      y=28. Con el lienzo empezando en -56, el tope es tam=59.
@@ -77,7 +81,8 @@
 
      Antes estaban en 34/52/64 y el mandoble y la lanza se salian por arriba:
      el mismo fallo que hacia que la lanza vectorial pareciera una tabla. */
-  const TAM_ICONO = { daga: 32, mandoble: 48, lanza: 56 };
+  const TAM_ICONO = { daga: 32, mandoble: 48, lanza: 56,
+                      maza: 44, guadana: 52, hacha: 46, baston: 54 };
 
   const OL = "#241505";            // color de contorno, común a todas las capas
   const SKIN = [["#f0cfa8","#d4a97c"],["#e0ad7e","#c08a55"],["#c69267","#a3743f"],

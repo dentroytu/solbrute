@@ -23,7 +23,8 @@ experiencia y sube de nivel.
 | `supabase-09-armas.sql` | `brutes.arma` y `brutes.armas` | Aplicado (`armas` **ya no se usa**, ver paso 14) |
 | `pelea.html` | **Una pelea, con su enlace, y se verifica sola** | Funcionando |
 | `prueba-verificable.mjs` | Comprueba que la verificación detecta una pelea manipulada | Herramienta |
-| `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Escrito |
+| `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Aplicado |
+| `supabase-33-armas-nuevas.sql` | Abre el `check` de `brutes.arma` a las nueve. **Antes de la función** | Escrito |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -1303,15 +1304,47 @@ del navegador, bastaría con copiarla para leer las compras de cualquiera.
 
 ## Armas
 
-**Son alternativas, no mejoras, y está medido.** Enfrentando las cinco opciones
-todas contra todas con brutos idénticos, ninguna se despega:
+**Son alternativas, no mejoras, y está medido.** Enfrentando las **nueve**
+opciones todas contra todas con brutos idénticos, ninguna se despega:
 
-| | Puños | Daga | Mandoble | Lanza | Escudo |
-|---|---|---|---|---|---|
-| **media de victorias** | 49,9% | 51,3% | 48,0% | 50,2% | 49,9% |
+| Puños | Daga | Escudo | Maza | Lanza | Bastón | Hacha | Mandoble | Guadaña |
+|---|---|---|---|---|---|---|---|---|
+| 49,6% | 48,5% | 50,2% | 49,7% | 49,7% | 50,9% | 49,9% | 50,3% | 51,2% |
 
-Sale un piedra-papel-tijera: el escudo gana al mandoble, el mandoble a la daga,
-la daga a los puños, los puños al mandoble.
+Y sigue siendo piedra-papel-tijera de verdad: **cada arma tiene víctimas y
+verdugos**. El bastón gana a la daga 69%, la guadaña al escudo 65%, el escudo al
+mandoble 61%, el mandoble al bastón 61%, el hacha al mandoble 60%, la maza a la
+lanza 60%.
+
+### Añadir armas obliga a recalibrar las que ya estaban
+
+Las cinco originales estaban cuadradas **entre ellas**, y eso deja de valer en
+cuanto entran cuatro más: con nueve, la lanza se iba al **55,6%** y los puños al
+**42%** sin haberles tocado un número. Medir solo las nuevas contra un grupo
+desequilibrado es medir contra nada.
+
+Los `dmg` de las cinco viejas cambiaron por eso. **`ninguna` es la vara de medir
+y su daño se queda en 1,000**: moverlo cambia el daño absoluto de todo el juego
+y obliga a rehacer la curva de vida entera.
+
+### Cada una se apoya en un mando distinto
+
+Si solo cambiara el daño serían reskins con otro nombre:
+
+| | qué la hace ella |
+|---|---|
+| daga | dos golpes flojos, rápida, crítica |
+| escudo | encaja mucho menos a cambio de pegar poco |
+| lanza | alcance: pega más y se cubre algo peor |
+| mandoble | el golpe más fuerte, lento y torpe de esquivar |
+| **hacha** | brutal y crítica, pero se te cae mucho y se rompe pronto |
+| **maza** | lenta de verdad (`ini -3`) y sólida: aguanta y no se rompe |
+| **guadaña** | dos tajos amplios, la más frágil de todas |
+| **bastón** | defensivo y velocísimo, pega poquísimo, dura 50 combates |
+
+**El identificador va sin eñe: `guadana`.** El editor de Supabase mangla el
+UTF-8 al pegar, y un identificador con eñe ya tumbó un despliegue entero
+(`dueñoDe` → `UnexpectedChar { c: '√' }`).
 
 ### Cómo se llegó ahí, porque no fue directo
 
