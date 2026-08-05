@@ -1410,6 +1410,16 @@ la misma daga dorada sin comprarla tres veces.
 código, pero entonces el rival no la vería: la lista de rivales sale de
 `brutes`, y un cosmético que los demás no ven no lo compra nadie.
 
+**Las filas 1-10 y 11-20 son el mismo diseño.** El pack llama «cortas» a la
+segunda, pero son las mismas espadas con la hoja un poco más corta, y a 32
+píxeles eso no se distingue: la daga parecía un mandoble pequeño. Se le puso la
+**13**, que tiene la hoja curva y el gavilán en gancho — la única silueta de su
+fila que no se confunde con una espada.
+
+**Y el tamaño es lo que separa una daga de un mandoble.** Los ficheros son todos
+de 32×32, así que sin encogerlos se pintan iguales: `TAM_ICONO` en la arena y
+`ESCALA_FICHA` en la armería. No es cosmética, es legibilidad.
+
 **La skin gratis no siempre es la primera de la fila.** La lanza y el bastón de
 la primera columna son un palo sin punta y sin pomo, que se lee como un fallo de
 dibujo antes que como un arma humilde. Por eso `SKINS` lleva `gratis` aparte de

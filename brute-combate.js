@@ -398,7 +398,11 @@
      de dibujo antes que como un arma humilde. */
   const SKINS = {
     mandoble: { base:  1, gratis: 2, precio: 60 },
-    daga:     { base: 11, gratis: 3, precio: 45 },
+    /* La 13 y no la 14: las filas 1-10 y 11-20 son el MISMO diseño con la hoja
+       un poco mas corta, y a 32 pixeles eso no se distingue — la daga parecia
+       un mandoble pequeño. La 13 tiene la hoja curva y el gavilan en gancho,
+       que es la unica silueta de su fila que no se confunde con una espada. */
+    daga:     { base: 11, gratis: 2, precio: 45 },
     lanza:    { base: 41, gratis: 2, precio: 50 },
     maza:     { base: 51, gratis: 1, precio: 50 },
     escudo:   { base: 61, gratis: 1, precio: 45 },

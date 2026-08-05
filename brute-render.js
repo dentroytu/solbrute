@@ -78,8 +78,15 @@
 
      Antes estaban en 34/52/64 y el mandoble y la lanza se salian por arriba:
      el mismo fallo que hacia que la lanza vectorial pareciera una tabla. */
-  const TAM_ICONO = { daga: 32, mandoble: 48, lanza: 56,
+  const TAM_ICONO = { daga: 28, mandoble: 50, lanza: 56,
                       maza: 44, guadana: 52, hacha: 46, baston: 54 };
+
+  /* Cuanto ocupa el icono dentro de la tarjeta de la armeria, en tanto por uno
+     del recuadro. No es cosmetica: los iconos son todos de 32x32, asi que sin
+     esto una daga y un mandoble se pintan del mismo tamaño y parecen la misma
+     arma. El tamaño ES lo que los distingue. */
+  const ESCALA_FICHA = { daga: 0.62, escudo: 0.86, maza: 0.86, lanza: 1,
+                         baston: 1, hacha: 0.92, mandoble: 1, guadana: 1 };
 
   const OL = "#241505";            // color de contorno, común a todas las capas
   const SKIN = [["#f0cfa8","#d4a97c"],["#e0ad7e","#c08a55"],["#c69267","#a3743f"],
@@ -461,7 +468,26 @@
 
      Están aquí y no en app.html porque el arte vive en un solo fichero: es la
      regla que se puso el día que los retratos estaban duplicados. */
-  function iconoArma(id){
+  function iconoArma(id, skin){
+    /* Con los iconos comprados encendidos se usan ESOS, y no los dibujados.
+       Si no, la armeria enseñaria un arma y la arena otra distinta — y las
+       cuatro nuevas (hacha, maza, guadaña, baston) no tienen version dibujada,
+       asi que salian en blanco. Ese era el «varios sin icono».
+
+       La escala importa: los ficheros son todos de 32x32, asi que sin
+       encogerlos una daga y un mandoble se pintan iguales. */
+    const C = COMBATE();
+    if(ICONO_BASE && C && C.iconoDe){
+      const f = C.iconoDe(id, skin);
+      if(f){
+        const e = ESCALA_FICHA[id] || 1;
+        const m = (64 - 64 * e) / 2;
+        return `<svg viewBox="0 0 64 64" aria-hidden="true">
+          <image x="${m}" y="${m}" width="${64*e}" height="${64*e}"
+                 image-rendering="pixelated" href="${ICONO_BASE}${f}"
+                 preserveAspectRatio="xMidYMid meet"/></svg>`;
+      }
+    }
     const M = "#c98a3a", MD = "#a3762f", ML = "#e5ab5c", MAD = "#6b4f2a";
     const cuerpos = {
       /* Puños: nudillos de frente. Un puño de perfil se leía como un borrón a

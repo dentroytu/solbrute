@@ -1947,7 +1947,7 @@
          de nivel— pero no compite con lo que si puedes usar. */
       return `<div class="arm${llevo ? " puesta" : ""}${!puedeComprar ? " bloqueada" : ""}">
         <div class="arm-top">
-          <span class="arm-icono">${iconoArma(id)}</span>
+          <span class="arm-icono">${iconoArma(id, puesta === id ? active.skin : null)}</span>
           <span class="arm-nom">${nombres[id]}</span>
           ${min > 1 ? `<span class="arm-nv${puedeEquipar ? "" : " falta"}">${t("lvl")} ${min}</span>` : ""}
           ${n > 0 ? `<span class="arm-n" title="${t("arm_libres")}">×${n}</span>` : ""}
