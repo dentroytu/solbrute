@@ -396,19 +396,48 @@
      no se cobra — y NO siempre es la primera: la lanza y el baston de la
      primera columna son un palo sin punta y sin pomo, que se lee como un fallo
      de dibujo antes que como un arma humilde. */
+  /* ══════════ FAMILIAS ══════════
+     Una familia es una fila del pack de iconos: espadas, hachas, escudos…
+     Dentro puede haber VARIAS armas, y esa es la puerta para que sigan
+     entrando a niveles altos sin que la armeria se vuelva una tira ilegible.
+
+     Lo que comparten es el ARTE, no las reglas. Dos espadas de la misma
+     familia se dibujan con los mismos iconos y se distinguen por el tamaño —
+     una corta y un mandoble — pero cada una tiene sus propias constantes y su
+     propia medicion.
+
+     Y las skins se compran por FAMILIA. Comprar la espada en llamas y que solo
+     valga para una de tus tres espadas seria cobrar tres veces por el mismo
+     dibujo. */
+  const FAMILIAS = {
+    espadas:  { base:  1, precio: 60 },
+    dagas:    { base: 11, precio: 45 },
+    lanzas:   { base: 41, precio: 50 },
+    mazas:    { base: 51, precio: 50 },
+    escudos:  { base: 61, precio: 45 },
+    guadanas: { base: 71, precio: 55 },
+    hachas:   { base: 81, precio: 55 },
+    bastones: { base: 91, precio: 45 },
+  };
+  /* A que familia pertenece cada arma, y cual es su aspecto de casa. */
+  const FAMILIA_DE = {
+    mandoble:"espadas", daga:"dagas", lanza:"lanzas", maza:"mazas",
+    escudo:"escudos", guadana:"guadanas", hacha:"hachas", baston:"bastones",
+  };
+
+  /* De cada arma solo hace falta cual es su aspecto de casa: la fila y el
+     precio salen de su familia. `gratis` NO siempre es el primero de la fila —
+     la lanza y el baston de la primera columna son un palo sin punta ni pomo,
+     que se lee como un fallo de dibujo antes que como un arma humilde. */
   const SKINS = {
-    mandoble: { base:  1, gratis: 2, precio: 60 },
-    /* La 13 y no la 14: las filas 1-10 y 11-20 son el MISMO diseño con la hoja
-       un poco mas corta, y a 32 pixeles eso no se distingue — la daga parecia
-       un mandoble pequeño. La 13 tiene la hoja curva y el gavilan en gancho,
-       que es la unica silueta de su fila que no se confunde con una espada. */
-    daga:     { base: 11, gratis: 2, precio: 45 },
-    lanza:    { base: 41, gratis: 2, precio: 50 },
-    maza:     { base: 51, gratis: 1, precio: 50 },
-    escudo:   { base: 61, gratis: 1, precio: 45 },
-    guadana:  { base: 71, gratis: 1, precio: 55 },
-    hacha:    { base: 81, gratis: 1, precio: 55 },
-    baston:   { base: 91, gratis: 1, precio: 45 },
+    mandoble: { gratis: 2 },
+    daga:     { gratis: 2 },
+    lanza:    { gratis: 2 },
+    maza:     { gratis: 1 },
+    escudo:   { gratis: 1 },
+    guadana:  { gratis: 1 },
+    hacha:    { gratis: 1 },
+    baston:   { gratis: 1 },
   };
   const SKIN_N = 10;
 
@@ -416,10 +445,19 @@
      a la gratis: no puede dejar a nadie desarmado, que es lo que pasa cuando
      un `<image>` apunta a algo que no existe. */
   function iconoDe(armaId, n){
-    const f = SKINS[armaId];
-    if(!f) return null;
+    const f = SKINS[armaId], fam = FAMILIAS[FAMILIA_DE[armaId]];
+    if(!f || !fam) return null;
     const i = Number.isInteger(n) && n >= 0 && n < SKIN_N ? n : f.gratis;
-    return "icon_" + String(f.base + i).padStart(2, "0") + ".png";
+    return "icon_" + String(fam.base + i).padStart(2, "0") + ".png";
+  }
+
+  /* Las armas de una familia, en orden de nivel. Es lo que pinta cada menu de
+     la armeria — y se DERIVA de `FAMILIA_DE`, no se escribe a mano: una lista
+     paralela se desincroniza el dia que entre un arma nueva. */
+  function armasDe(familia){
+    return Object.keys(ARMAS)
+      .filter((id) => FAMILIA_DE[id] === familia)
+      .sort((a, b) => (ARMAS[a].nivel || 1) - (ARMAS[b].nivel || 1));
   }
 
   /* ═══════════ mascotas ═══════════
@@ -683,7 +721,7 @@
     STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS, PROB_ATRIBUTO, PROB_ARMA,
     OPP_COUNT, LEVEL_SPREAD, FIGHTS_DAY, REROLLS_DAY, NAMES, LOOK_N,
     ARMAS, ARMAS_REALES, arma, seRompe, duracion,
-    SKINS, SKIN_N, iconoDe, RESCATE_PCT, precioRescate,
+    SKINS, SKIN_N, iconoDe, FAMILIAS, FAMILIA_DE, armasDe, RESCATE_PCT, precioRescate,
     MASCOTAS, MASCOTAS_REALES, mascota,
     randomLook, barajar, nuevoBot,
     ri, xpNeed, rollStats, subirAtributo, botStats,

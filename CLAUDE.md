@@ -1387,6 +1387,32 @@ faltan. Si nadie compra, están caras; si todos llevan la misma, baratas.
 **Si tocas estos números, vuelve a medir.** La simulación son cincuenta líneas y
 está en el historial del repositorio.
 
+### Familias, y por qué la armería tiene menús
+
+Una **familia** es una fila del pack de iconos: espadas, hachas, escudos. Dentro
+puede haber **varias armas**, y esa es la puerta para que sigan entrando a
+niveles altos sin que la armería se vuelva una tira ilegible — con nueve ya se
+lee mal; con veinte, es inservible.
+
+Lo que comparten es el **arte, no las reglas**. Dos espadas de la misma familia
+se dibujan con los mismos iconos y se distinguen por el tamaño —una corta y un
+mandoble— pero cada una tiene sus constantes y su propia medición.
+
+**Y las skins se compran por familia.** Comprar la espada en llamas y que solo
+valga para una de tus tres espadas sería cobrar dos veces por el mismo dibujo.
+
+`armasDe(familia)` se **deriva** de `FAMILIA_DE`; una lista paralela se
+desincroniza el día que entre un arma nueva.
+
+**El nivel 70 existe de verdad**, y por eso la escalera puede llegar tan lejos:
+
+| nivel | peleas | tiempo a 3/día |
+|---|---|---|
+| 20 | 113 | 1,2 meses |
+| 40 | 374 | 4 meses |
+| 70 | 978 | **11 meses** |
+| 100 | 1.800 | 1,6 años |
+
 ### Las skins: ochenta compras y ninguna que medir
 
 Una skin cambia el dibujo y **nada más**: mismo daño, mismo crítico, misma

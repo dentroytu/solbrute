@@ -452,11 +452,13 @@
     /* ═══════════ skins de arma ═══════════
        Cambian el dibujo y nada más: ni daño, ni crítico, ni rotura. Por eso el
        precio lo puede poner el dueño sin desequilibrar nada. */
-    async comprarSkin(arma, skin){
-      return await pedirAuth({ accion: "comprar_skin", token: token(), arma, skin });
+    async comprarSkin(familia, skin){
+      return await pedirAuth({ accion: "comprar_skin", token: token(), familia, skin });
     },
-    async ponerSkin(bruteId, skin){
-      return await pedirAuth({ accion: "poner_skin", token: token(), bruteId, skin });
+    /* `arma` viaja para que el servidor sepa de qué familia es la skin. La
+       propiedad la comprueba él contra el bruto, no contra esto. */
+    async ponerSkin(bruteId, arma, skin){
+      return await pedirAuth({ accion: "poner_skin", token: token(), bruteId, arma, skin });
     },
 
     /* ═══════════ el vivarium ═══════════

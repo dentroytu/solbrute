@@ -797,10 +797,15 @@ async function manejar(req: Request): Promise<Response> {
      bastaria con editarlo para comprar gratis — es lo mismo que con las armas
      y las mascotas. */
   if (accion === "comprar_skin") {
-    const arma = String(cuerpo.arma || "");
+    /* Se compra por FAMILIA, no por arma: los iconos son los mismos para todas
+       las de una fila, asi que cobrarlo por arma seria cobrar dos veces por el
+       mismo dibujo. El navegador puede mandar el arma o la familia; aqui se
+       normaliza a familia, que es lo unico que se guarda. */
+    const pedida = String(cuerpo.familia || cuerpo.arma || "");
+    const familia = C.FAMILIAS[pedida] ? pedida : C.FAMILIA_DE[pedida];
     const skin = Math.floor(Number(cuerpo.skin));
-    const f = C.SKINS[arma];
-    if (!f) return responder({ error: "esa arma no existe" }, 400);
+    const f = C.FAMILIAS[familia];
+    if (!f) return responder({ error: "esa familia no existe" }, 400);
     if (!Number.isInteger(skin) || skin < 0 || skin >= C.SKIN_N) {
       return responder({ error: "esa skin no existe" }, 400);
     }
@@ -808,7 +813,7 @@ async function manejar(req: Request): Promise<Response> {
     try {
       r = await db("/rpc/skin_comprar", {
         method: "POST",
-        body: JSON.stringify({ p_owner: dueno, p_arma: arma, p_skin: skin, p_precio: f.precio }),
+        body: JSON.stringify({ p_owner: dueno, p_arma: familia, p_skin: skin, p_precio: f.precio }),
       });
     } catch (e) {
       const m = (e as Error).message;
@@ -825,8 +830,8 @@ async function manejar(req: Request): Promise<Response> {
        invariante dejaria de cuadrar. `reciclar` no devuelve promesa: se traga
        sus errores a proposito, porque el jugador ya ha pagado. */
     reciclar(f.precio);
-    apuntar(dueno, "skin", arma + ":" + skin, f.precio, { arma, skin });
-    return responder({ arma, skin, balance: r.balance, skins: r.skins });
+    apuntar(dueno, "skin", familia + ":" + skin, f.precio, { familia, skin });
+    return responder({ familia, skin, balance: r.balance, skins: r.skins });
   }
 
   if (accion === "poner_skin") {
@@ -841,9 +846,14 @@ async function manejar(req: Request): Promise<Response> {
     }
     let r;
     try {
+      /* La familia la tiene que mandar la Edge Function: la tabla vive en
+         `brute-combate.js` y Postgres no la conoce. Se saca del arma que lleve
+         el bruto — que es lo mismo que comprueba la funcion. */
+      const fam = C.FAMILIA_DE[String(cuerpo.arma || "")] || null;
       r = await db("/rpc/skin_poner", {
         method: "POST",
-        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_skin: skin }),
+        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_skin: skin,
+                               p_familia: fam }),
       });
     } catch (e) {
       const m = (e as Error).message;

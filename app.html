@@ -303,6 +303,24 @@
   .arm-datos{ display:flex; gap:12px; font-size:10.5px; color:var(--muted); flex-wrap:wrap;
               border-top:1px solid rgba(58,46,28,.5); padding-top:8px; }
   .arm-datos b{ color:var(--text); font-variant-numeric:tabular-nums; }
+  /* ── los menús por familia ── */
+  .fam{ background:var(--surface); border:1px solid var(--line); border-radius:14px;
+        overflow:hidden; margin-bottom:9px; }
+  .fam.on{ border-color:var(--bronze); }
+  .fam-cab{ display:flex; align-items:center; gap:11px; width:100%; padding:11px 14px;
+        font:inherit; cursor:pointer; background:transparent; border:0; color:var(--text); text-align:left; }
+  .fam-cab:hover{ background:rgba(201,138,58,.06); }
+  .fam-ico{ width:34px; height:34px; flex-shrink:0; border-radius:8px; padding:2px;
+        background:linear-gradient(180deg,#2a2013,#161006); border:1px solid var(--line); }
+  .fam-ico svg{ width:100%; height:100%; display:block; }
+  .fam-nom{ font-family:'Cinzel',serif; font-weight:700; font-size:15px; color:var(--bronze-light); flex:1; }
+  .fam-n{ font-size:11px; color:var(--muted); border:1px solid var(--line);
+        border-radius:99px; padding:1px 8px; }
+  .fam-tuyas{ font-size:10.5px; color:var(--sol-teal); }
+  .fam-flecha{ color:var(--bronze); font-size:12px; }
+  .fam-cuerpo{ padding:0 12px 12px; }
+  .fam-cuerpo .arm{ margin-bottom:8px; }
+
   /* ── el cajón de skins ── */
   .arm-skins{ width:100%; margin-top:9px; font:inherit; font-size:11.5px; font-weight:600;
         cursor:pointer; background:transparent; color:var(--bronze); border:1px dashed var(--line);
@@ -949,6 +967,7 @@
   const { STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX,
           ri, xpNeed, rollStats, subirAtributo, botStats,
           ARMAS, ARMAS_REALES, duracion, SKINS, SKIN_N, iconoDe,
+          FAMILIAS, FAMILIA_DE, armasDe,
           MASCOTAS, MASCOTAS_REALES,
           simulate, aplicar } = window.BruteCombate;
 
@@ -1082,6 +1101,7 @@
       arm_note:"Un arma te da algo de ventaja, pero poca: con la mejor del juego ganas 6 de cada 100 más que a puño limpio. Y cuanto mejor es, antes se rompe — así que la ventaja se alquila, no se compra.",
       arm_para:"Armería de", arm_puesta:"Equipada", arm_equipar:"Equipar", arm_comprar:"Comprar",
       arm_dura:"aguanta", arm_combates:"combates", arm_cae:"se cae", arm_turno:"por turno",
+      fam_tuyas:"tuyas",
       skin_ver:"Aspectos", skin_puesta:"La llevas puesta", skin_poner:"Ponérsela a este bruto",
       skin_ya:"Ya tienes ese aspecto.", skin_no_lleva:"Este bruto no lleva esa arma.",
       skin_no_tienes:"No tienes ese aspecto.",
@@ -1097,6 +1117,7 @@
       rank_empty:"Todavía no hay ningún bruto forjado. El primero serás tú.",
       o:{
         arenas: { cueva:"La cueva", yermo:"El yermo", osario:"El osario", bosque:"El bosque", hielo:"El hielo", averno:"El averno" },
+        familias: { espadas:"Espadas", dagas:"Dagas", lanzas:"Lanzas", mazas:"Mazas", escudos:"Escudos", guadanas:"Guadañas", hachas:"Hachas", bastones:"Bastones" },
         bichos: { ninguna:"Ninguna", perro:"Perro de guerra", lobo:"Lobo", oso:"Oso" },
         viv_como: { ninguna:"Peleas solo. Vas a tu velocidad y no tienes nada que perder.", perro:"Muerde a menudo, pero flojo, y se pone delante. El equilibrado. Cae cada ~2 peleas y muere cada ~21.", lobo:"El que pega más fuerte. Aguanta menos y muere cada ~20 peleas.", oso:"Muerde flojo: está para comerse los golpes por ti. El que más dura, muere cada ~32 peleas." },
           armas:{ ninguna:"Puños", daga:"Daga", escudo:"Escudo", maza:"Maza", lanza:"Lanza", baston:"Bastón", hacha:"Hacha", mandoble:"Mandoble", guadana:"Guadaña" },
@@ -1224,6 +1245,7 @@
       arm_note:"A weapon gives you an edge, but a small one: the best in the game wins 6 more fights out of 100 than bare fists. And the better it is, the sooner it breaks — the edge is rented, not bought.",
       arm_para:"Armoury for", arm_puesta:"Equipped", arm_equipar:"Equip", arm_comprar:"Buy",
       arm_dura:"lasts", arm_combates:"fights", arm_cae:"dropped", arm_turno:"per turn",
+      fam_tuyas:"owned",
       skin_ver:"Skins", skin_puesta:"Currently equipped", skin_poner:"Put it on this brute",
       skin_ya:"You already own that skin.", skin_no_lleva:"This brute isn't carrying that weapon.",
       skin_no_tienes:"You don't own that skin.",
@@ -1239,6 +1261,7 @@
       rank_empty:"No brute has been forged yet. You could be the first.",
       o:{
         arenas: { cueva:"The cave", yermo:"The badlands", osario:"The ossuary", bosque:"The grove", hielo:"The ice", averno:"The inferno" },
+        familias: { espadas:"Swords", dagas:"Daggers", lanzas:"Spears", mazas:"Maces", escudos:"Shields", guadanas:"Scythes", hachas:"Axes", bastones:"Quarterstaves" },
         bichos: { ninguna:"None", perro:"War dog", lobo:"Wolf", oso:"Bear" },
         viv_como: { ninguna:"You fight alone. Full speed, nothing to lose.", perro:"Bites often but softly, and steps in front. The balanced one. Goes down every ~2 fights, dies every ~21.", lobo:"Hits hardest. Takes less punishment and dies every ~20 fights.", oso:"Bites softly: it is there to take the hits for you. The longest-lived, dies every ~32 fights." },
           armas:{ ninguna:"Bare fists", daga:"Dagger", escudo:"Shield", maza:"Mace", lanza:"Spear", baston:"Quarterstaff", hacha:"Axe", mandoble:"Greatsword", guadana:"Scythe" },
@@ -1366,6 +1389,7 @@
       arm_note:"Une arme te donne un avantage, mais petit : la meilleure du jeu gagne 6 combats sur 100 de plus que les poings nus. Et meilleure elle est, plus vite elle casse — l\u2019avantage se loue, il ne s\u2019achete pas.",
       arm_para:"Armurerie de", arm_puesta:"Équipée", arm_equipar:"Équiper", arm_comprar:"Acheter",
       arm_dura:"tient", arm_combates:"combats", arm_cae:"tombe", arm_turno:"par tour",
+      fam_tuyas:"à toi",
       skin_ver:"Apparences", skin_puesta:"Actuellement équipée", skin_poner:"La mettre à cette brute",
       skin_ya:"Tu possèdes déjà cette apparence.", skin_no_lleva:"Cette brute ne porte pas cette arme.",
       skin_no_tienes:"Tu ne possèdes pas cette apparence.",
@@ -1381,6 +1405,7 @@
       rank_empty:"Aucune brute forgée pour l'instant. Tu peux être le premier.",
       o:{
         arenas: { cueva:"La grotte", yermo:"Les terres arides", osario:"L\u2019ossuaire", bosque:"Le bois", hielo:"La glace", averno:"L\u2019averne" },
+        familias: { espadas:"Épées", dagas:"Dagues", lanzas:"Lances", mazas:"Masses", escudos:"Boucliers", guadanas:"Faux", hachas:"Haches", bastones:"Bâtons" },
         bichos: { ninguna:"Aucun", perro:"Chien de guerre", lobo:"Loup", oso:"Ours" },
         viv_como: { ninguna:"Tu combats seul. Pleine vitesse, rien à perdre.", perro:"Mord souvent mais faiblement, et se met devant. L\u2019equilibre. Tombe tous les ~2 combats, meurt tous les ~21.", lobo:"Celui qui frappe le plus fort. Encaisse moins et meurt tous les ~20 combats.", oso:"Mord faiblement : il est là pour encaisser à ta place. Le plus durable, meurt tous les ~32 combats." },
           armas:{ ninguna:"Poings nus", daga:"Dague", escudo:"Bouclier", maza:"Masse", lanza:"Lance", baston:"Bâton de combat", hacha:"Hache", mandoble:"Espadon", guadana:"Faux" },
@@ -1960,7 +1985,35 @@
       </div>`;
     };
 
-    el("armLista").innerHTML = ["ninguna", ...ARMAS_REALES].map(tarjeta).join("");
+    /* Por familias, no en una tira. Con nueve armas ya se lee mal; el dia que
+       haya veinte, una lista plana es inservible. Y agrupa lo que de verdad va
+       junto: las de una familia comparten arte y comparten skins. */
+    const seccion = fam => {
+      const ids = armasDe(fam);
+      if(!ids.length) return "";
+      const nombres = O("familias");
+      /* Se abre la que lleva puesta, y si no ninguna: entrar y encontrarse
+         ocho cajones abiertos es la misma tira de antes con mas pasos. */
+      const dentro = ids.includes(puesta) || !!familiaAbierta[fam];
+      const tuyas = ids.filter(i => libres(i) > 0 || i === puesta).length;
+      return `<div class="fam${dentro ? " on" : ""}">
+        <button class="fam-cab js-fam" data-f="${fam}">
+          <span class="fam-ico">${iconoArma(ids[0], null)}</span>
+          <span class="fam-nom">${esc(nombres[fam] || fam)}</span>
+          <span class="fam-n">${ids.length}</span>
+          ${tuyas ? `<span class="fam-tuyas">${tuyas} ${t("fam_tuyas")}</span>` : ""}
+          <span class="fam-flecha">${dentro ? "▴" : "▾"}</span>
+        </button>
+        ${dentro ? `<div class="fam-cuerpo">${ids.map(tarjeta).join("")}${skinsDe(fam)}</div>` : ""}
+      </div>`;
+    };
+
+    el("armLista").innerHTML =
+      tarjeta("ninguna") + Object.keys(FAMILIAS).map(seccion).join("");
+    el("armLista").querySelectorAll(".js-fam").forEach(b => b.onclick = () => {
+      familiaAbierta[b.dataset.f] = !familiaAbierta[b.dataset.f];
+      renderArmeria();
+    });
     el("armLista").querySelectorAll(".js-eq").forEach(b => b.onclick = () => equipar(b.dataset.a));
     el("armLista").querySelectorAll(".js-comp").forEach(b => b.onclick = () => comprar(b.dataset.a));
     el("armLista").querySelectorAll(".js-skins").forEach(b => b.onclick = () => {
@@ -1975,6 +2028,9 @@
      si se cerrara al comprar una, habría que volver a abrirlo para ver el
      resultado de lo que acabas de pagar. */
   const abiertas = {};
+  /* Y qué familias tienen el menú desplegado. Se recuerda igual: cerrarlo al
+     comprar obligaría a volver a abrirlo para ver lo que acabas de pagar. */
+  const familiaAbierta = {};
 
   /* ── El cajón de skins ──────────────────────────────────────────────────
      Va DENTRO de la tarjeta del arma y no en otra sala, y eso es lo que
@@ -1984,26 +2040,30 @@
      Se enseña aunque no lleves el arma: ver que existe un mandoble dorado es
      la mitad del motivo para querer el mandoble. Lo que no se puede es
      PONÉRSELA a un bruto que no la empuña. */
-  function skinsDe(id){
-    const f = SKINS[id];
+  function skinsDe(fam){
+    const f = FAMILIAS[fam];
     if(!f) return "";                       // los puños no tienen aspecto
-    if(!abiertas[id])
-      return `<button class="arm-skins js-skins" data-a="${id}">${t("skin_ver")} ▾</button>`;
+    if(!abiertas[fam])
+      return `<button class="arm-skins js-skins" data-a="${fam}">${t("skin_ver")} ▾</button>`;
 
-    const mias = (misSkins[id] || []);
-    const puesta = (active.arma === id) ? active.skin : null;
+    /* Las skins son de la FAMILIA, asi que valen para todas sus armas. El ✓ se
+       pinta sobre la que lleve el bruto activo, si lleva una de esta familia. */
+    const mias = (misSkins[fam] || []);
+    const suArma = FAMILIA_DE[active.arma] === fam ? active.arma : null;
+    const gratis = suArma ? SKINS[suArma].gratis : SKINS[armasDe(fam)[0]].gratis;
+    const puesta = suArma ? active.skin : null;
     const rejilla = [];
     for(let i = 0; i < SKIN_N; i++){
-      const tengo = (i === f.gratis) || mias.includes(i);
-      const lleva = tengo && (puesta === i || (puesta == null && i === f.gratis));
+      const tengo = (i === gratis) || mias.includes(i);
+      const lleva = suArma && tengo && (puesta === i || (puesta == null && i === gratis));
       /* Tres estados y ninguno miente: la llevas puesta, la tienes, o cuesta.
          Un icono que no dice si es tuyo hace que la gente pague dos veces. */
       const cls = lleva ? " lleva" : tengo ? " tengo" : "";
       const que = lleva ? "" : tengo ? "poner" : "comprar";
-      rejilla.push(`<button class="skin${cls} js-skin" data-a="${id}" data-s="${i}"
+      rejilla.push(`<button class="skin${cls} js-skin" data-a="${fam}" data-s="${i}"
           data-q="${que}" ${que ? "" : "disabled"}
           title="${tengo ? (lleva ? t("skin_puesta") : t("skin_poner")) : f.precio + " $BRUTE"}">
-        <img src="${ICONO_URL}${iconoDe(id, i)}" alt="" loading="lazy">
+        <img src="${ICONO_URL}${iconoDe(armasDe(fam)[0], i)}" alt="" loading="lazy">
         ${tengo ? (lleva ? '<span class="mk">✓</span>' : "") : `<span class="pr">${f.precio}</span>`}
       </button>`);
     }
@@ -2014,16 +2074,19 @@
 
   /* Comprar o poner, segun el estado del boton. El servidor decide las dos:
      aqui solo se pinta lo que responde. */
-  async function tocarSkin(arma, skin, que){
+  async function tocarSkin(fam, skin, que){
     try{
       if(que === "comprar"){
-        const r = await SolBruteDB.comprarSkin(arma, skin);
+        const r = await SolBruteDB.comprarSkin(fam, skin);
         balance = r.balance;
         misSkins = r.skins || misSkins;
         el("balNum").textContent = balance;
       }else{
-        if(active.arma !== arma){ alert(t("skin_no_lleva")); return; }
-        const r = await SolBruteDB.ponerSkin(active.rid, skin);
+        /* Ponérsela exige que el bruto lleve un arma de esa familia. Se avisa
+           aquí para no gastar una petición en algo que el servidor va a
+           rechazar igual — el que decide sigue siendo él. */
+        if(FAMILIA_DE[active.arma] !== fam){ alert(t("skin_no_lleva")); return; }
+        const r = await SolBruteDB.ponerSkin(active.rid, active.arma, skin);
         active.skin = r.skin;
       }
       renderArmeria();

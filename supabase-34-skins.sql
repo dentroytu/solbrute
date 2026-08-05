@@ -17,8 +17,12 @@
 --
 -- ── Donde vive cada cosa, y por que ───────────────────────────────────────
 --
---     players.skins    lo que POSEES        {"daga": [3, 7]}
---     brutes.arma_skin lo que LLEVA ese bruto     3
+--     players.skins    lo que POSEES, por FAMILIA   {"dagas": [3, 7]}
+--     brutes.arma_skin lo que LLEVA ese bruto             3
+--
+-- Por familia y no por arma porque los iconos de una fila son los mismos para
+-- todas sus armas: cobrar la espada en llamas dos veces —una para la corta y
+-- otra para el mandoble— seria cobrar dos veces por el mismo dibujo.
 --
 -- Es el mismo reparto que las armas y las mascotas desde el paso 14: la bolsa
 -- es del jugador y lo equipado es del bruto. Aqui hay una diferencia a
@@ -53,6 +57,9 @@ alter table brutes add constraint brutes_arma_skin_check
 --
 -- El precio llega calculado desde `brute-combate.js`, como en las armas: la
 -- tabla de precios vive en un solo sitio.
+-- `p_arma` lleva la FAMILIA ("dagas"), no el arma. El nombre se queda por no
+-- cambiar la firma —añadir un parametro crea otra funcion, no la reemplaza— y
+-- porque lo unico que hace Postgres con el es usarlo de clave.
 create or replace function skin_comprar(
   p_owner text, p_arma text, p_skin int, p_precio bigint)
 returns json
@@ -94,7 +101,11 @@ $$;
 -- Se exige que el bruto LLEVE esa arma. Sin eso se podria dejar puesta la skin
 -- de un mandoble en un bruto con daga, y al equiparle el mandoble mas tarde
 -- apareceria una skin que quiza ya no posee.
-create or replace function skin_poner(p_owner text, p_bruto bigint, p_skin int)
+-- Anadir un parametro NO reemplaza la funcion, crea otra. Hay que tirar la
+-- firma vieja o quedan las dos y PostgREST puede llamar a la que no es.
+drop function if exists skin_poner(text, bigint, int);
+
+create or replace function skin_poner(p_owner text, p_bruto bigint, p_skin int, p_familia text)
 returns json
 language plpgsql
 security definer
@@ -112,8 +123,11 @@ begin
      dejar a nadie atrapado con una skin que ya no le gusta. */
   if p_skin is not null then
     if p_skin < 0 or p_skin > 9 then raise exception 'skin_invalida'; end if;
+    /* La bolsa esta indexada por FAMILIA, y aqui solo se conoce el arma. La
+       Edge Function manda la familia en `p_familia` porque la tabla de
+       familias vive en `brute-combate.js` y Postgres no la tiene. */
     select coalesce(skins, '{}'::jsonb) into v_skins from players where address = p_owner;
-    if not coalesce(v_skins -> v_arma, '[]'::jsonb) @> to_jsonb(p_skin) then
+    if not coalesce(v_skins -> p_familia, '[]'::jsonb) @> to_jsonb(p_skin) then
       raise exception 'no_la_tienes';
     end if;
   end if;
@@ -131,9 +145,9 @@ $$;
 -- vuelve a concederlo. Hay que revocar CADA VEZ. `skin_comprar` abierta a anon
 -- es regalarse skins; `skin_poner`, ponerle una al bruto de otro.
 revoke execute on function skin_comprar(text, text, int, bigint) from public, anon, authenticated;
-revoke execute on function skin_poner(text, bigint, int)         from public, anon, authenticated;
+revoke execute on function skin_poner(text, bigint, int, text)   from public, anon, authenticated;
 grant  execute on function skin_comprar(text, text, int, bigint) to service_role;
-grant  execute on function skin_poner(text, bigint, int)         to service_role;
+grant  execute on function skin_poner(text, bigint, int, text)   to service_role;
 
 
 -- ══════════════════════════════════════════════════════════════════════════
