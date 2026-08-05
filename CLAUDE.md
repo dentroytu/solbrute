@@ -658,12 +658,25 @@ de Motion Twin y **no se copian**. Todo el arte de SolBrute es original.
 
 ## Las armas, en pixel art
 
-Iconos comprados (CraftPix, 100 iconos de 32×32). **Se enciende en una línea**:
-`ICONO_BASE` en `brute-render.js`. Vacío = las armas vectoriales de siempre.
+Iconos comprados (CraftPix, 100 iconos de 32×32), **encendidos**. Se apagan
+vaciando `ICONO_BASE` en `brute-render.js`: es la salida de emergencia si el
+bucket deja de responder.
 
-**Nace apagado a propósito.** Un `<image>` que no carga no deja hueco ni avisa:
-deja al bruto **desarmado**. Poner la URL antes de subir los ficheros sería
-dejar a todo el mundo a puño limpio sin que nadie entienda por qué.
+**Están las 100 subidas con su nombre original** (`icon_01.png`…`icon_100.png`),
+y eso no es desorden: el pack son **10 tipos × 10 aspectos**, así que la fila es
+el arma y la columna la skin.
+
+```
+01-10 espadas   21-30 ballestas  41-50 lanzas  61-70 escudos   81-90 hachas
+11-20 cortas    31-40 arcos      51-60 mazas   71-80 guadañas  91-100 bastones
+```
+
+Cambiar de skin será cambiar un número en `ICONOS` — **sin tocar el equilibrio**,
+que es lo que permite venderlas sin convertir el juego en pay-to-win.
+
+**Nació apagado a propósito.** Un `<image>` que no carga no deja hueco ni avisa:
+deja al bruto **desarmado**. Poner la URL antes de subir los ficheros habría
+dejado a todo el mundo a puño limpio sin que nadie entendiera por qué.
 
 Los PNG **no van al repositorio** —CraftPix prohíbe redistribuir— sino a
 Supabase Storage, igual que los fondos de arena.

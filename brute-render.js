@@ -48,15 +48,25 @@
      al bruto DESARMADO. Poner la URL antes de subir los ficheros seria dejar
      a todo el mundo a puño limpio sin que nadie entienda por que.
 
-     Cuando las cuatro esten en el bucket `armas`, se cambia esta linea por:
-       const ICONO_BASE = "https://ihrcvartuuyvftxdxztt.supabase.co/storage/v1/object/public/armas/";
+     Vaciarla vuelve a las vectoriales sin tocar nada mas. Es la salida de
+     emergencia si algun dia el bucket deja de responder.
   */
-  const ICONO_BASE = "";
+  const ICONO_BASE = "https://ihrcvartuuyvftxdxztt.supabase.co/storage/v1/object/public/armas/";
+  /* Estan las 100 subidas con su nombre original, asi que se apunta al numero
+     en vez de renombrar. Es lo que hace barata la escalera de skins: la fila
+     es el tipo de arma y la columna el aspecto, y cambiar de skin sera cambiar
+     este numero — sin tocar nada mas y sin rozar el equilibrio.
+
+         01-10 espadas    21-30 ballestas   41-50 lanzas    61-70 escudos    81-90 hachas
+         11-20 cortas     31-40 arcos       51-60 mazas     71-80 guadañas   91-100 bastones
+
+     Elegidos los planos de nivel 1-2, sin brillos magicos: es lo que pega con
+     el registro de gladiador romano. */
   const ICONOS = {
-    daga:     "daga.png",
-    mandoble: "mandoble.png",
-    lanza:    "lanza.png",
-    escudo:   "escudo.png",
+    daga:     "icon_14.png",
+    mandoble: "icon_03.png",
+    lanza:    "icon_43.png",
+    escudo:   "icon_62.png",
   };
   /* Al girar -45 grados sobre la empuñadura, la punta sube `1.414 x tam` desde
      y=28. Con el lienzo empezando en -56, el tope es tam=59.
