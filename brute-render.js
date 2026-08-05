@@ -27,6 +27,48 @@
 (function(){
   "use strict";
 
+  /* ══════════════════════════════════════════════════════════════════════
+     LOS ICONOS DE ARMA
+     ══════════════════════════════════════════════════════════════════════
+     Pixel art comprado (CraftPix). La licencia prohibe redistribuir, asi que
+     los PNG NO van al repositorio: viven en Supabase Storage, igual que los
+     fondos de arena.
+
+     Con `ICONO_BASE` vacio se dibujan las armas vectoriales de siempre. Es lo
+     que permite publicar este fichero antes de subir las imagenes sin que
+     nadie aparezca desarmado.
+
+     Los tamaños se afinan MIRANDOLOS, no calculandolos: el mandoble tiene que
+     leerse mas largo que la daga y la lanza mas que el mandoble. Como el
+     lienzo del perfil empieza en y=-34 hay sitio de sobra por arriba. */
+  /* ── SE ENCIENDE AQUI, y nace apagado ────────────────────────────────
+     Vacio = armas vectoriales de siempre. Con la URL puesta = pixel art.
+
+     Nace vacio porque un `<image>` que no carga no deja hueco ni avisa: deja
+     al bruto DESARMADO. Poner la URL antes de subir los ficheros seria dejar
+     a todo el mundo a puño limpio sin que nadie entienda por que.
+
+     Cuando las cuatro esten en el bucket `armas`, se cambia esta linea por:
+       const ICONO_BASE = "https://ihrcvartuuyvftxdxztt.supabase.co/storage/v1/object/public/armas/";
+  */
+  const ICONO_BASE = "";
+  const ICONOS = {
+    daga:     "daga.png",
+    mandoble: "mandoble.png",
+    lanza:    "lanza.png",
+    escudo:   "escudo.png",
+  };
+  /* Al girar -45 grados sobre la empuñadura, la punta sube `1.414 x tam` desde
+     y=28. Con el lienzo empezando en -56, el tope es tam=59.
+
+         daga      32  →  punta en y=-17
+         mandoble  48  →  punta en y=-40
+         lanza     56  →  punta en y=-51
+
+     Antes estaban en 34/52/64 y el mandoble y la lanza se salian por arriba:
+     el mismo fallo que hacia que la lanza vectorial pareciera una tabla. */
+  const TAM_ICONO = { daga: 32, mandoble: 48, lanza: 56 };
+
   const OL = "#241505";            // color de contorno, común a todas las capas
   const SKIN = [["#f0cfa8","#d4a97c"],["#e0ad7e","#c08a55"],["#c69267","#a3743f"],
                 ["#a3714a","#82552f"],["#7d5334","#5e3c22"],["#5a3a22","#412714"]];
@@ -525,11 +567,16 @@
         <path d="M34 62 L36 74" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M34 62 L36 74" fill="none" stroke="${sh}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
-        ${llevaEscudo ? `
+        ${!llevaEscudo ? "" : (ICONOS.escudo && ICONO_BASE
+          /* El escudo se lleva de frente y no se empuña en diagonal: va
+             centrado en el antebrazo, sin girar. */
+          ? `<image x="14" y="46" width="36" height="36" image-rendering="pixelated"
+               href="${ICONO_BASE}${ICONOS.escudo}" preserveAspectRatio="xMidYMid meet"/>`
+          : `
         <circle cx="32" cy="64" r="15" fill="#4a3a22" stroke="${OL}" stroke-width="3"/>
         <circle cx="32" cy="64" r="15" fill="none" stroke="${m}" stroke-width="2.6"/>
         <circle cx="32" cy="64" r="9" fill="none" stroke="${m}" stroke-width="1.6" opacity=".7"/>
-        <circle cx="32" cy="64" r="4" fill="${m}" stroke="${OL}" stroke-width="1.6"/>` : ""}</g>`;
+        <circle cx="32" cy="64" r="4" fill="${m}" stroke="${OL}" stroke-width="1.6"/>`)}</g>`;
 
     /* ── torso desnudo (piel) ── */
     const bust = g.chest ? `<path d="M65 56 Q71 60 65 64" fill="${s}" stroke="${OL}" stroke-width="2.2" stroke-linejoin="round"/>` : "";
@@ -581,6 +628,36 @@
        la lanza una asta con punta. El escudo va en el otro brazo y por eso se
        dibuja más abajo, no aquí. */
     const armaId = b.arma || "ninguna";
+    /* ── el arma como IMAGEN ──────────────────────────────────────────────
+       Los iconos comprados son pixel art de 32x32 con el mango abajo a la
+       izquierda y la hoja en diagonal hacia arriba-derecha. El arma dibujada
+       vive dentro de `j-codoA` con la empuñadura hacia (84,28) y la hoja
+       apuntando hacia arriba, asi que basta con:
+
+         · poner la esquina inferior izquierda de la imagen en la mano
+         · girarla -45 grados sobre ese mismo punto
+
+       y la diagonal del icono queda alineada con la hoja. Va DENTRO del mismo
+       grupo, asi que gira con el antebrazo igual que el arma dibujada: se arma
+       el golpe, sale y vuelve.
+
+       `image-rendering:pixelated` no es opcional: sin el, un 32x32 ampliado a
+       4x sale borroso y parece un error de compresion en vez de pixel art.
+
+       Si no hay icono para un arma —o no se ha subido todavia— se dibuja la
+       vectorial de siempre. Es lo que permite desplegar el codigo antes que
+       los ficheros sin que nadie se quede desarmado. */
+    const iconoArma = (id, tam) => {
+      /* El escudo se lleva en el brazo B y la mano del arma va vacia. Sin esta
+         linea salian DOS escudos, uno en cada mano. */
+      if(id === "escudo") return "";
+      const f = ICONOS[id];
+      if(!f || !ICONO_BASE) return null;
+      return `<image x="84" y="${28-tam}" width="${tam}" height="${tam}"
+        transform="rotate(-45 84 28)" image-rendering="pixelated"
+        href="${ICONO_BASE}${f}" preserveAspectRatio="xMidYMid meet"/>`;
+    };
+
     const filos = {
       /* hoja larga y estrecha, la de siempre */
       ninguna: "",
@@ -610,7 +687,14 @@
         <path d="M78 40 L84 24" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M78 40 L84 24" fill="none" stroke="${s}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
       ${tatBody}
-      ${filos[armaId] !== undefined ? filos[armaId] : filos.ninguna}</g></g>`;
+      ${(() => {
+          const ico = iconoArma(armaId, TAM_ICONO[armaId] || 40);
+          /* `null` = no hay icono, se dibuja la vectorial. `""` = hay icono y
+             dice a proposito que aqui no va nada (el escudo). No es lo mismo,
+             y con `||` se confundirian: la cadena vacia tambien es falsa. */
+          return ico !== null ? ico
+               : (filos[armaId] !== undefined ? filos[armaId] : filos.ninguna);
+        })()}</g></g>`;
 
     /* ── hombrera ── */
     const pauldron = `
@@ -663,7 +747,7 @@
        figura se posiciona desde abajo (`bottom:22px`), los pies no se mueven.
 
        Si algún día entra un arma más larga, esto es lo que hay que subir. */
-    return `<svg viewBox="0 -34 110 164" aria-hidden="true">
+    return `<svg viewBox="0 -56 110 186" aria-hidden="true">
       <g transform="${facingRight ? "" : "translate(110,0) scale(-1,1)"}">
         <ellipse cx="52" cy="126" rx="30" ry="4.5" fill="#000" opacity=".45"/>
         ${cloakBack}${hairBack ? melenaAbre + hairBack + melenaCierra : ""}

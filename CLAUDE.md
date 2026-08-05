@@ -621,7 +621,7 @@ no se vea monótono. Al cambiar de sexo el peinado vuelve al índice 0, porque l
 Las dos leen el mismo `look`. En perfil, la melena, la coleta y la trenza se
 dibujan **detrás de la cabeza**, para que el volumen del pelo se lea de lado.
 
-**El lienzo del perfil empieza en `y = -34`, no en 0** (`viewBox="0 -34 110 164"`).
+**El lienzo del perfil empieza en `y = -56`, no en 0** (`viewBox="0 -56 110 186"`).
 Las armas se dibujan por encima de la cabeza —el mandoble llega a `y = -14` y la
 punta de la lanza a `y = -26`— y con el viewBox arrancando en 0 se recortaban
 contra el borde. El síntoma era que **la lanza parecía una tabla**: se veía el
@@ -653,6 +653,51 @@ tarjeta sigue igual.
 
 **IP:** el estilo de My Brute vale como referencia; sus personajes y sprites son
 de Motion Twin y **no se copian**. Todo el arte de SolBrute es original.
+
+---
+
+## Las armas, en pixel art
+
+Iconos comprados (CraftPix, 100 iconos de 32×32). **Se enciende en una línea**:
+`ICONO_BASE` en `brute-render.js`. Vacío = las armas vectoriales de siempre.
+
+**Nace apagado a propósito.** Un `<image>` que no carga no deja hueco ni avisa:
+deja al bruto **desarmado**. Poner la URL antes de subir los ficheros sería
+dejar a todo el mundo a puño limpio sin que nadie entienda por qué.
+
+Los PNG **no van al repositorio** —CraftPix prohíbe redistribuir— sino a
+Supabase Storage, igual que los fondos de arena.
+
+### Cómo encaja un icono plano en un brazo articulado
+
+El arma dibujada vive dentro de `j-codoA`, con la empuñadura hacia (84,28) y la
+hoja hacia arriba. Los iconos traen **el mango abajo a la izquierda y la hoja en
+diagonal**, así que:
+
+```
+esquina inferior izquierda de la imagen → la mano (84,28)
+girar -45° sobre ese mismo punto        → la diagonal queda vertical
+```
+
+Y como va **dentro del mismo grupo**, gira con el antebrazo igual que el arma
+vectorial: se arma el golpe, sale y vuelve.
+
+`image-rendering:pixelated` no es opcional: sin él, un 32×32 ampliado a 4×
+sale borroso y parece un fallo de compresión en vez de pixel art.
+
+### El tamaño no es el que parece
+
+Al girar −45° sobre la empuñadura, **la punta sube `1,414 × tamaño`**. Con el
+lienzo empezando en −34, un mandoble de 52 acababa en `y = −46`: fuera. Es el
+mismo fallo que hacía que la lanza vectorial pareciera una tabla, con otra
+causa. El lienzo se subió a −56 y los tamaños son 32 / 48 / 56.
+
+### `null` y `""` no son lo mismo
+
+`iconoArma` devuelve `null` cuando no hay icono —y entonces se dibuja la
+vectorial— y `""` cuando **hay icono y a propósito no va nada ahí**: el escudo,
+que se lleva en el otro brazo. Con `||` se confundirían, porque la cadena vacía
+también es falsa, y salían **dos escudos, uno en cada mano**.
 
 ---
 

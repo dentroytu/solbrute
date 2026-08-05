@@ -6,3 +6,7 @@ funcion-bajo-prueba.ts
 
 # Las copias llevan direcciones y saldos de gente. Nunca al repositorio.
 respaldos/
+
+# Arte comprado (CraftPix): la licencia prohibe redistribuirlo. Copia local
+# solo para mirar; en produccion va a Supabase Storage.
+arte-local/
