@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 12;  // 10: los bots suben como un jugador · 11: -5% de vida inicial · 12: nueve armas
+  const VERSION = 13;  // 11: -5% de vida inicial · 12: nueve armas · 13: diecisiete
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -318,14 +318,40 @@
        baston    defensivo y velocisimo, pega poquisimo, dura 50 combates */
   const ARMAS = {
     ninguna:  { id:"ninguna",  nombre:"Puños",    nivel:1, golpes:1, dmg:1.000, crit:0.00, esq: 0.00, ini: 0, def:1.00, perder:0,     fragil:0    },
-    daga:     { id:"daga",     nombre:"Daga",     nivel:1, golpes:2, dmg:0.456, crit:0.05, esq: 0.02, ini: 2, def:1.00, perder:0.015, fragil:0.03 },
-    escudo:   { id:"escudo",   nombre:"Escudo",   nivel:2, golpes:1, dmg:0.748, crit:0.00, esq: 0.01, ini:-1, def:0.72, perder:0.025, fragil:0.05 },
-    maza:     { id:"maza",     nombre:"Maza",     nivel:3, golpes:1, dmg:1.026, crit:0.00, esq:-0.02, ini:-3, def:0.92, perder:0.020, fragil:0.04 },
-    lanza:    { id:"lanza",    nombre:"Lanza",    nivel:4, golpes:1, dmg:1.025, crit:0.02, esq: 0.00, ini: 1, def:1.06, perder:0.035, fragil:0.06 },
-    baston:   { id:"baston",   nombre:"Baston",   nivel:5, golpes:2, dmg:0.399, crit:0.00, esq: 0.04, ini: 3, def:0.85, perder:0.010, fragil:0.02 },
-    hacha:    { id:"hacha",    nombre:"Hacha",    nivel:6, golpes:1, dmg:1.175, crit:0.08, esq:-0.04, ini:-1, def:1.10, perder:0.060, fragil:0.10 },
-    mandoble: { id:"mandoble", nombre:"Mandoble", nivel:7, golpes:1, dmg:1.306, crit:0.00, esq:-0.05, ini:-2, def:1.12, perder:0.055, fragil:0.09 },
-    guadana:  { id:"guadana",  nombre:"Guadana",  nivel:9, golpes:2, dmg:0.510, crit:0.04, esq: 0.00, ini: 0, def:1.05, perder:0.030, fragil:0.11 },
+    daga:     { id:"daga",     nombre:"Daga",     nivel:1, golpes:2, dmg:0.468, crit:0.05, esq: 0.02, ini: 2, def:1.00, perder:0.015, fragil:0.03 },
+    escudo:   { id:"escudo",   nombre:"Escudo",   nivel:2, golpes:1, dmg:0.759, crit:0.00, esq: 0.01, ini:-1, def:0.72, perder:0.025, fragil:0.05 },
+    maza:     { id:"maza",     nombre:"Maza",     nivel:3, golpes:1, dmg:1.021, crit:0.00, esq:-0.02, ini:-3, def:0.92, perder:0.020, fragil:0.04 },
+    lanza:    { id:"lanza",    nombre:"Lanza",    nivel:4, golpes:1, dmg:1.057, crit:0.02, esq: 0.00, ini: 1, def:1.06, perder:0.035, fragil:0.06 },
+    baston:   { id:"baston",   nombre:"Baston",   nivel:5, golpes:2, dmg:0.397, crit:0.00, esq: 0.04, ini: 3, def:0.85, perder:0.010, fragil:0.02 },
+    hacha:    { id:"hacha",    nombre:"Hacha",    nivel:6, golpes:1, dmg:1.192, crit:0.08, esq:-0.04, ini:-1, def:1.10, perder:0.060, fragil:0.10 },
+    mandoble: { id:"mandoble", nombre:"Mandoble", nivel:7, golpes:1, dmg:1.319, crit:0.00, esq:-0.05, ini:-2, def:1.12, perder:0.055, fragil:0.09 },
+    guadana:  { id:"guadana",  nombre:"Guadana",  nivel:9, golpes:2, dmg:0.529, crit:0.04, esq: 0.00, ini: 0, def:1.05, perder:0.030, fragil:0.11 },
+
+    /* ── La segunda de cada familia ──────────────────────────────────────
+       No son mejores: son OTRO TRATO. Si la de nivel 50 pegara mas que la de
+       nivel 9, las ocho primeras pasarian a ser decoracion y comprar seria
+       ganar — que es lo que hunde a los juegos con token.
+
+       Cada una se diferencia de SU hermana de familia, no solo del resto:
+
+         estoque     la daga son dos golpes flojos; esto es UNO y muy critico
+         paves       el escudo protege; este protege muchisimo mas y no pega
+         caballero   el mandoble es bruto; esta es fiable y se defiende sola
+         tridente    la lanza es alcance; este son TRES golpes muy flojos
+         hachadoble  el hacha es critica; esta son dos golpes y se cae mas
+         martillo    la maza es lenta; este es LENTISIMO (ini -5) y demoledor
+         guerra      la guadaña son dos tajos; esta es uno enorme y de cristal
+         herrado     el baston es defensivo; este pega y pierde la defensa
+
+       Medido: contra su hermana, entre 44% y 65%. No son reskins. */
+    estoque:    { id:"estoque",    nombre:"Estoque",    nivel:18, golpes:1, dmg:0.866, crit:0.14, esq: 0.03, ini: 4, def:1.04, perder:0.020, fragil:0.05 },
+    paves:      { id:"paves",      nombre:"Paves",      nivel:22, golpes:1, dmg:0.614, crit:0.00, esq: 0.00, ini:-4, def:0.55, perder:0.030, fragil:0.05 },
+    caballero:  { id:"caballero",  nombre:"Caballero",  nivel:25, golpes:1, dmg:0.886, crit:0.03, esq: 0.01, ini: 0, def:0.88, perder:0.025, fragil:0.05 },
+    tridente:   { id:"tridente",   nombre:"Tridente",   nivel:30, golpes:3, dmg:0.369, crit:0.02, esq: 0.00, ini: 1, def:1.08, perder:0.040, fragil:0.07 },
+    hachadoble: { id:"hachadoble", nombre:"Hacha doble",nivel:35, golpes:2, dmg:0.682, crit:0.05, esq:-0.05, ini:-2, def:1.14, perder:0.080, fragil:0.11 },
+    martillo:   { id:"martillo",   nombre:"Martillo",   nivel:40, golpes:1, dmg:1.204, crit:0.00, esq:-0.06, ini:-5, def:1.00, perder:0.035, fragil:0.05 },
+    guerra:     { id:"guerra",     nombre:"Guadana de guerra", nivel:50, golpes:1, dmg:1.175, crit:0.13, esq:-0.06, ini: 2, def:1.22, perder:0.030, fragil:0.08 },
+    herrado:    { id:"herrado",    nombre:"Baston herrado",    nivel:60, golpes:2, dmg:0.493, crit:0.02, esq: 0.00, ini: 2, def:1.02, perder:0.020, fragil:0.04 },
   };
   const PUNOS = ARMAS.ninguna;
 
@@ -354,6 +380,14 @@
   ARMAS.hacha.precio    =  75;   // ~10           →  7,5
   ARMAS.mandoble.precio =  90;   // ~11           →  8,0
   ARMAS.guadana.precio  =  65;   // ~9            →  7,2
+  ARMAS.hachadoble.precio =  68; // ~9            →  7,6
+  ARMAS.tridente.precio =  90;   // ~14           →  6,4
+  ARMAS.guerra.precio   = 120;   // ~17           →  7,1
+  ARMAS.paves.precio    = 100;   // ~20           →  5,0
+  ARMAS.caballero.precio= 110;   // ~20           →  5,5
+  ARMAS.estoque.precio  = 120;   // ~20           →  6,0
+  ARMAS.martillo.precio = 120;   // ~20           →  6,0
+  ARMAS.herrado.precio  = 125;   // ~25           →  5,0
 
   /* ── Lo que cuesta recuperar algo perdido ─────────────────────────────────
      El 60% del precio. Y sube el sumidero en vez de bajarlo, aunque parezca lo
@@ -421,23 +455,32 @@
   };
   /* A que familia pertenece cada arma, y cual es su aspecto de casa. */
   const FAMILIA_DE = {
-    mandoble:"espadas", daga:"dagas", lanza:"lanzas", maza:"mazas",
-    escudo:"escudos", guadana:"guadanas", hacha:"hachas", baston:"bastones",
+    mandoble:"espadas",  caballero:"espadas",
+    daga:"dagas",        estoque:"dagas",
+    lanza:"lanzas",      tridente:"lanzas",
+    maza:"mazas",        martillo:"mazas",
+    escudo:"escudos",    paves:"escudos",
+    guadana:"guadanas",  guerra:"guadanas",
+    hacha:"hachas",      hachadoble:"hachas",
+    baston:"bastones",   herrado:"bastones",
   };
 
   /* De cada arma solo hace falta cual es su aspecto de casa: la fila y el
      precio salen de su familia. `gratis` NO siempre es el primero de la fila —
      la lanza y el baston de la primera columna son un palo sin punta ni pomo,
      que se lee como un fallo de dibujo antes que como un arma humilde. */
+  /* La segunda de cada familia estrena un aspecto mas ornamentado. No da nada
+     —sigue siendo la misma fila de diez— pero un arma que se desbloquea a
+     nivel 50 y se ve como la de nivel 9 no se siente como una recompensa. */
   const SKINS = {
-    mandoble: { gratis: 2 },
-    daga:     { gratis: 2 },
-    lanza:    { gratis: 2 },
-    maza:     { gratis: 1 },
-    escudo:   { gratis: 1 },
-    guadana:  { gratis: 1 },
-    hacha:    { gratis: 1 },
-    baston:   { gratis: 1 },
+    mandoble: { gratis: 2 },  caballero:  { gratis: 5 },
+    daga:     { gratis: 2 },  estoque:    { gratis: 5 },
+    lanza:    { gratis: 2 },  tridente:   { gratis: 5 },
+    maza:     { gratis: 1 },  martillo:   { gratis: 4 },
+    escudo:   { gratis: 1 },  paves:      { gratis: 4 },
+    guadana:  { gratis: 1 },  guerra:     { gratis: 4 },
+    hacha:    { gratis: 1 },  hachadoble: { gratis: 4 },
+    baston:   { gratis: 1 },  herrado:    { gratis: 4 },
   };
   const SKIN_N = 10;
 

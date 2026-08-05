@@ -13,7 +13,7 @@ Todo esto va antes de mainnet. No es opcional y **ninguna es código**.
 
 | | Qué | Estado |
 |---|---|---|
-| ⬜ | **Lo legal.** Sigue pendiente desde el primer día | sin empezar |
+| ✅ | ~~Lo legal~~ — cerrado y en orden, según el dueño | hecho |
 | ⬜ | **Las claves frías las creas tú**, en papel, y no me las enseñas nunca | sin empezar |
 | ⬜ | **Presupuesto de SOL** para la wallet operativa, y vigilarlo | sin empezar |
 | ✅ | RPC de pago (`SOLANA_RPC`, Helius) | hecho, en devnet |
@@ -283,7 +283,7 @@ tokens reales, eso deja de ser una molestia y pasa a ser dinero de otros.
 
 Mi orden, y el porqué:
 
-1. **Lo legal.** Bloquea todo lo demás y no depende de ti que sea rápido.
+1. ~~**Lo legal.**~~ Cerrado.
 2. ~~**Copia de seguridad.**~~ Hecha.
 3. ~~**El enlace por combate + el verificador.**~~ Hecho: `pelea.html`. Falta
    enlazarlo desde el juego y animar el combate (hoy es registro en texto).

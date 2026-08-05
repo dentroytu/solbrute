@@ -25,7 +25,8 @@ experiencia y sube de nivel.
 | `prueba-verificable.mjs` | Comprueba que la verificación detecta una pelea manipulada | Herramienta |
 | `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Aplicado |
 | `supabase-33-armas-nuevas.sql` | Abre el `check` de `brutes.arma` a las nueve. **Antes de la función** | Aplicado |
-| `supabase-34-skins.sql` | Skins de arma: `players.skins` y `brutes.arma_skin` | Escrito |
+| `supabase-34-skins.sql` | Skins de arma: `players.skins` y `brutes.arma_skin` | Aplicado |
+| `supabase-35-armas-17.sql` | Abre el `check` a las diecisiete. **Antes de la función** | Escrito |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -1305,12 +1306,31 @@ del navegador, bastaría con copiarla para leer las compras de cualquiera.
 
 ## Armas
 
-**Son alternativas, no mejoras, y está medido.** Enfrentando las **nueve**
-opciones todas contra todas con brutos idénticos, ninguna se despega:
+**Son alternativas, no mejoras, y está medido.** Enfrentando las **diecisiete**
+opciones todas contra todas con brutos idénticos, ninguna se despega: todas
+entre **47,6% y 51,7%**, desvío máximo 2,4 puntos.
 
-| Puños | Daga | Escudo | Maza | Lanza | Bastón | Hacha | Mandoble | Guadaña |
-|---|---|---|---|---|---|---|---|---|
-| 49,6% | 48,5% | 50,2% | 49,7% | 49,7% | 50,9% | 49,9% | 50,3% | 51,2% |
+**Dos por familia**, la segunda desbloqueada mucho más tarde — pero *no* más
+fuerte:
+
+| familia | nivel 1-9 | nivel 18-60 |
+|---|---|---|
+| dagas | Daga | Estoque (18) |
+| escudos | Escudo | Pavés (22) |
+| espadas | Mandoble | Espada de caballero (25) |
+| lanzas | Lanza | Tridente (30) |
+| hachas | Hacha | Hacha doble (35) |
+| mazas | Maza | Martillo de guerra (40) |
+| guadañas | Guadaña | Guadaña de guerra (50) |
+| bastones | Bastón | Bastón herrado (60) |
+
+**Y la segunda no es la primera con más números: es otro trato.** Medido contra
+su hermana de familia, entre 44% y 65% — no son reskins. La daga son dos golpes
+flojos y el estoque es uno solo, rapidísimo y crítico. El bastón se defiende
+solo; el herrado pega y pierde esa defensa.
+
+Que la de nivel 60 no pegue más no es escrúpulo: **si pegara más, las otras
+dieciséis pasarían a ser decoración** y comprar sería ganar.
 
 Y sigue siendo piedra-papel-tijera de verdad: **cada arma tiene víctimas y
 verdugos**. El bastón gana a la daga 69%, la guadaña al escudo 65%, el escudo al

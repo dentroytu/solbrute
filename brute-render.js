@@ -79,14 +79,19 @@
      Antes estaban en 34/52/64 y el mandoble y la lanza se salian por arriba:
      el mismo fallo que hacia que la lanza vectorial pareciera una tabla. */
   const TAM_ICONO = { daga: 28, mandoble: 50, lanza: 56,
-                      maza: 44, guadana: 52, hacha: 46, baston: 54 };
+                      maza: 44, guadana: 52, hacha: 46, baston: 54,
+                      estoque: 40, caballero: 44, tridente: 58, martillo: 48,
+                      guerra: 58, hachadoble: 50, herrado: 56 };
 
   /* Cuanto ocupa el icono dentro de la tarjeta de la armeria, en tanto por uno
      del recuadro. No es cosmetica: los iconos son todos de 32x32, asi que sin
      esto una daga y un mandoble se pintan del mismo tamaño y parecen la misma
      arma. El tamaño ES lo que los distingue. */
   const ESCALA_FICHA = { daga: 0.62, escudo: 0.86, maza: 0.86, lanza: 1,
-                         baston: 1, hacha: 0.92, mandoble: 1, guadana: 1 };
+                         baston: 1, hacha: 0.92, mandoble: 1, guadana: 1,
+                         estoque: 0.78, paves: 0.94, caballero: 0.9,
+                         tridente: 1, martillo: 0.92, guerra: 1,
+                         hachadoble: 0.96, herrado: 1 };
 
   const OL = "#241505";            // color de contorno, común a todas las capas
   const SKIN = [["#f0cfa8","#d4a97c"],["#e0ad7e","#c08a55"],["#c69267","#a3743f"],
@@ -596,9 +601,13 @@
        El escudo solo aparece si el bruto lo lleva equipado. Antes lo llevaba
        todo el mundo, lo cual era bonito y mentía: ahora el equipo que ves es
        el que de verdad afecta al combate. */
-    const llevaEscudo = (b.arma === "escudo");
+    /* Escudo y paves van los DOS en el brazo B. Comprobar `=== "escudo"` dejaba
+       al paves en la mano del arma, o sea empuñado como una espada. Se mira la
+       familia, que es lo que de verdad decide como se lleva. */
+    const llevaEscudo = (() => { const C = COMBATE();
+      return C && C.FAMILIA_DE ? C.FAMILIA_DE[b.arma] === "escudos" : b.arma === "escudo"; })();
     const iconoEscudo = (() => { const C = COMBATE();
-      return C && C.iconoDe ? C.iconoDe("escudo", b.skin) : null; })();
+      return C && C.iconoDe ? C.iconoDe(b.arma, b.skin) : null; })();
     const shieldArm = `
         <g class="j-brazoB" style="transform-origin:46px 54px">
       <path d="M46 54 L34 62" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
@@ -690,9 +699,9 @@
     const iconoArma = (id, tam) => {
       /* El escudo se lleva en el brazo B y la mano del arma va vacia. Sin esta
          linea salian DOS escudos, uno en cada mano. */
-      if(id === "escudo") return "";
-      const C = COMBATE();
-      const f = C && C.iconoDe ? C.iconoDe(id, b.skin) : null;
+      const CB = COMBATE();
+      if(CB && CB.FAMILIA_DE ? CB.FAMILIA_DE[id] === "escudos" : id === "escudo") return "";
+      const f = CB && CB.iconoDe ? CB.iconoDe(id, b.skin) : null;
       if(!f || !ICONO_BASE) return null;
       return `<image x="84" y="${28-tam}" width="${tam}" height="${tam}"
         transform="rotate(-45 84 28)" image-rendering="pixelated"
