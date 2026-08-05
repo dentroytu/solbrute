@@ -303,6 +303,24 @@
   .arm-datos{ display:flex; gap:12px; font-size:10.5px; color:var(--muted); flex-wrap:wrap;
               border-top:1px solid rgba(58,46,28,.5); padding-top:8px; }
   .arm-datos b{ color:var(--text); font-variant-numeric:tabular-nums; }
+  /* ── el cajón de skins ── */
+  .arm-skins{ width:100%; margin-top:9px; font:inherit; font-size:11.5px; font-weight:600;
+        cursor:pointer; background:transparent; color:var(--bronze); border:1px dashed var(--line);
+        border-radius:8px; padding:6px 0; letter-spacing:.03em; }
+  .arm-skins:hover{ color:var(--bronze-light); border-color:var(--bronze); }
+  .skin-rejilla{ display:grid; grid-template-columns:repeat(5,1fr); gap:5px; margin-top:8px; }
+  .skin{ position:relative; aspect-ratio:1/1; padding:3px; cursor:pointer;
+        background:var(--bg-deep); border:1px solid var(--line); border-radius:8px; }
+  .skin img{ width:100%; height:100%; object-fit:contain; image-rendering:pixelated;
+        opacity:.45; }
+  .skin.tengo img, .skin.lleva img{ opacity:1; }
+  .skin.lleva{ border-color:var(--sol-teal); box-shadow:0 0 0 1px rgba(20,241,149,.3) inset; }
+  .skin:hover:not([disabled]){ border-color:var(--bronze); }
+  .skin[disabled]{ cursor:default; }
+  .skin .pr{ position:absolute; bottom:1px; right:3px; font-size:9px; color:var(--bronze); }
+  .skin .mk{ position:absolute; top:0; right:3px; font-size:10px; color:var(--sol-teal); }
+  .skin-nota{ font-size:10.5px; color:var(--muted); margin-top:6px; line-height:1.5; }
+
   .arm-pie{ margin-top:auto; }
   .arm-pie .btn{ width:100%; }
   .arm-tengo{ font-size:11px; color:var(--sol-teal); text-align:center; padding:9px 0; font-weight:600; }
@@ -930,7 +948,7 @@
      mientras la pantalla dice que ganaste. */
   const { STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX,
           ri, xpNeed, rollStats, subirAtributo, botStats,
-          ARMAS, ARMAS_REALES, duracion,
+          ARMAS, ARMAS_REALES, duracion, SKINS, SKIN_N, iconoDe,
           MASCOTAS, MASCOTAS_REALES,
           simulate, aplicar } = window.BruteCombate;
 
@@ -1064,6 +1082,10 @@
       arm_note:"Un arma te da algo de ventaja, pero poca: con la mejor del juego ganas 6 de cada 100 más que a puño limpio. Y cuanto mejor es, antes se rompe — así que la ventaja se alquila, no se compra.",
       arm_para:"Armería de", arm_puesta:"Equipada", arm_equipar:"Equipar", arm_comprar:"Comprar",
       arm_dura:"aguanta", arm_combates:"combates", arm_cae:"se cae", arm_turno:"por turno",
+      skin_ver:"Aspectos", skin_puesta:"La llevas puesta", skin_poner:"Ponérsela a este bruto",
+      skin_ya:"Ya tienes ese aspecto.", skin_no_lleva:"Este bruto no lleva esa arma.",
+      skin_no_tienes:"No tienes ese aspecto.",
+      skin_nota:"Los aspectos solo cambian el dibujo: mismo daño, mismo crítico, misma rotura. Se compran una vez y valen para todos tus brutos.",
       arm_sin:"Sin arma", arm_caro:"No te llegan las monedas", arm_ya:"Ya la tienes",
       arm_rota:"Se te ha roto:", arm_ganada:"Has encontrado:",
       rank_open:"🏆 Clasificación", rank_h1:"Clasificación", rank_refresh:"↻ Actualizar",
@@ -1202,6 +1224,10 @@
       arm_note:"A weapon gives you an edge, but a small one: the best in the game wins 6 more fights out of 100 than bare fists. And the better it is, the sooner it breaks — the edge is rented, not bought.",
       arm_para:"Armoury for", arm_puesta:"Equipped", arm_equipar:"Equip", arm_comprar:"Buy",
       arm_dura:"lasts", arm_combates:"fights", arm_cae:"dropped", arm_turno:"per turn",
+      skin_ver:"Skins", skin_puesta:"Currently equipped", skin_poner:"Put it on this brute",
+      skin_ya:"You already own that skin.", skin_no_lleva:"This brute isn't carrying that weapon.",
+      skin_no_tienes:"You don't own that skin.",
+      skin_nota:"Skins only change the artwork: same damage, same crits, same wear. Bought once, they work on all your brutes.",
       arm_sin:"No weapon", arm_caro:"Not enough coins", arm_ya:"You already have it",
       arm_rota:"It broke:", arm_ganada:"You found:",
       rank_open:"🏆 Leaderboard", rank_h1:"Leaderboard", rank_refresh:"↻ Refresh",
@@ -1340,6 +1366,10 @@
       arm_note:"Une arme te donne un avantage, mais petit : la meilleure du jeu gagne 6 combats sur 100 de plus que les poings nus. Et meilleure elle est, plus vite elle casse — l\u2019avantage se loue, il ne s\u2019achete pas.",
       arm_para:"Armurerie de", arm_puesta:"Équipée", arm_equipar:"Équiper", arm_comprar:"Acheter",
       arm_dura:"tient", arm_combates:"combats", arm_cae:"tombe", arm_turno:"par tour",
+      skin_ver:"Apparences", skin_puesta:"Actuellement équipée", skin_poner:"La mettre à cette brute",
+      skin_ya:"Tu possèdes déjà cette apparence.", skin_no_lleva:"Cette brute ne porte pas cette arme.",
+      skin_no_tienes:"Tu ne possèdes pas cette apparence.",
+      skin_nota:"Les apparences ne changent que le dessin : mêmes dégâts, mêmes critiques, même usure. Achetées une fois, elles valent pour toutes tes brutes.",
       arm_sin:"Sans arme", arm_caro:"Pas assez de pièces", arm_ya:"Tu l'as déjà",
       arm_rota:"Elle a cassé :", arm_ganada:"Tu as trouvé :",
       rank_open:"🏆 Classement", rank_h1:"Classement", rank_refresh:"↻ Actualiser",
@@ -1392,6 +1422,12 @@
   /* La bolsa de armas del JUGADOR: {"daga":2,"mandoble":1}, solo copias
      LIBRES. Lo que un bruto lleva puesto NO está aquí, está en su `arma`.
      Dos sitios contando lo mismo es como acaban apareciendo armas duplicadas. */
+  /* Las skins que posee el jugador, por arma: {"daga":[3,7]}. Van con el
+     JUGADOR y no con el bruto: una comprada se puede repartir entre los tres
+     sin comprarla tres veces. */
+  let misSkins = {};
+  const ICONO_URL = "https://ihrcvartuuyvftxdxztt.supabase.co/storage/v1/object/public/armas/";
+
   let bolsa = {};
   /* Y la bolsa de mascotas, con el mismo formato: {"perro":2}. */
   let bichos = {};
@@ -1452,6 +1488,7 @@
         const d = await SolBruteDB.cargar(addr);
         balance = d.balance;
         bolsa   = d.bolsa || {};
+        misSkins = d.skins || {};
         bichos  = d.bichos || {};
         brutes  = d.brutos;
         nextId  = brutes.length + 1;
@@ -1919,12 +1956,83 @@
         <p class="arm-como">${comos[id]}</p>
         ${datos}
         <div class="arm-pie">${pie}</div>
+        ${skinsDe(id)}
       </div>`;
     };
 
     el("armLista").innerHTML = ["ninguna", ...ARMAS_REALES].map(tarjeta).join("");
     el("armLista").querySelectorAll(".js-eq").forEach(b => b.onclick = () => equipar(b.dataset.a));
     el("armLista").querySelectorAll(".js-comp").forEach(b => b.onclick = () => comprar(b.dataset.a));
+    el("armLista").querySelectorAll(".js-skins").forEach(b => b.onclick = () => {
+      abiertas[b.dataset.a] = !abiertas[b.dataset.a];
+      renderArmeria();
+    });
+    el("armLista").querySelectorAll(".js-skin").forEach(b => b.onclick = () =>
+      tocarSkin(b.dataset.a, +b.dataset.s, b.dataset.q));
+  }
+
+  /* Qué armas tienen el cajón de skins abierto. Se recuerda entre repintados:
+     si se cerrara al comprar una, habría que volver a abrirlo para ver el
+     resultado de lo que acabas de pagar. */
+  const abiertas = {};
+
+  /* ── El cajón de skins ──────────────────────────────────────────────────
+     Va DENTRO de la tarjeta del arma y no en otra sala, y eso es lo que
+     mantiene separado lo que toca el equilibrio de lo que no: arriba compras
+     el arma —afecta al combate, está medida— y aquí solo el aspecto.
+
+     Se enseña aunque no lleves el arma: ver que existe un mandoble dorado es
+     la mitad del motivo para querer el mandoble. Lo que no se puede es
+     PONÉRSELA a un bruto que no la empuña. */
+  function skinsDe(id){
+    const f = SKINS[id];
+    if(!f) return "";                       // los puños no tienen aspecto
+    if(!abiertas[id])
+      return `<button class="arm-skins js-skins" data-a="${id}">${t("skin_ver")} ▾</button>`;
+
+    const mias = (misSkins[id] || []);
+    const puesta = (active.arma === id) ? active.skin : null;
+    const rejilla = [];
+    for(let i = 0; i < SKIN_N; i++){
+      const tengo = (i === f.gratis) || mias.includes(i);
+      const lleva = tengo && (puesta === i || (puesta == null && i === f.gratis));
+      /* Tres estados y ninguno miente: la llevas puesta, la tienes, o cuesta.
+         Un icono que no dice si es tuyo hace que la gente pague dos veces. */
+      const cls = lleva ? " lleva" : tengo ? " tengo" : "";
+      const que = lleva ? "" : tengo ? "poner" : "comprar";
+      rejilla.push(`<button class="skin${cls} js-skin" data-a="${id}" data-s="${i}"
+          data-q="${que}" ${que ? "" : "disabled"}
+          title="${tengo ? (lleva ? t("skin_puesta") : t("skin_poner")) : f.precio + " $BRUTE"}">
+        <img src="${ICONO_URL}${iconoDe(id, i)}" alt="" loading="lazy">
+        ${tengo ? (lleva ? '<span class="mk">✓</span>' : "") : `<span class="pr">${f.precio}</span>`}
+      </button>`);
+    }
+    return `<button class="arm-skins js-skins" data-a="${id}">${t("skin_ver")} ▴</button>
+      <div class="skin-rejilla">${rejilla.join("")}</div>
+      <p class="skin-nota">${t("skin_nota")}</p>`;
+  }
+
+  /* Comprar o poner, segun el estado del boton. El servidor decide las dos:
+     aqui solo se pinta lo que responde. */
+  async function tocarSkin(arma, skin, que){
+    try{
+      if(que === "comprar"){
+        const r = await SolBruteDB.comprarSkin(arma, skin);
+        balance = r.balance;
+        misSkins = r.skins || misSkins;
+        el("balNum").textContent = balance;
+      }else{
+        if(active.arma !== arma){ alert(t("skin_no_lleva")); return; }
+        const r = await SolBruteDB.ponerSkin(active.rid, skin);
+        active.skin = r.skin;
+      }
+      renderArmeria();
+    }catch(e){
+      const porClase = { duplicado:"skin_ya", sin_saldo:"arm_caro", sin_arma:"skin_no_lleva",
+                         sin_skin:"skin_no_tienes", sesion:"g_authfail", auth:"g_authfail" };
+      alert(t(porClase[e.clase] || "f_error"));
+      console.warn("[SolBrute] skin:", e.clase || "?", e.message);
+    }
   }
 
   /* Equipar mueve una copia entre la bolsa y el bruto, en los dos sentidos. La

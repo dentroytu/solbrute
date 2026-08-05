@@ -62,16 +62,13 @@
 
      Elegidos los planos de nivel 1-2, sin brillos magicos: es lo que pega con
      el registro de gladiador romano. */
-  const ICONOS = {
-    daga:     "icon_14.png",   // espadas cortas
-    mandoble: "icon_03.png",   // espadas
-    lanza:    "icon_43.png",   // lanzas
-    escudo:   "icon_62.png",   // escudos
-    maza:     "icon_52.png",   // mazas y martillos
-    guadana:  "icon_72.png",   // guadañas
-    hacha:    "icon_82.png",   // hachas
-    baston:   "icon_92.png",   // bastones
-  };
+  /* Que fichero le toca a cada arma lo decide `brute-combate.js`, que es donde
+     vive la tabla de skins. Aqui NO se repite: una segunda lista se
+     desincroniza el primer dia, y ya paso con las paletas de color.
+
+     Si `brute-combate.js` no esta cargado —la landing solo trae este fichero y
+     no dibuja armas— se devuelve null y se pinta la vectorial. */
+  const COMBATE = () => (typeof window !== "undefined" && window.BruteCombate) || globalThis.BruteCombate;
   /* Al girar -45 grados sobre la empuñadura, la punta sube `1.414 x tam` desde
      y=28. Con el lienzo empezando en -56, el tope es tam=59.
 
@@ -574,6 +571,8 @@
        todo el mundo, lo cual era bonito y mentía: ahora el equipo que ves es
        el que de verdad afecta al combate. */
     const llevaEscudo = (b.arma === "escudo");
+    const iconoEscudo = (() => { const C = COMBATE();
+      return C && C.iconoDe ? C.iconoDe("escudo", b.skin) : null; })();
     const shieldArm = `
         <g class="j-brazoB" style="transform-origin:46px 54px">
       <path d="M46 54 L34 62" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
@@ -582,11 +581,11 @@
         <path d="M34 62 L36 74" fill="none" stroke="${OL}" stroke-width="${g.armW}" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M34 62 L36 74" fill="none" stroke="${sh}" stroke-width="${g.armW-4}" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
-        ${!llevaEscudo ? "" : (ICONOS.escudo && ICONO_BASE
+        ${!llevaEscudo ? "" : (iconoEscudo && ICONO_BASE
           /* El escudo se lleva de frente y no se empuña en diagonal: va
              centrado en el antebrazo, sin girar. */
           ? `<image x="14" y="46" width="36" height="36" image-rendering="pixelated"
-               href="${ICONO_BASE}${ICONOS.escudo}" preserveAspectRatio="xMidYMid meet"/>`
+               href="${ICONO_BASE}${iconoEscudo}" preserveAspectRatio="xMidYMid meet"/>`
           : `
         <circle cx="32" cy="64" r="15" fill="#4a3a22" stroke="${OL}" stroke-width="3"/>
         <circle cx="32" cy="64" r="15" fill="none" stroke="${m}" stroke-width="2.6"/>
@@ -666,7 +665,8 @@
       /* El escudo se lleva en el brazo B y la mano del arma va vacia. Sin esta
          linea salian DOS escudos, uno en cada mano. */
       if(id === "escudo") return "";
-      const f = ICONOS[id];
+      const C = COMBATE();
+      const f = C && C.iconoDe ? C.iconoDe(id, b.skin) : null;
       if(!f || !ICONO_BASE) return null;
       return `<image x="84" y="${28-tam}" width="${tam}" height="${tam}"
         transform="rotate(-45 84 28)" image-rendering="pixelated"

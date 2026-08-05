@@ -114,6 +114,7 @@
        el arma. La Edge Function ignora estos campos al escribir —el arma la
        decide ella en `comprar` y `equipar`— así que mandarlos no abre nada. */
     arma: b.arma || "ninguna", armas: b.armas || [],
+    arma_skin: (typeof b.skin === "number" ? b.skin : null),
     mascota: b.mascota || "ninguna"
   });
 
@@ -132,6 +133,10 @@
        servidor escribe `active.arma` a mano. O sea que el arma se veía hasta
        que recargabas la página, y entonces desaparecía sin motivo aparente. */
     arma: f.arma || "ninguna", armas: f.armas || [],
+    /* La skin del arma, por lo mismo. `spriteProfile` la lee como `b.skin`, y
+       sin esta linea el bruto llegaria siempre con la de casa por mucho que
+       hubieras comprado otra. */
+    skin: (typeof f.arma_skin === "number" ? f.arma_skin : null),
     /* Y la mascota, por lo mismo que el arma: si no viaja aquí, el bruto llega
        sin bicho a la arena y nadie entiende por qué. Fue el fallo de `aBruto`
        con la daga, y no hace falta repetirlo. */
@@ -242,6 +247,9 @@
            lleva puesto no está aquí — está en su `arma`. */
         bolsa: (jugador.armas && typeof jugador.armas === "object") ? jugador.armas : {},
         bichos: (jugador.mascotas && typeof jugador.mascotas === "object") ? jugador.mascotas : {},
+        /* Las skins compradas, por arma. Un campo nuevo que no viaje por aquí
+           se pierde al recargar — es el fallo del arma de `aBruto`, otra vez. */
+        skins: (jugador.skins && typeof jugador.skins === "object") ? jugador.skins : {},
         brutos: (brutos || []).map((f, i) => aBruto(f, i + 1))
       };
     },
@@ -439,6 +447,16 @@
         "/fights?a_owner=eq." + encodeURIComponent(addr) +
         "&select=id,a_brute,b_name,b_bot,winner,turns,coins,xp,subio,nivel,ganancia,arma_rota,arma,created_at" +
         "&order=created_at.desc&limit=" + n, { method:"GET" });
+    },
+
+    /* ═══════════ skins de arma ═══════════
+       Cambian el dibujo y nada más: ni daño, ni crítico, ni rotura. Por eso el
+       precio lo puede poner el dueño sin desequilibrar nada. */
+    async comprarSkin(arma, skin){
+      return await pedirAuth({ accion: "comprar_skin", token: token(), arma, skin });
+    },
+    async ponerSkin(bruteId, skin){
+      return await pedirAuth({ accion: "poner_skin", token: token(), bruteId, skin });
     },
 
     /* ═══════════ el vivarium ═══════════

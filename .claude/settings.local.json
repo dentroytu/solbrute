@@ -206,7 +206,9 @@
       "Bash(echo \"  \\(salida $?\\)\")",
       "Bash(node prueba-verificable.mjs)",
       "Bash(awk 'NR>=2400 && NR<=2810' app.html)",
-      "Bash(awk 'NR>=2595' app.html)"
+      "Bash(awk 'NR>=2595' app.html)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless --disable-gpu --hide-scrollbars --screenshot=tablon.png --window-size=1500,760 --virtual-time-budget=3000 --allow-file-access-from-files file://__TRACKED_VAR__/demo.html)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless --disable-gpu --hide-scrollbars --screenshot=tablon.png --window-size=1500,520 --virtual-time-budget=3000 --allow-file-access-from-files file://__TRACKED_VAR__/demo.html)"
     ]
   }
 }

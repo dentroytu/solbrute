@@ -24,7 +24,8 @@ experiencia y sube de nivel.
 | `pelea.html` | **Una pelea, con su enlace, y se verifica sola** | Funcionando |
 | `prueba-verificable.mjs` | Comprueba que la verificación detecta una pelea manipulada | Herramienta |
 | `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Aplicado |
-| `supabase-33-armas-nuevas.sql` | Abre el `check` de `brutes.arma` a las nueve. **Antes de la función** | Escrito |
+| `supabase-33-armas-nuevas.sql` | Abre el `check` de `brutes.arma` a las nueve. **Antes de la función** | Aplicado |
+| `supabase-34-skins.sql` | Skins de arma: `players.skins` y `brutes.arma_skin` | Escrito |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -1385,6 +1386,39 @@ faltan. Si nadie compra, están caras; si todos llevan la misma, baratas.
 
 **Si tocas estos números, vuelve a medir.** La simulación son cincuenta líneas y
 está en el historial del repositorio.
+
+### Las skins: ochenta compras y ninguna que medir
+
+Una skin cambia el dibujo y **nada más**: mismo daño, mismo crítico, misma
+rotura. Eso le da dos propiedades que ningún otro sumidero tiene:
+
+- **El precio lo pone el dueño sin desequilibrar nada.** Con las armas hay que
+  medir; aquí no hay nada que se pueda romper.
+- **Es recurrente.** Ocho armas × diez aspectos son ochenta compras posibles, y
+  comprar una no quita las ganas de comprar otra.
+
+```
+players.skins     lo que POSEES          {"daga": [3, 7]}
+brutes.arma_skin  lo que LLEVA ese bruto   3
+```
+
+Mismo reparto que las armas desde el paso 14, con **una diferencia a propósito:
+una skin comprada no se gasta al ponerla.** Puedes vestir a tus tres brutos con
+la misma daga dorada sin comprarla tres veces.
+
+**Y vive en el BRUTO, no en el jugador.** Guardarlo en el jugador sería menos
+código, pero entonces el rival no la vería: la lista de rivales sale de
+`brutes`, y un cosmético que los demás no ven no lo compra nadie.
+
+**La skin gratis no siempre es la primera de la fila.** La lanza y el bastón de
+la primera columna son un palo sin punta y sin pomo, que se lee como un fallo de
+dibujo antes que como un arma humilde. Por eso `SKINS` lleva `gratis` aparte de
+`base`.
+
+**Se validan por rango, no por lista.** Con las armas hubo que abrir un `check`
+de Postgres cada vez que entraba una nueva (paso 33); con `0..9` eso no vuelve a
+pasar. Y un número fuera de rango no rompe nada: `iconoDe` cae a la gratis, que
+es lo que impide que un `<image>` roto deje al bruto desarmado.
 
 ### El inventario es del JUGADOR, no del bruto
 

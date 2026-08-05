@@ -378,6 +378,46 @@
      las de antes y las nuevas no saldrian nunca sin que nada fallara. */
   const ARMAS_REALES = Object.keys(ARMAS).filter(x => x !== "ninguna");
 
+  /* ═══════════ skins de arma ═══════════
+     ── Lo unico que hay que tener claro: NO tocan el equilibrio ──────────────
+     Una skin cambia el dibujo y nada mas. Mismo daño, mismo critico, misma
+     rotura. Por eso se les puede poner el precio que se quiera sin convertir
+     el juego en pagar-para-ganar, y por eso son el mejor sumidero que tiene
+     este proyecto: se compran muchas veces y no hay que medir ninguna.
+
+     El pack son 10 tipos x 10 aspectos, asi que cada arma tiene su fila de
+     diez. La 0 es la que viene puesta y es gratis.
+
+     ── Y viajan con el BRUTO, no con el jugador ─────────────────────────────
+     Podria guardarse «mi daga se ve asi» en el jugador y seria menos codigo.
+     Pero entonces el rival no veria tu skin: la lista de rivales sale de
+     `brutes`, y un cosmetico que los demas no ven no lo compra nadie. */
+  /* `base` es donde empieza la fila de diez. `gratis` es la que viene puesta y
+     no se cobra — y NO siempre es la primera: la lanza y el baston de la
+     primera columna son un palo sin punta y sin pomo, que se lee como un fallo
+     de dibujo antes que como un arma humilde. */
+  const SKINS = {
+    mandoble: { base:  1, gratis: 2, precio: 60 },
+    daga:     { base: 11, gratis: 3, precio: 45 },
+    lanza:    { base: 41, gratis: 2, precio: 50 },
+    maza:     { base: 51, gratis: 1, precio: 50 },
+    escudo:   { base: 61, gratis: 1, precio: 45 },
+    guadana:  { base: 71, gratis: 1, precio: 55 },
+    hacha:    { base: 81, gratis: 1, precio: 55 },
+    baston:   { base: 91, gratis: 1, precio: 45 },
+  };
+  const SKIN_N = 10;
+
+  /* El fichero que le toca a un arma con la skin `n`. Un numero inventado cae
+     a la gratis: no puede dejar a nadie desarmado, que es lo que pasa cuando
+     un `<image>` apunta a algo que no existe. */
+  function iconoDe(armaId, n){
+    const f = SKINS[armaId];
+    if(!f) return null;
+    const i = Number.isInteger(n) && n >= 0 && n < SKIN_N ? n : f.gratis;
+    return "icon_" + String(f.base + i).padStart(2, "0") + ".png";
+  }
+
   /* ═══════════ mascotas ═══════════
      A diferencia de las armas, una mascota SÍ es una ventaja: quien lleva una
      gana ~57% contra quien no. Eso es deliberado y es la diferencia entre las
@@ -638,7 +678,8 @@
     VERSION,
     STAT_INI, STAT_VAR, HP_INI, HP_VAR, HP_NIVEL, STAT_MAX, TOPE_TURNOS, PROB_ATRIBUTO, PROB_ARMA,
     OPP_COUNT, LEVEL_SPREAD, FIGHTS_DAY, REROLLS_DAY, NAMES, LOOK_N,
-    ARMAS, ARMAS_REALES, arma, seRompe, duracion, RESCATE_PCT, precioRescate,
+    ARMAS, ARMAS_REALES, arma, seRompe, duracion,
+    SKINS, SKIN_N, iconoDe, RESCATE_PCT, precioRescate,
     MASCOTAS, MASCOTAS_REALES, mascota,
     randomLook, barajar, nuevoBot,
     ri, xpNeed, rollStats, subirAtributo, botStats,

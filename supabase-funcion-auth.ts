@@ -789,6 +789,73 @@ async function manejar(req: Request): Promise<Response> {
     return responder({ arma: r.arma, bolsa: r.bolsa });
   }
 
+  /* ══════════ skins de arma ══════════
+     Cambian el dibujo y NADA mas. Por eso no hay nivel minimo ni nada que
+     medir: lo unico que se comprueba es que pagas y que es tuya.
+
+     El precio sale de `brute-combate.js`, aqui. Si lo mandara el navegador,
+     bastaria con editarlo para comprar gratis — es lo mismo que con las armas
+     y las mascotas. */
+  if (accion === "comprar_skin") {
+    const arma = String(cuerpo.arma || "");
+    const skin = Math.floor(Number(cuerpo.skin));
+    const f = C.SKINS[arma];
+    if (!f) return responder({ error: "esa arma no existe" }, 400);
+    if (!Number.isInteger(skin) || skin < 0 || skin >= C.SKIN_N) {
+      return responder({ error: "esa skin no existe" }, 400);
+    }
+    let r;
+    try {
+      r = await db("/rpc/skin_comprar", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_arma: arma, p_skin: skin, p_precio: f.precio }),
+      });
+    } catch (e) {
+      const m = (e as Error).message;
+      if (marca(m, "ya_la_tienes"))    return responder({ error: "ya tienes esa skin", clase: "duplicado" }, 409);
+      if (marca(m, "sin_saldo"))       return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
+      if (marca(m, "skin_invalida"))   return responder({ error: "esa skin no existe" }, 400);
+      if (marca(m, "precio_invalido")) return responder({ error: "precio no valido" }, 400);
+      if (marca(m, "desconocido"))     return responder({ error: "esa arma no existe" }, 400);
+      if (marca(m, "sin_jugador"))     return responder({ error: "sesion no valida" }, 401);
+      throw e;
+    }
+    /* Lo gastado vuelve a la reserva, igual que un arma o una mascota. Si no,
+       cada skin comprada seria una moneda que desaparece del sistema y la
+       invariante dejaria de cuadrar. `reciclar` no devuelve promesa: se traga
+       sus errores a proposito, porque el jugador ya ha pagado. */
+    reciclar(f.precio);
+    apuntar(dueno, "skin", arma + ":" + skin, f.precio, { arma, skin });
+    return responder({ arma, skin, balance: r.balance, skins: r.skins });
+  }
+
+  if (accion === "poner_skin") {
+    const bid = idEntero(cuerpo.bruteId);
+    if (!bid) return responder({ error: "identificador no valido" }, 400);
+    /* `null` quita la skin y vuelve a la de casa. Siempre se puede: nadie
+       tiene que quedarse atrapado con un aspecto que ya no le gusta. */
+    const skin = cuerpo.skin === null || cuerpo.skin === undefined
+      ? null : Math.floor(Number(cuerpo.skin));
+    if (skin !== null && (!Number.isInteger(skin) || skin < 0 || skin >= C.SKIN_N)) {
+      return responder({ error: "esa skin no existe" }, 400);
+    }
+    let r;
+    try {
+      r = await db("/rpc/skin_poner", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_skin: skin }),
+      });
+    } catch (e) {
+      const m = (e as Error).message;
+      if (marca(m, "no_es_tuyo"))    return responder({ error: "ese bruto no es tuyo" }, 403);
+      if (marca(m, "sin_arma"))      return responder({ error: "ese bruto no lleva arma", clase: "sin_arma" }, 403);
+      if (marca(m, "no_la_tienes"))  return responder({ error: "no tienes esa skin", clase: "sin_skin" }, 403);
+      if (marca(m, "skin_invalida")) return responder({ error: "esa skin no existe" }, 400);
+      throw e;
+    }
+    return responder({ bruto: r.bruto, arma: r.arma, skin: r.skin });
+  }
+
   /* ══════════ la lista de rivales ══════════
      La arma el SERVIDOR. Antes la construía el navegador y la mandaba en
      "guardar", así que bastaba con enviar un rival de 1 punto de vida para
@@ -824,12 +891,15 @@ async function manejar(req: Request): Promise<Response> {
       const reales = await db("/brutes?owner=neq." + encodeURIComponent(dueno) +
         "&level=gte." + Math.max(1, fila.level - C.LEVEL_SPREAD) +
         "&level=lte." + (fila.level + C.LEVEL_SPREAD) +
-        "&select=id,owner,name,level,hp_max,str,agi,spd,wins,losses,look,arma&limit=60");
+        "&select=id,owner,name,level,hp_max,str,agi,spd,wins,losses,look,arma,arma_skin&limit=60");
 
       const lista = C.barajar((reales || []).map((f: Record<string, unknown>) => ({
         rid: f.id, name: f.name, lv: f.level, hpMax: f.hp_max,
         str: f.str, agi: f.agi, spd: f.spd, w: f.wins, l: f.losses,
-        look: f.look, arma: f.arma || "ninguna", bot: false,
+        look: f.look, arma: f.arma || "ninguna",
+        /* La skin viaja con el rival: un cosmetico que los demas no ven no lo
+           compra nadie, y esa es toda la razon de que viva en el bruto. */
+        skin: (typeof f.arma_skin === "number" ? f.arma_skin : null), bot: false,
       }))).slice(0, C.OPP_COUNT);
 
       /* 2 · relleno de la casa, con la misma curva que un jugador. */
