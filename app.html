@@ -463,7 +463,20 @@
             transition:transform var(--paso, .30s) cubic-bezier(.33,.9,.35,1); }
   .fighter [class^="j-"]{ transform-box:view-box;
                           transition:transform var(--art, .14s) cubic-bezier(.3,1.1,.4,1); }
-  .fighter svg{ width:100%; height:auto; display:block; }
+  /* `overflow:visible` y no un lienzo mas ancho, que es la trampa aqui.
+     ────────────────────────────────────────────────────────────────────────
+     Al golpear, el brazo gira ~76 grados y el arma sale por la derecha: la
+     punta del mandoble cae en x=150 y el lienzo acaba en 110. Un SVG recorta
+     a su viewBox por defecto, asi que el arma DESAPARECIA a media animacion.
+
+     Ensanchar el viewBox seria lo obvio y esta mal: `.fighter` fija el ancho
+     en 116px, asi que mas unidades en el mismo ancho es el bruto mas pequeño.
+     Con `overflow:visible` el lienzo sigue igual —el bruto conserva su tamaño—
+     y solo el arma puede asomar.
+
+     Ya pasaba con las armas vectoriales: el mandoble llegaba a x=125 y se
+     cortaba igual. Los iconos, que son mas largos, solo lo hicieron evidente. */
+  .fighter svg{ width:100%; height:auto; display:block; overflow:visible; }
   .fighter.left{ left:11%; } .fighter.right{ right:11%; }
   /* La distancia ya no es fija: se mide entre los dos en `medirAlcance()`,
      porque la arena cambia de ancho con la ventana y 56px se quedaba a medio
