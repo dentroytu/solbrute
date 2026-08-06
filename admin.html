@@ -55,6 +55,24 @@
   .tarjeta .sub{ font-size:11px; color:var(--muted); margin-top:3px; }
 
   h2{ font-size:16px; color:var(--bronze-light); margin:0 0 12px; letter-spacing:.04em; }
+  /* ── mantenimiento ── */
+  .mant{ background:var(--surface); border:1px solid var(--line); border-radius:12px;
+        padding:12px 14px; margin-bottom:16px; }
+  .mant.parado{ border-color:var(--blood-bright); background:rgba(179,49,44,.09); }
+  .mant-fila{ display:flex; align-items:center; gap:10px; }
+  .mant-luz{ width:9px; height:9px; border-radius:50%; background:var(--sol-teal);
+        box-shadow:0 0 8px var(--sol-teal); flex-shrink:0; }
+  .mant.parado .mant-luz{ background:var(--blood-bright); box-shadow:0 0 8px var(--blood-bright); }
+  .mant-txt{ flex:1; font-size:13px; }
+  .mant-txt b{ font-family:'Cinzel',serif; }
+  .mant-form{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px;
+        padding-top:12px; border-top:1px solid var(--line); }
+  .mant-form[hidden]{ display:none; }
+  .mant-form .campo{ display:flex; flex-direction:column; gap:4px; }
+  .mant-form .campo span{ font-size:10px; color:var(--muted); }
+  .mant-form input{ background:var(--bg-deep); color:var(--text); border:1px solid var(--line);
+        border-radius:7px; padding:6px 8px; font:inherit; min-width:220px; }
+
   /* ── pestañas ──
      El panel era una tira de nueve bloques y habia que bajar media pantalla
      para llegar a la preventa. Las pestañas no esconden nada: separan lo que
@@ -255,6 +273,27 @@
       <button class="tab-btn" data-ir="torneos">Torneos</button>
       <button class="tab-btn" data-ir="gente">Jugadores y brutos</button>
       <button class="tab-btn" data-ir="registro">Registro</button>
+    </div>
+
+    <!-- Fuera de las pestañas y lo primero de todo. Se toca con prisa y
+         normalmente con algo roto: enterrarlo en una pestaña sería esconder el
+         interruptor de emergencia en un cajón. -->
+    <div class="mant" id="mantCaja">
+      <div class="mant-fila">
+        <span class="mant-luz" id="mantLuz"></span>
+        <span class="mant-txt" id="mantTxt">—</span>
+        <button class="btn btn-ghost btn-sm" id="btnMantAbrir">Cambiar</button>
+      </div>
+      <div class="mant-form" id="mantForm" hidden>
+        <div class="campo"><span>Mensaje para el jugador (opcional)</span>
+          <input id="mantMsg" maxlength="200" placeholder="Volvemos en 20 minutos"></div>
+        <div class="campo"><span>Volvemos (opcional)</span>
+          <input id="mantHasta" type="datetime-local"></div>
+        <div class="campo"><span>Motivo (queda en el registro)</span>
+          <input id="mantMotivo" placeholder="por que paras el juego"></div>
+        <button class="btn" id="btnMantParar">Parar el juego</button>
+        <button class="btn btn-ghost" id="btnMantSeguir">Reanudar</button>
+      </div>
     </div>
 
     <div class="tarjetas" id="tarjetas"></div>
@@ -815,6 +854,7 @@
        nadie. */
     const resumen = await SolBruteDB.adminResumen();
     const { jugadores, brutos } = await SolBruteDB.adminJugadores();
+    cargarMante();
     cargarTorneos();
     cargarRed();
     cargarPreventa();
@@ -1056,6 +1096,64 @@
      alarmismo: mainnet significa que lo que se cobra es dinero de verdad, y
      esa frase tiene que estar delante de los ojos de quien va a pulsar
      «Preventa abierta». */
+  /* ══════════════════════════════════════════════════════════════════════
+     PARAR EL JUEGO
+     ══════════════════════════════════════════════════════════════════════
+     El interruptor de emergencia. Va fuera de las pestañas y arriba del todo
+     porque se toca con prisa y normalmente con algo roto.
+
+     Y lo comprueba el SERVIDOR, no esta pantalla: mientras está parado, la
+     Edge Function responde 503 a todo el mundo menos a los administradores. */
+  let mante = null;
+
+  async function cargarMante(){
+    try{ mante = (await SolBruteDB.adminMantenimiento()).mantenimiento || {}; }
+    catch(e){
+      el("mantCaja").className = "mant";
+      el("mantTxt").innerHTML = "No pude leer el estado — <b>¿falta aplicar supabase-36-mantenimiento.sql?</b>";
+      return;
+    }
+    pintarMante();
+  }
+
+  function pintarMante(){
+    const parado = !!mante.activo;
+    el("mantCaja").className = "mant" + (parado ? " parado" : "");
+    el("btnMantParar").hidden  = parado;
+    el("btnMantSeguir").hidden = !parado;
+    if(parado){
+      const desde = mante.desde ? " · parado desde " + fechaHora(mante.desde) : "";
+      const hasta = mante.hasta ? " · vuelve " + fechaHora(mante.hasta) : "";
+      el("mantTxt").innerHTML = "<b>EL JUEGO ESTÁ PARADO.</b> Nadie puede pelear, forjar ni comprar" +
+        escapar(desde + hasta) + (mante.mensaje ? " — «" + escapar(mante.mensaje) + "»" : "");
+    }else{
+      el("mantTxt").innerHTML = "El juego está <b>abierto</b>. Párale antes de tocar el SQL o de " +
+        "redesplegar: en ese hueco una pelea puede escribir contra un esquema a medias.";
+    }
+    el("mantMsg").value = mante.mensaje || "";
+  }
+
+  const fechaHora = f => f ? new Date(f).toLocaleString("es-ES",
+    { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" }) : "";
+
+  async function cambiarMante(activo){
+    const motivo = el("mantMotivo").value.trim();
+    if(motivo.length < 10){ msg("Escribe un motivo de al menos 10 letras", "err"); return; }
+    if(activo && !confirm("Vas a PARAR el juego. Nadie podrá pelear, forjar ni comprar hasta " +
+                          "que lo reanudes. ¿Seguro?")) return;
+    try{
+      const r = await SolBruteDB.adminMantenimiento({
+        activo, motivo,
+        mensaje: el("mantMsg").value.trim(),
+        hasta: el("mantHasta").value ? new Date(el("mantHasta").value).toISOString() : ""
+      });
+      mante = r.mantenimiento || {};
+      el("mantMotivo").value = "";
+      pintarMante();
+      msg(activo ? "Juego parado" : "Juego reanudado", "ok");
+    }catch(e){ msg(e.message || "no se pudo cambiar", "err"); }
+  }
+
   async function cargarRed(){
     const e = el("pvRed");
     let r;
@@ -1255,6 +1353,12 @@
     b.addEventListener("click", () => irA(b.dataset.ir)));
   irA(document.querySelectorAll('.tab[data-tab="' + location.hash.slice(1) + '"]').length
       ? location.hash.slice(1) : "resumen");
+
+  el("btnMantAbrir").addEventListener("click", () => {
+    const f = el("mantForm"); f.hidden = !f.hidden;
+  });
+  el("btnMantParar").addEventListener("click", () => cambiarMante(true));
+  el("btnMantSeguir").addEventListener("click", () => cambiarMante(false));
 
   el("btnPvGuardar").addEventListener("click", guardarPreventa);
   ["pvPrecio","pvCupo"].forEach(k => el(k).addEventListener("input", pintarEcoPreventa));

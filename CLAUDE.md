@@ -27,6 +27,7 @@ experiencia y sube de nivel.
 | `supabase-33-armas-nuevas.sql` | Abre el `check` de `brutes.arma` a las nueve. **Antes de la función** | Aplicado |
 | `supabase-34-skins.sql` | Skins de arma: `players.skins` y `brutes.arma_skin` | Aplicado |
 | `supabase-35-armas-17.sql` | Abre el `check` a las diecisiete. **Antes de la función** | Escrito |
+| `supabase-36-mantenimiento.sql` | Parar el juego desde el panel. **Antes de la función** | Escrito |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -808,6 +809,46 @@ porque son la cabecera del panel y no una sección más.
 
 La pestaña viva va en el hash. Recargar mientras miras la preventa y volver al
 resumen es molesto justo cuando más se recarga.
+
+### Parar el juego
+
+`supabase-36-mantenimiento.sql`. Un interruptor en el panel, **fuera de las
+pestañas y arriba del todo**: se toca con prisa y normalmente con algo roto,
+así que enterrarlo sería esconder el botón de emergencia en un cajón.
+
+**Existe para el hueco de las migraciones.** Con un `alter table` a medio
+aplicar o una Edge Function recién pegada, una pelea que entra puede escribir
+contra un esquema que ya no es el que espera — y eso no da un error, da datos
+torcidos. Hasta ahora ese hueco se cubría a base de ir rápido; con dinero de
+por medio, ir rápido no es un plan.
+
+**La comprobación está en la Edge Function**, antes de repartir a ninguna ruta.
+Esconder botones en el navegador no para nada: las rutas se llaman con `curl`.
+
+**El administrador pasa siempre.** Si se bloqueara, quedarías fuera de tu propio
+panel justo cuando necesitas entrar a apagarlo.
+
+### La caché de diez segundos
+
+Sin ella, cada login y cada pelea pagarían una consulta más para preguntar algo
+que casi siempre es «no». Con ella, encender el mantenimiento tarda hasta diez
+segundos en surtir efecto — un precio que se paga a gusto, porque el caso en que
+importa dura minutos. Al cambiarlo desde el panel la caché se tira, así que en
+esa instancia es inmediato.
+
+**Y si la consulta falla, se sigue como si no hubiera mantenimiento.** Un fallo
+al leer esta bandera no puede tumbar el juego: sería un interruptor de apagado
+que se activa solo cuando la base tiene un mal momento.
+
+### El jugador ve «volvemos en 20 minutos», no «algo ha fallado»
+
+Es la mitad del valor. Un error genérico se lee como que el juego está roto y
+la gente no vuelve; un cartel con hora se lee como una molestia.
+
+El cartel tapa la pantalla entera **a propósito**: si se pudiera seguir pulsando
+detrás, cada botón daría un error distinto y volvería a parecer roto. Y no
+protege nada — quitarlo desde la consola no desbloquea nada, porque las rutas
+siguen respondiendo 503.
 
 ### Todo cambio queda en `admin_log`
 

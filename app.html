@@ -321,6 +321,18 @@
   .fam-cuerpo{ padding:0 12px 12px; }
   .fam-cuerpo .arm{ margin-bottom:8px; }
 
+  /* ── el cartel de mantenimiento ── */
+  .mante{ position:fixed; inset:0; z-index:99; display:flex; align-items:center;
+        justify-content:center; padding:24px;
+        background:radial-gradient(ellipse 700px 400px at 50% 30%, #2c2013, #0c0a07 70%); }
+  .mante[hidden]{ display:none; }
+  .mante-caja{ max-width:420px; text-align:center; }
+  .mante-ico{ font-size:38px; color:var(--bronze); margin-bottom:14px; }
+  .mante h2{ font-family:'Cinzel',serif; font-size:22px; color:var(--bronze-light); margin-bottom:12px; }
+  .mante p{ color:var(--muted); font-size:14px; line-height:1.7; }
+  .mante-hasta{ margin-top:14px; font-family:'Cinzel',serif; color:var(--sol-teal); font-size:14px; }
+  .mante .btn{ margin-top:22px; }
+
   /* ── el cajón de skins ── */
   .arm-skins{ width:100%; margin-top:9px; font:inherit; font-size:11.5px; font-weight:600;
         cursor:pointer; background:transparent; color:var(--bronze); border:1px dashed var(--line);
@@ -942,6 +954,19 @@
   </section>
 </main>
 
+<!-- El cartel de mantenimiento. Tapa TODO: si se pudiera seguir pulsando
+     detrás, cada botón daría un error distinto y parecería roto en vez de
+     parado. -->
+<div class="mante" id="mante" hidden>
+  <div class="mante-caja">
+    <div class="mante-ico">⚒</div>
+    <h2 data-i18n="mant_h1">The ludus is closed</h2>
+    <p id="manteMsg" data-i18n="mant_p">We're doing maintenance. Your brutes, your coins and your weapons are safe — nothing is lost.</p>
+    <div class="mante-hasta" id="manteHasta"></div>
+    <button class="btn btn-ghost btn-sm" id="btnManteVer" data-i18n="mant_ver">Check again</button>
+  </div>
+</div>
+
 <script src="brute-render.js"></script>
 <script src="supabase-cliente.js"></script>
 <script src="wallet-solana.js"></script>
@@ -1101,6 +1126,9 @@
       arm_note:"Un arma te da algo de ventaja, pero poca: con la mejor del juego ganas 6 de cada 100 más que a puño limpio. Y cuanto mejor es, antes se rompe — así que la ventaja se alquila, no se compra.",
       arm_para:"Armería de", arm_puesta:"Equipada", arm_equipar:"Equipar", arm_comprar:"Comprar",
       arm_dura:"aguanta", arm_combates:"combates", arm_cae:"se cae", arm_turno:"por turno",
+      mant_h1:"El ludus está cerrado",
+      mant_p:"Estamos haciendo mantenimiento. Tus brutos, tus monedas y tus armas están a salvo — no se pierde nada.",
+      mant_hasta:"Volvemos el", mant_ver:"Comprobar otra vez",
       fam_tuyas:"tuyas",
       skin_ver:"Aspectos", skin_puesta:"La llevas puesta", skin_poner:"Ponérsela a este bruto",
       skin_ya:"Ya tienes ese aspecto.", skin_no_lleva:"Este bruto no lleva esa arma.",
@@ -1253,6 +1281,9 @@
       arm_note:"A weapon gives you an edge, but a small one: the best in the game wins 6 more fights out of 100 than bare fists. And the better it is, the sooner it breaks — the edge is rented, not bought.",
       arm_para:"Armoury for", arm_puesta:"Equipped", arm_equipar:"Equip", arm_comprar:"Buy",
       arm_dura:"lasts", arm_combates:"fights", arm_cae:"dropped", arm_turno:"per turn",
+      mant_h1:"The ludus is closed",
+      mant_p:"We're doing maintenance. Your brutes, your coins and your weapons are safe — nothing is lost.",
+      mant_hasta:"Back on", mant_ver:"Check again",
       fam_tuyas:"owned",
       skin_ver:"Skins", skin_puesta:"Currently equipped", skin_poner:"Put it on this brute",
       skin_ya:"You already own that skin.", skin_no_lleva:"This brute isn't carrying that weapon.",
@@ -1405,6 +1436,9 @@
       arm_note:"Une arme te donne un avantage, mais petit : la meilleure du jeu gagne 6 combats sur 100 de plus que les poings nus. Et meilleure elle est, plus vite elle casse — l\u2019avantage se loue, il ne s\u2019achete pas.",
       arm_para:"Armurerie de", arm_puesta:"Équipée", arm_equipar:"Équiper", arm_comprar:"Acheter",
       arm_dura:"tient", arm_combates:"combats", arm_cae:"tombe", arm_turno:"par tour",
+      mant_h1:"Le ludus est fermé",
+      mant_p:"Nous faisons une maintenance. Tes brutes, tes pièces et tes armes sont en sécurité — rien n'est perdu.",
+      mant_hasta:"De retour le", mant_ver:"Vérifier à nouveau",
       fam_tuyas:"à toi",
       skin_ver:"Apparences", skin_puesta:"Actuellement équipée", skin_poner:"La mettre à cette brute",
       skin_ya:"Tu possèdes déjà cette apparence.", skin_no_lleva:"Cette brute ne porte pas cette arme.",
@@ -3378,6 +3412,35 @@
      lleva `data-i18n` a propósito, para que no haya que mantenerla en tres
      tablas cada vez que se suba un número. */
   el("versionJuego").textContent = VERSION_JUEGO;
+
+  /* ══════════════════════════════════════════════════════════════════════
+     ¿ESTÁ EL JUEGO PARADO?
+     ══════════════════════════════════════════════════════════════════════
+     Se pregunta al arrancar y se vuelve a pintar si alguna llamada devuelve
+     `mantenimiento`. Las dos cosas hacen falta: la primera para no dejar
+     entrar a nadie a una pantalla que no va a funcionar, y la segunda para el
+     que ya estaba dentro cuando se paró.
+
+     Lo que decide es el SERVIDOR — esto solo lo cuenta. Quitar este cartel
+     desde la consola no desbloquea nada: las rutas siguen respondiendo 503. */
+  function pintarMante(m){
+    if(!m || !m.mantenimiento){ el("mante").hidden = true; return; }
+    el("mante").hidden = false;
+    /* El mensaje del panel gana al de por defecto, pero solo si lo hay: un
+       cartel vacío es peor que uno genérico. */
+    el("manteMsg").textContent = m.mensaje || t("mant_p");
+    el("manteHasta").textContent = m.hasta
+      ? t("mant_hasta") + " " + new Date(m.hasta).toLocaleString(
+          lang === "en" ? "en-GB" : lang, { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })
+      : "";
+  }
+
+  async function mirarMante(){
+    try{ pintarMante(await SolBruteDB.estado()); }
+    catch(e){ /* sin servidor no se dice nada: ya fallará lo siguiente */ }
+  }
+  el("btnManteVer").addEventListener("click", () => location.reload());
+  mirarMante();
 
   applyLang("en"); show("scGate");
 

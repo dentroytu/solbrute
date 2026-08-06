@@ -177,6 +177,13 @@
          Un 401 de la Edge Function significa SIEMPRE lo mismo, haya sesión
          guardada o no: el servidor no te reconoce. */
       if(r.status === 401){ window.SolBruteDB.cerrarSesion(); throw ErrorDB("sesion", datos.error || "sesión no válida"); }
+      /* El juego parado tiene clase propia: la pantalla puede enseñar el cartel
+         en vez de un «algo ha fallado» que se lee como que está roto. */
+      if(datos.clase === "mantenimiento"){
+        const e = ErrorDB("mantenimiento", datos.error || "en mantenimiento");
+        e.mensaje = datos.mensaje; e.hasta = datos.hasta;
+        throw e;
+      }
       throw ErrorDB("auth", datos.error || ("HTTP " + r.status));
     }
     return datos;
@@ -328,6 +335,9 @@
        clave anon ni aunque quisieras. Todo sale por la función. */
     /* En que red se comprueban los pagos. No devuelve la URL —lleva la clave
        de API dentro—, solo el host y el veredicto. */
+    async adminMantenimiento(campos){
+      return await pedirAuth({ accion: "admin_mantenimiento", token: token(), ...(campos || {}) });
+    },
     async adminRed(){
       return await pedirAuth({ accion: "admin_red", token: token() });
     },
@@ -459,6 +469,13 @@
        propiedad la comprueba él contra el bruto, no contra esto. */
     async ponerSkin(bruteId, arma, skin){
       return await pedirAuth({ accion: "poner_skin", token: token(), bruteId, arma, skin });
+    },
+
+    /* ═══════════ ¿está el juego parado? ═══════════
+       Sin sesión y sin wallet: es lo que permite pintarlo en la puerta, antes
+       de que nadie haya firmado nada. */
+    async estado(){
+      return await pedirAuth({ accion: "estado" });
     },
 
     /* ═══════════ el vivarium ═══════════

@@ -198,6 +198,38 @@ async function emitir(puntos: number): Promise<{ monedas: number; tasa: number }
    Va con `catch` a propósito: el jugador YA ha pagado y ya tiene su arma. Si
    el reciclaje falla, lo que pasa es que la reserva no se rellena — un error
    conservador. Tumbar la compra por esto sería cobrarle y no darle nada. */
+/* ══════════════════════════════════════════════════════════════════════════
+   MODO MANTENIMIENTO
+   ══════════════════════════════════════════════════════════════════════════
+   Se comprueba AQUI, antes de repartir a ninguna ruta. Esconder botones en el
+   navegador no para nada: las rutas se llaman con curl.
+
+   ── Por que hay cache, y por que de 10 segundos ────────────────────────────
+   Sin ella, cada login y cada pelea pagarian una consulta mas solo para
+   preguntar algo que casi siempre es «no». Con ella, encender el mantenimiento
+   tarda hasta 10 segundos en surtir efecto — que es un precio que se paga a
+   gusto, porque el caso en que importa es una migracion que dura minutos.
+
+   Si la consulta falla, se sigue como si NO hubiera mantenimiento. Un fallo al
+   leer esta bandera no puede tumbar el juego: seria un interruptor de apagado
+   que se activa solo cuando la base tiene un mal momento. */
+let manteCache: { activo: boolean; mensaje: string | null; hasta: string | null } | null = null;
+let manteVisto = 0;
+
+async function mantenimiento() {
+  const ahora = Date.now();
+  if (manteCache && ahora - manteVisto < 10_000) return manteCache;
+  try {
+    const f = (await db("/mantenimiento?id=eq.1&select=activo,mensaje,hasta"))?.[0];
+    manteCache = { activo: !!f?.activo, mensaje: f?.mensaje ?? null, hasta: f?.hasta ?? null };
+  } catch (e) {
+    console.warn("no pude leer mantenimiento: " + (e as Error).message);
+    manteCache = { activo: false, mensaje: null, hasta: null };
+  }
+  manteVisto = ahora;
+  return manteCache;
+}
+
 function reciclar(monedas: number): void {
   if (!(monedas > 0)) return;
   db("/rpc/emision_reciclar", {
@@ -477,6 +509,32 @@ async function manejar(req: Request): Promise<Response> {
     const n = Math.floor(Number(v));
     return (Number.isFinite(n) && n > 0 && n < 1e15) ? String(n) : null;
   };
+
+  /* ══════════ ¿esta el juego parado? ══════════
+     `estado` se responde SIEMPRE: es como la web se entera de que hay
+     mantenimiento en vez de enseñar «algo ha fallado». Sin sesion y sin
+     wallet, que es justo lo que hace falta para poder pintarlo en la puerta.
+
+     Las rutas de admin tampoco se bloquean: si se bloquearan, quedarias fuera
+     de tu propio panel justo cuando necesitas entrar a apagarlo. */
+  if (accion === "estado") {
+    const m = await mantenimiento();
+    return responder({ mantenimiento: m.activo, mensaje: m.mensaje, hasta: m.hasta,
+                       version: C.VERSION });
+  }
+
+  if (!accion.startsWith("admin_")) {
+    const m = await mantenimiento();
+    if (m.activo) {
+      /* El administrador pasa. Se comprueba con la sesion, que es lo unico que
+         no se puede falsificar desde el navegador. */
+      const quien = await duenoDe(cuerpo.token).catch(() => null);
+      if (!quien || !ADMINS.includes(quien)) {
+        return responder({ error: "el juego esta en mantenimiento", clase: "mantenimiento",
+                           mensaje: m.mensaje, hasta: m.hasta }, 503);
+      }
+    }
+  }
 
   /* ══════════ rutas de login ══════════ */
 
@@ -1436,6 +1494,48 @@ async function manejar(req: Request): Promise<Response> {
     if (accion === "admin_resumen") {
       const r = await db("/rpc/admin_resumen", { method: "POST", body: "{}" });
       return responder({ resumen: r });
+    }
+
+    /* ══════════ parar y arrancar el juego ══════════
+       Todo pasa por `mantenimiento_fijar`, que exige motivo y deja el antes y
+       el despues en `admin_log`. Parar el juego es la accion mas visible que
+       existe en este panel: tiene que quedar quien y cuando. */
+    if (accion === "admin_mantenimiento") {
+      const leer = cuerpo.activo === undefined;
+      if (leer) {
+        const f = (await db("/mantenimiento?id=eq.1&select=*"))?.[0] || {};
+        return responder({ mantenimiento: f });
+      }
+      const motivo = String(cuerpo.motivo || "");
+      if (motivo.trim().length < 10) {
+        return responder({ error: "hace falta un motivo de al menos 10 letras", clase: "motivo" }, 400);
+      }
+      let hasta: string | null = null;
+      const h = String(cuerpo.hasta || "").trim();
+      if (h) {
+        if (Number.isNaN(Date.parse(h))) return responder({ error: "fecha no valida", clase: "fecha" }, 400);
+        hasta = new Date(h).toISOString();
+      }
+      try {
+        const r = await db("/rpc/mantenimiento_fijar", {
+          method: "POST",
+          body: JSON.stringify({ p_admin: dueno, p_activo: !!cuerpo.activo,
+                                 p_mensaje: String(cuerpo.mensaje || "").slice(0, 200),
+                                 p_hasta: hasta, p_motivo: motivo }),
+        });
+        /* Se tira la cache para que el cambio no tarde diez segundos en esta
+           misma instancia. Las demas se enteran cuando les toque. */
+        manteCache = null;
+        return responder({ mantenimiento: r });
+      } catch (e) {
+        const m = (e as Error).message;
+        console.error("mantenimiento: " + m);
+        if (marca(m, "motivo_corto")) return responder({ error: "el motivo es demasiado corto", clase: "motivo" }, 400);
+        if (marca(m, "sin_admin"))    return responder({ error: "sesion sin administrador", clase: "sesion" }, 401);
+        if (marca(m, "PGRST202"))     return responder({
+          error: "falta aplicar supabase-36-mantenimiento.sql", clase: "sin_funcion" }, 503);
+        return responder({ error: "Postgres rechazo el cambio: " + m.slice(0, 200), clase: "sql" }, 500);
+      }
     }
 
     /* ══════════ ¿en que red estamos? ══════════
