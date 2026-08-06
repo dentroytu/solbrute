@@ -1118,6 +1118,7 @@ verdad tenía sus dependencias, y eso le da al juego sensación de lugar.
 | Sala | Qué se hace | Estado |
 |---|---|---|
 | La forja | crear brutos | hecha |
+| La barbería | cambiar el aspecto de un bruto | hecha |
 | La armería | comprar armas y repartirlas entre tus brutos | hecha |
 | La arena | pelear | hecha |
 | La clasificación | ver quién manda | hecha |
@@ -1724,6 +1725,37 @@ cuenta, y encima compraría a ciegas, antes de ver cómo le queda.
 Así que el sumidero no son los cosméticos: **es poder cambiar**. Un cosmético
 se compra una vez; cambiar de aspecto se hace muchas. Cada visita se paga,
 tengas ya lo que te pongas o no.
+
+### El creador de aspecto lo usan las dos salas
+
+Estaba escrito contra ids fijos del marcado (`oSex`, `oHairC`…), así que la
+barbería habría tenido que duplicar treinta líneas de HTML con otros ids — y
+eso es exactamente como se desincronizaron `brute-render.js` y la arena.
+
+Ahora `montarCreador(caja, look, alCambiar, tengo)` lo monta entero desde JS
+sobre la caja que se le diga. La forja le pasa su `look`; la barbería le pasa
+una **copia** del bruto elegido, que es lo que permite trastear sin pagar: si
+te vas sin confirmar, el bruto se queda como estaba. Tocando el objeto de
+verdad, el ludus enseñaría un aspecto que nadie ha comprado.
+
+Y hubo que cambiar el botón de aspecto aleatorio: hacía `look = randomLook()`,
+o sea **sustituía el objeto**, y el creador guarda una referencia — habría
+seguido pintando sobre el de antes sin dar ningún error. Ahora copia los
+campos.
+
+### Un color de pago se marca SIEMPRE, tengas o no
+
+Con anillo de bronce si es premium, y además con candado si todavía no es tuyo.
+Marcar solo lo que falta comprar sería lo obvio y está mal: **quien ya los
+tiene dejaría de ver que son especiales**, y la mitad de lo que se vende es que
+se note.
+
+### El precio se desglosa antes de pulsar
+
+La visita y los colores nuevos van por separado, para que se vea que **el color
+se paga una vez y la visita siempre**. Un número que aparece después de pagar
+se lee como un engaño aunque sea un despiste — es la misma regla que la
+pantalla de retirada.
 
 ### Se vende el color, no el dibujo
 

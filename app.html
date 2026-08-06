@@ -326,6 +326,37 @@
         justify-content:center; padding:24px;
         background:radial-gradient(ellipse 700px 400px at 50% 30%, #2c2013, #0c0a07 70%); }
   .mante[hidden]{ display:none; }
+  /* ── la barberia ── */
+  .barb-brutos{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .barb-bruto{ background:var(--surface); border:1px solid var(--line); border-radius:13px;
+               padding:8px 13px 9px; cursor:pointer; font-family:inherit; color:var(--muted);
+               display:flex; align-items:center; gap:9px; transition:border-color .15s ease; }
+  .barb-bruto:hover{ border-color:var(--bronze); }
+  .barb-bruto.on{ border-color:var(--bronze); color:var(--text); }
+  .barb-mini svg{ width:34px; height:34px; display:block; }
+  .barb-nom{ font-family:'Cinzel',serif; font-weight:700; font-size:13.5px; }
+  /* Retrato y perfil a la vez: el color del pelo se juzga de frente y la ropa
+     de lado. Con una sola vista se compra a medias. */
+  .barb-vista{ display:flex; gap:18px; align-items:flex-end; justify-content:center;
+               background:var(--surface); border:1px solid var(--line); border-radius:16px;
+               padding:14px; margin-bottom:15px; min-height:150px; }
+  .barb-retrato svg{ width:118px; height:118px; display:block; }
+  .barb-perfil svg{ width:104px; height:auto; display:block; overflow:visible; }
+  .barb-pie{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:15px; }
+  .barb-precio{ display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); }
+  .barb-precio b{ color:var(--text); font-variant-numeric:tabular-nums; }
+  .barb-precio .tot b{ color:var(--sol-teal); }
+  .barb-precio .caro{ color:var(--blood-bright); }
+  .barb-aviso{ margin-top:9px; font-size:12.5px; color:var(--muted); min-height:17px; }
+  /* Un color de pago se distingue SIEMPRE, tengas o no: si solo se marcara lo
+     que falta comprar, quien ya los tiene dejaria de ver que son especiales —
+     y la mitad de lo que se vende es que se note. */
+  .sw-btn.premium{ box-shadow:0 0 0 2px var(--bg-deep), 0 0 0 3.5px var(--bronze); }
+  /* Y lo que aun no es tuyo lleva su candado encima. */
+  .sw-btn.porcomprar{ position:relative; }
+  .sw-btn.porcomprar::after{ content:"🔒"; position:absolute; inset:0; display:flex;
+                             align-items:center; justify-content:center; font-size:9px;
+                             text-shadow:0 1px 2px #000; }
   .mante-caja{ max-width:420px; text-align:center; }
   .mante-ico{ font-size:38px; color:var(--bronze); margin-bottom:14px; }
   .mante h2{ font-family:'Cinzel',serif; font-size:22px; color:var(--bronze-light); margin-bottom:12px; }
@@ -544,6 +575,7 @@
     <button class="sala" id="btnLudus" data-sc="scRoster"   data-i18n="ludus_open">🛡️ Ludus</button>
     <button class="sala" id="btnArm"   data-sc="scArmeria"  data-i18n="arm_open">⚔️ Armoury</button>
     <button class="sala" id="btnViv"   data-sc="scVivarium" data-i18n="viv_open">🐺 Vivarium</button>
+    <button class="sala" id="btnBarb"  data-sc="scBarbero"  data-i18n="barb_open">✂️ Barber</button>
     <button class="sala" id="btnRank"  data-sc="scRank"     data-i18n="rank_open">🏆 Leaderboard</button>
     <button class="sala" id="btnTor"   data-sc="scTorneos"  data-i18n="tor_open">🏛️ Tournaments</button>
     <button class="sala" id="btnRet"   data-sc="scRetirar" data-i18n="ret_open">💰 Withdraw</button>
@@ -732,6 +764,29 @@
   </section>
 
   <!-- 5 · FORGE + CREADOR -->
+  <!-- ══════════ la barberia ══════════
+       El aspecto se fijaba al forjar y no cambiaba nunca, asi que un cosmetico
+       comprado despues no tenia donde ponerse. Esta sala es lo que los hace
+       vendibles — y el sumidero de verdad no son los colores, es la visita:
+       un color se compra una vez, cambiar de aspecto se hace muchas. -->
+  <section class="screen" id="scBarbero">
+    <h1 data-i18n="barb_h1">The barber</h1>
+    <p class="sub" data-i18n="barb_p">Change how a brute looks. Every visit costs — the colours you buy are yours forever.</p>
+    <div class="barb-brutos" id="barbBrutos"></div>
+    <div id="barbCuerpo" hidden>
+      <div class="barb-vista">
+        <div class="barb-retrato" id="barbRetrato"></div>
+        <div class="barb-perfil" id="barbPerfil"></div>
+      </div>
+      <div class="panels" id="creadorBarb"></div>
+      <div class="barb-pie">
+        <div class="barb-precio" id="barbPrecio"></div>
+        <button class="btn btn-primary" id="btnBarb2" data-i18n="barb_do">Change the look</button>
+      </div>
+      <div class="barb-aviso" id="barbAviso"></div>
+    </div>
+  </section>
+
   <section class="screen" id="scForge">
     <button class="back js-back" data-i18n="back">‹ Back to the ludus</button>
     <div class="page-head">
@@ -767,38 +822,10 @@
           <div class="hint" id="nmHint" data-i18n="name_hint">Up to 16 characters. This is public and permanent.</div>
         </div>
 
-        <div class="panels">
-          <div class="panel wide">
-            <h3 data-i18n="p_body">Body</h3>
-            <div class="opts" id="oSex"></div>
-            <div class="sub" data-i18n="s_skin">Skin tone</div>
-            <div class="swatches" id="oSkin"></div>
-          </div>
-          <div class="panel">
-            <h3 data-i18n="p_hair">Hair</h3>
-            <div class="opts" id="oHair"></div>
-            <div class="sub" data-i18n="s_color">Colour</div>
-            <div class="swatches" id="oHairC"></div>
-          </div>
-          <div class="panel">
-            <h3 data-i18n="p_cloth">Clothes</h3>
-            <div class="opts" id="oCloth"></div>
-            <div class="sub" data-i18n="s_color">Colour</div>
-            <div class="swatches" id="oClothC"></div>
-          </div>
-          <div class="panel">
-            <h3 data-i18n="p_face">Face</h3>
-            <div class="opts" id="oFace"></div>
-            <div class="sub" data-i18n="s_eyes">Eyes</div>
-            <div class="swatches" id="oEyeC"></div>
-          </div>
-          <div class="panel">
-            <h3 data-i18n="p_tat">Tattoo</h3>
-            <div class="opts" id="oTat"></div>
-            <div class="sub" data-i18n="s_ink">Ink</div>
-            <div class="swatches" id="oTatC"></div>
-          </div>
-        </div>
+        <!-- Los paneles del aspecto los monta `montarCreador()`: los usan
+             la forja Y la barberia, y duplicar el marcado con otros ids es
+             como se desincronizan las cosas en este proyecto. -->
+        <div class="panels" id="creadorForja"></div>
 
         <div class="roll-box">
           <div class="roll-head">
@@ -948,6 +975,7 @@
       hist_compra_arma:"Arma comprada", hist_compra_plaza:"Plaza de bruto",
       hist_retirada:"Retirada", hist_skin:"Aspecto", hist_torneo:"Torneo",
       hist_mascota:"Mascota", hist_aspecto:"Barbería", hist_ajuste:"Ajuste",
+      barb_open:"✂️ Barbería", barb_h1:"La barbería", barb_p:"Cambia el aspecto de un bruto. Cada visita cuesta; los colores que compres son tuyos para siempre.", barb_do:"Cambiar el aspecto", barb_pick:"Elige a quién le toca", barb_visita:"visita", barb_nuevos:"colores nuevos", barb_total:"total", barb_igual:"No has cambiado nada todavía.", barb_caro:"No te llegan las monedas.", barb_hecho:"Listo. Así se te ve ahora.", asp_tuyo:"Ya es tuyo", asp_precio:"Cuesta",
       hist_arma_rota:"Arma rota", hist_mascota_muerta:"Mascota perdida",
       hist_pendiente:"pendiente", hist_enviada:"enviada", hist_fallida:"fallida",
       tor_open:"🏛️ Torneos", tor_h1:"Torneos",
@@ -1103,6 +1131,7 @@
       hist_compra_arma:"Weapon bought", hist_compra_plaza:"Brute slot",
       hist_retirada:"Withdrawal", hist_skin:"Skin", hist_torneo:"Tournament",
       hist_mascota:"Pet", hist_aspecto:"Barber", hist_ajuste:"Adjustment",
+      barb_open:"✂️ Barber", barb_h1:"The barber", barb_p:"Change how a brute looks. Every visit costs — the colours you buy are yours forever.", barb_do:"Change the look", barb_pick:"Pick who sits down", barb_visita:"visit", barb_nuevos:"new colours", barb_total:"total", barb_igual:"You haven't changed anything yet.", barb_caro:"Not enough coins.", barb_hecho:"Done. That's how you look now.", asp_tuyo:"Already yours", asp_precio:"Costs",
       hist_arma_rota:"Weapon broken", hist_mascota_muerta:"Pet lost",
       hist_pendiente:"pending", hist_enviada:"sent", hist_fallida:"failed",
       tor_open:"🏛️ Tournaments", tor_h1:"Tournaments",
@@ -1259,6 +1288,7 @@
       hist_retirada:"Retrait", hist_skin:"Apparence", hist_torneo:"Tournoi",
       hist_arma_rota:"Arme cassee", hist_mascota_muerta:"Familier perdu",
       hist_mascota:"Familier", hist_aspecto:"Barbier", hist_ajuste:"Ajustement",
+      barb_open:"✂️ Barbier", barb_h1:"Le barbier", barb_p:"Change l'allure d'une brute. Chaque visite coûte ; les couleurs achetées sont à toi pour toujours.", barb_do:"Changer l'allure", barb_pick:"Choisis qui s'assoit", barb_visita:"visite", barb_nuevos:"nouvelles couleurs", barb_total:"total", barb_igual:"Tu n'as encore rien changé.", barb_caro:"Pas assez de pièces.", barb_hecho:"Voilà. C'est ton allure maintenant.", asp_tuyo:"Déjà à toi", asp_precio:"Coûte",
       hist_pendiente:"en attente", hist_enviada:"envoyé", hist_fallida:"échoué",
       tor_open:"🏛️ Tournois", tor_h1:"Tournois",
       tor_sub:"Élimination directe. Le tableau se résout d'un coup, et chaque combat peut être rejoué.",
@@ -1370,6 +1400,9 @@
      JUGADOR y no con el bruto: una comprada se puede repartir entre los tres
      sin comprarla tres veces. */
   let misSkins = {};
+  /* Los colores de pago que posees, por campo: {"hairC":[8,9]}. Lo usa la
+     barberia para no cobrarte dos veces por el mismo. */
+  let aspectos = {};
   const ICONO_URL = "https://ihrcvartuuyvftxdxztt.supabase.co/storage/v1/object/public/armas/";
 
   let bolsa = {};
@@ -1439,6 +1472,7 @@
         balance = d.balance;
         bolsa   = d.bolsa || {};
         misSkins = d.skins || {};
+        aspectos = d.aspectos || {};
         bichos  = d.bichos || {};
         brutes  = d.brutos;
         nextId  = brutes.length + 1;
@@ -2668,6 +2702,89 @@
      registro saltar, que es el de la pelea en curso. */
   arena.botonSaltar.onclick = () => { if(playing) arena.saltar(fight.log); };
 
+  /* ═══════════ la barberia ═══════════
+     Cambiar el aspecto de un bruto que ya existe. El precio lo decide el
+     SERVIDOR —la visita mas lo que no tengas todavia— y aqui se calcula solo
+     para ENSEÑARLO antes de pulsar: un numero que aparece despues de pagar se
+     lee como un engaño aunque sea un despiste.
+
+     `aspectos` es lo que ya posees. Sale de `loadMe()`, no de aqui: si el
+     navegador dijera lo que tiene, se pintaria todo como comprado. */
+  let barbBruto = null, barbLook = null, repintaBarb = null;
+
+  function renderBarbero(){
+    /* Los brutos, para elegir a quien le toca. Con uno solo se elige solo. */
+    el("barbBrutos").innerHTML = brutes.map(b => `
+      <button class="barb-bruto${barbBruto && b.rid === barbBruto.rid ? " on" : ""}" data-rid="${Number(b.rid)}">
+        <span class="barb-mini">${bust(b.look)}</span>
+        <span class="barb-nom">${esc(b.name)}</span>
+      </button>`).join("") || `<div class="vacio">${esc(t("barb_pick"))}</div>`;
+    el("barbBrutos").querySelectorAll(".barb-bruto").forEach(x => x.onclick = () => {
+      elegirBarb(brutes.find(b => b.rid === +x.dataset.rid));
+    });
+    el("barbCuerpo").hidden = !barbBruto;
+    if(!barbBruto) return;
+    pintarBarbVista();
+  }
+
+  function elegirBarb(b){
+    if(!b) return;
+    barbBruto = b;
+    /* Copia: se toca hasta pulsar, y si te vas sin pagar el bruto se queda
+       como estaba. Tocando el objeto de verdad, el ludus enseñaria un aspecto
+       que nadie ha comprado. */
+    barbLook = { ...b.look };
+    repintaBarb = montarCreador(el("creadorBarb"), barbLook, pintarBarbVista, () => aspectos);
+    renderBarbero();
+  }
+
+  function pintarBarbVista(){
+    el("barbRetrato").innerHTML = bust(barbLook);
+    el("barbPerfil").innerHTML = spriteProfile({ ...barbBruto, look: barbLook }, true);
+
+    const usa = premiumDe(barbLook);
+    let nuevos = 0;
+    for(const campo of Object.keys(usa)){
+      const mios = (aspectos && aspectos[campo]) || [];
+      for(const i of usa[campo]) if(!mios.includes(i)) nuevos += ASPECTO[campo].precio;
+    }
+    const total = PRECIO_BARBERO + nuevos;
+    const igual = JSON.stringify(barbLook) === JSON.stringify(barbBruto.look);
+
+    /* Se desglosa: la visita y lo que se compra van por separado para que se
+       vea que el color se paga UNA vez y la visita siempre. */
+    el("barbPrecio").innerHTML =
+      `<span>${esc(t("barb_visita"))} <b>${PRECIO_BARBERO}</b></span>`
+      + (nuevos ? `<span>${esc(t("barb_nuevos"))} <b>${nuevos}</b></span>` : "")
+      + `<span class="tot">${esc(t("barb_total"))} <b class="${total > balance ? "caro" : ""}">${total}</b> $BRUTE</span>`;
+
+    const bt = el("btnBarb2");
+    bt.disabled = igual || total > balance;
+    el("barbAviso").textContent = igual ? t("barb_igual") : (total > balance ? t("barb_caro") : "");
+  }
+
+  el("btnBarb2").onclick = async () => {
+    if(!barbBruto || !barbLook) return;
+    const bt = el("btnBarb2"); bt.disabled = true;
+    try{
+      const r = await SolBruteDB.barbero(barbBruto.rid, barbLook);
+      /* Lo que dice el servidor manda: el aspecto, el saldo y lo que ahora
+         posees salen de su respuesta, no de lo que creyera el navegador. */
+      barbBruto.look = r.look;
+      balance = r.balance;
+      aspectos = r.aspectos || {};
+      el("balNum").textContent = balance;
+      barbLook = { ...r.look };
+      el("barbAviso").textContent = t("barb_hecho");
+      repintaBarb && repintaBarb();
+      pintarBarbVista();
+      renderRoster();
+    }catch(e){
+      el("barbAviso").textContent = e.clase === "sin_saldo" ? t("barb_caro") : (e.message || t("f_error"));
+      bt.disabled = false;
+    }
+  };
+
   /* ═══════════ forja con creador ═══════════ */
   let look = null, stats = null, pendingPrice = 0;
 
@@ -2712,34 +2829,70 @@
     el("btnForge").disabled = nm.length < 2 || typeof stats.str !== "number";
     syncCreator();
   }
-  function optRow(box, list, key){
-    el(box).innerHTML = list.map((o,i) => `<button class="opt${key==="sex"?" big":""}" data-k="${key}" data-i="${i}">${o}</button>`).join("");
-    el(box).querySelectorAll(".opt").forEach(b => b.onclick = () => {
-      look[b.dataset.k] = +b.dataset.i;
-      if(b.dataset.k === "sex"){ look.hair = 0; optRow("oHair", O(look.sex===0?"hairM":"hairF"), "hair"); }
-      renderForge();
-    });
+  /* ═══════════ el creador de aspecto ═══════════
+     Lo usan la FORJA y la BARBERIA. Estaba escrito contra ids fijos del
+     marcado (`oSex`, `oHairC`…), asi que la barberia habria tenido que
+     duplicar treinta lineas de HTML con otros ids — y eso es exactamente como
+     se desincronizaron `brute-render.js` y la arena en su dia.
+
+     Ahora se monta entero desde JS sobre la caja que se le diga, y trabaja
+     sobre el objeto `look` que se le pase. */
+
+  /* Un color de PAGO se sabe por el indice: premium = >= LOOK_N. Sin lista. */
+  const esPremium = (key, i) => LOOK_N[key] !== undefined && i >= LOOK_N[key];
+
+  const PANELES = [
+    ["p_body",  "sex",   () => O("sex"),                            "s_skin",  "skin",   () => SKIN.map(x => x[0]), true],
+    ["p_hair",  "hair",  (o) => O(o.sex === 0 ? "hairM" : "hairF"),  "s_color", "hairC",  () => HAIRC],
+    ["p_cloth", "cloth", () => O("cloth"),                          "s_color", "clothC", () => CLOTHC],
+    ["p_face",  "face",  () => O("face"),                           "s_eyes",  "eyeC",   () => EYEC],
+    ["p_tat",   "tat",   () => O("tat"),                            "s_ink",   "tatC",   () => INK],
+  ];
+
+  function montarCreador(caja, obj, alCambiar, tengo){
+    caja.innerHTML = PANELES.map(([tit, key, , sub, ck, , ancho]) => `
+      <div class="panel${ancho ? " wide" : ""}">
+        <h3>${esc(t(tit))}</h3>
+        <div class="opts" data-fila="${key}"></div>
+        <div class="sub">${esc(t(sub))}</div>
+        <div class="swatches" data-fila="${ck}"></div>
+      </div>`).join("");
+
+    const pinta = () => {
+      for(const [, key, lista, , ck, pal] of PANELES){
+        caja.querySelector(`.opts[data-fila="${key}"]`).innerHTML =
+          lista(obj).map((o, i) =>
+            `<button class="opt${key === "sex" ? " big" : ""}" data-k="${key}" data-i="${i}">${esc(o)}</button>`).join("");
+        caja.querySelector(`.swatches[data-fila="${ck}"]`).innerHTML =
+          pal().map((c, i) => {
+            const pre = esPremium(ck, i);
+            const mio = pre && (((tengo && tengo()) || {})[ck] || []).includes(i);
+            const tit = pre ? (mio ? t("asp_tuyo") : t("asp_precio") + " " + ASPECTO[ck].precio) : String(i + 1);
+            return `<button class="sw-btn${pre ? " premium" : ""}${pre && !mio ? " porcomprar" : ""}"`
+                 + ` data-k="${ck}" data-i="${i}" style="background:${c}"`
+                 + ` title="${esc(tit)}" aria-label="${esc(tit)}"></button>`;
+          }).join("");
+      }
+      caja.querySelectorAll(".opt, .sw-btn").forEach(b => {
+        b.classList.toggle("on", obj[b.dataset.k] === +b.dataset.i);
+        b.onclick = () => {
+          obj[b.dataset.k] = +b.dataset.i;
+          /* Los peinados dependen del sexo: al cambiarlo los indices dejan de
+             significar lo mismo y hay que volver al 0. */
+          if(b.dataset.k === "sex") obj.hair = 0;
+          pinta(); alCambiar();
+        };
+      });
+    };
+    pinta();
+    return pinta;
   }
-  function swRow(box, pal, key){
-    el(box).innerHTML = pal.map((c,i) => `<button class="sw-btn" data-k="${key}" data-i="${i}" style="background:${c}" aria-label="${i+1}"></button>`).join("");
-    el(box).querySelectorAll(".sw-btn").forEach(b => b.onclick = () => { look[b.dataset.k] = +b.dataset.i; renderForge(); });
-  }
+
+  let repintaForja = null;
   function buildCreator(){
-    optRow("oSex", O("sex"), "sex");
-    swRow("oSkin", SKIN.map(s => s[0]), "skin");
-    optRow("oHair", O(look.sex===0?"hairM":"hairF"), "hair");
-    swRow("oHairC", HAIRC, "hairC");
-    optRow("oCloth", O("cloth"), "cloth");
-    swRow("oClothC", CLOTHC, "clothC");
-    optRow("oFace", O("face"), "face");
-    swRow("oEyeC", EYEC, "eyeC");
-    optRow("oTat", O("tat"), "tat");
-    swRow("oTatC", INK, "tatC");
+    repintaForja = montarCreador(el("creadorForja"), look, renderForge, null);
   }
-  function syncCreator(){
-    document.querySelectorAll("#scForge .opt, #scForge .sw-btn").forEach(b =>
-      b.classList.toggle("on", look[b.dataset.k] === +b.dataset.i));
-  }
+  function syncCreator(){ if(repintaForja) repintaForja(); }
   /* El servidor filtra el nombre con lista blanca, así que si escribes
      "<img src=x>" acabas llamándote "img srcx". Como el nombre es permanente,
      que cambie en silencio es feo: se aplica el mismo filtro aquí para que
@@ -2757,8 +2910,11 @@
   });
   el("btnReroll").onclick = nuevaTirada;
   el("btnLookRandom").onclick = () => {
-    look = randomLook();
-    optRow("oHair", O(look.sex===0?"hairM":"hairF"), "hair");
+    /* Se copian los campos en vez de sustituir el objeto: el creador guarda una
+       referencia a `look`, y cambiarla por otra dejaria a los botones pintando
+       sobre el objeto de antes — sin dar ningun error. */
+    Object.assign(look, randomLook());
+    syncCreator();
     renderForge();
   };
   el("btnForge").onclick = async () => {
@@ -2937,6 +3093,12 @@
   el("btnRank").onclick = openRank;
   el("btnArm").onclick = () => openArmeria();
   el("btnViv").onclick = () => openVivarium();
+  el("btnBarb").onclick = () => {
+    /* Al entrar se elige solo si solo hay uno: con un bruto no hay nada que
+       decidir y una lista de una cosa es un paso de mas. */
+    if(!barbBruto && brutes.length) elegirBarb(brutes[0]);
+    show("scBarbero"); renderBarbero();
+  };
   el("btnTor").onclick = openTorneos;
   el("btnTorVolver").onclick = openTorneos;
   el("btnRet").onclick  = () => { show("scRetirar"); renderRetirar(); };
@@ -3035,6 +3197,7 @@
     if(cur.id === "scArmeria" && active) renderArmeria();
     if(cur.id === "scGate") pintarWallets();
     if(cur.id === "scForge" && look){ buildCreator(); renderForge(); }
+    if(cur.id === "scBarbero") renderBarbero();
   }
   document.querySelectorAll(".lang-btn").forEach(b => b.onclick = () => applyLang(b.dataset.lang));
 

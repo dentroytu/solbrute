@@ -270,6 +270,11 @@
         /* Las skins compradas, por arma. Un campo nuevo que no viaje por aquí
            se pierde al recargar — es el fallo del arma de `aBruto`, otra vez. */
         skins: (jugador.skins && typeof jugador.skins === "object") ? jugador.skins : {},
+        /* Los colores de pago comprados, por campo del aspecto:
+           {"hairC":[8,9]}. Mismo aviso que arriba — un campo que no viaje por
+           aqui se pierde al recargar y el jugador cree que ha perdido lo que
+           pago. Es el fallo del arma de `aBruto`, por tercera vez. */
+        aspectos: (jugador.aspectos && typeof jugador.aspectos === "object") ? jugador.aspectos : {},
         brutos: (brutos || []).map((f, i) => aBruto(f, i + 1))
       };
     },
@@ -482,6 +487,13 @@
        propiedad la comprueba él contra el bruto, no contra esto. */
     async ponerSkin(bruteId, arma, skin){
       return await pedirAuth({ accion: "poner_skin", token: token(), bruteId, arma, skin });
+    },
+
+    /* La barberia. El precio lo calcula el SERVIDOR con lo que ya tengas: aqui
+       solo se manda el aspecto que se quiere. Mandarlo desde el navegador
+       seria dejar que cada uno se pusiera el suyo. */
+    async barbero(bruteId, look){
+      return await pedirAuth({ accion: "barbero", token: token(), bruteId, look });
     },
 
     /* ═══════════ ¿está el juego parado? ═══════════
