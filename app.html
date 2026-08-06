@@ -1553,6 +1553,12 @@
   const KEY_ADDR = "solbrute:addr:v1";
 
   /* Una dirección de Solana son 44 caracteres: entera no cabe en la barra. */
+  /* Una direccion no puede llevar `<`: para llegar a `players.address` hay que
+     pasar por el decodificado de clave ed25519 del login. Pero esa garantia vive
+     en OTRO fichero, y esto se pinta en la pantalla de los DEMAS —la
+     clasificacion—, asi que va escapada igual. El dia que se añada otra via de
+     escritura, el fallo no saldria en ninguna prueba: saldria en la pantalla de
+     un tercero. */
   const shortAddr = a => a ? a.slice(0,4) + "…" + a.slice(-4) : "—";
 
   /* true = los brutos viven en Supabase; false = solo en esta pestaña.
@@ -2214,7 +2220,7 @@
           <div class="opp-stats">
             <span>${t("str")} <b>${b.str}</b></span><span>${t("agi")} <b>${b.agi}</b></span>
             <span>${t("spd")} <b>${b.spd}</b></span><span>HP <b>${b.hpMax}</b></span>
-            <span class="rank-owner">${shortAddr(b.owner)}</span>
+            <span class="rank-owner">${esc(shortAddr(b.owner))}</span>
           </div>
         </div>
       </div>`;

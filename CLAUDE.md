@@ -66,6 +66,7 @@ experiencia y sube de nivel.
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `prueba-mascotas-emparejada.mjs` | Las mide **emparejado**: mismo bruto y semilla, con y sin | Herramienta |
 | `prueba-ascii.mjs` | Acentos donde el editor de Supabase los destroza | Herramienta |
+| `prueba-escape.mjs` | Texto de un jugador en la pantalla de otro sin `esc()` | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain y la preventa** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
@@ -2247,6 +2248,48 @@ comprobar nadie más— es que la Edge Function le pasa a Postgres lo que debe:
 > Si alguien quita `p_nivel_min` de una llamada, el SQL usa su valor por
 > defecto (1) y **el candado se apaga sin fallar**. Ningún error que lo delate.
 > Ese es el agujero que este banco existe para encontrar.
+
+### `pelea.html` es la única página sin sesión, y aguanta
+
+Es la superficie más expuesta que hay: sin cuenta, sin wallet, y pintando datos
+de dos jugadores que no la abrieron. Se revisó entera y está limpia.
+
+Lo que había que mirar de verdad no era el nombre del bruto —ese ya iba por
+`esc()`— sino el **registro turno a turno**, porque los nombres viajan dentro de
+cada evento y `p[0]` se inyecta sin escapar. `frase()` escapa los nueve tipos,
+así que el contrato se cumple: **lo que entra en el `innerHTML` sin `esc()`
+tiene que venir de una función que ya escapó dentro.**
+
+`document.title` no cuenta: es una propiedad de texto, no HTML.
+
+### Un comprobador que saca 292 avisos no lo mira nadie
+
+Al revisar el escapado a mano quedó claro que hacía falta una herramienta, y
+las dos primeras versiones no valían:
+
+```
+todo lo que no lleva esc()          292 avisos en app.html
+solo los accesos a propiedad         84  — casi todos números (b.lv, w.precio)
+solo las columnas de TEXTO ajeno      0  ← esta
+```
+
+La lista buena es corta y sale del esquema: `brutes.name`, `fights.b_name`,
+`players.address` y el `name` de un snapshot. **Todo lo demás o es numérico, o
+es una clave validada contra una lista blanca en el servidor, o son textos
+propios.**
+
+Es el mismo criterio que ya hizo falta con la invariante de los botes y con el
+detector de acentos: **una alarma que salta cuando no pasa nada se aprende a
+ignorar**, y entonces no sirve el día que salta de verdad. `prueba-escape.mjs`
+saca cero cuando está bien — probado quitándole un `esc()` a mano.
+
+Encontró cinco: la dirección de la clasificación en `app.html` y cuatro en el
+panel, una de ellas **dentro de un atributo HTML** (`data-editarj="j${…}"`),
+que es un contexto más frágil porque basta una comilla para salirse. Ninguna
+era explotable —una dirección tiene que pasar por el decodificado de clave
+ed25519 del login, así que no puede llevar `<`— pero esa garantía **vive en otro
+fichero**. El día que se añada otra vía de escritura, el fallo no sale en
+ninguna prueba: sale en la pantalla de un tercero.
 
 ### Un torneo se podía quedar atascado con el bote dentro
 

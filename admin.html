@@ -950,7 +950,7 @@
         <td class="num-cel">${x.agi}</td><td class="num-cel">${x.spd}</td>
         <td class="num-cel">${n(x.wins)}</td><td class="num-cel">${n(x.losses)}</td>
         <td class="num-cel">${x.fights_left}</td>
-        <td class="dir">${x.owner.slice(0,4)}…${x.owner.slice(-4)}</td>
+        <td class="dir">${escapar(x.owner.slice(0,4))}…${escapar(x.owner.slice(-4))}</td>
         <td><div class="acciones">
           <button class="mini" data-editar="b${x.id}">Editar</button>
           <button class="mini peligro" data-borrar="${x.id}">Borrar</button>
@@ -960,7 +960,7 @@
         ${c.tipo === "num" ? 'type="number"' : 'maxlength="16"'} value="${escapar(x[c.k])}">`;
     return `<tr class="editando">
       ${CAMPOS_BRUTO.map(c => `<td>${inp(c)}</td>`).join("")}
-      <td class="dir">${x.owner.slice(0,4)}…${x.owner.slice(-4)}</td>
+      <td class="dir">${escapar(x.owner.slice(0,4))}…${escapar(x.owner.slice(-4))}</td>
       <td><div class="acciones">
         <button class="mini" data-guardar="${x.id}">Guardar</button>
         <button class="mini" data-cancelar="1">Cancelar</button>
@@ -1014,7 +1014,7 @@
         <td class="num-cel">${suyos}</td>
         <td class="dir">${fecha(x.created_at)}</td><td class="dir">${fecha(x.last_seen)}</td>
         <td><div class="acciones">
-          <button class="mini" data-editarj="j${x.address}">Editar</button>
+          <button class="mini" data-editarj="j${escapar(x.address)}">Editar</button>
           <button class="mini peligro" data-borrarj="${escapar(x.address)}">Borrar</button>
         </div></td></tr>`;
     }
