@@ -137,7 +137,7 @@ function desdeBase58(texto: string): Uint8Array {
   const bytes: number[] = [];
   for (const caracter of texto) {
     const valor = ALFABETO.indexOf(caracter);
-    if (valor < 0) throw new Error("carácter no válido en base58: " + caracter);
+    if (valor < 0) throw new Error("caracter no valido en base58: " + caracter);
     let acarreo = valor;
     for (let i = 0; i < bytes.length; i++) {
       acarreo += bytes[i] * 58;
@@ -1192,7 +1192,7 @@ async function manejar(req: Request): Promise<Response> {
       ganadas = em.monedas;
       tasaHoy = em.tasa;
     } catch (e) {
-      console.error("emisión caída: " + (e as Error).message);
+      console.error("emision caida: " + (e as Error).message);
       return responder({ error: "la economia no responde, intentalo otra vez",
                          clase: "emision" }, 503);
     }
@@ -2036,7 +2036,7 @@ async function manejar(req: Request): Promise<Response> {
           method: "POST", body: JSON.stringify({ p_monedas: Math.round(saldo) }),
         }).catch((e) => console.error(
           "BORRE AL JUGADOR " + dir + " CON " + saldo + " MONEDAS Y NO PUDE " +
-          "DEVOLVERLAS A LA RESERVA: " + e.message + " — la invariante queda " +
+          "DEVOLVERLAS A LA RESERVA: " + e.message + ". La invariante queda " +
           "corta en " + saldo + ". Se cuadra con supabase-24."));
       }
 

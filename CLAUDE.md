@@ -28,8 +28,8 @@ experiencia y sube de nivel.
 | `supabase-33-armas-nuevas.sql` | Abre el `check` de `brutes.arma` a las nueve. **Antes de la función** | Aplicado |
 | `supabase-34-skins.sql` | Skins de arma: `players.skins` y `brutes.arma_skin` | Aplicado |
 | `supabase-35-armas-17.sql` | Abre el `check` a las diecisiete. **Antes de la función** | Escrito |
-| `supabase-36-mantenimiento.sql` | Parar el juego desde el panel. **Antes de la función** | Escrito |
-| `supabase-37-botes.sql` | El bote de un torneo también está en circulación | Escrito |
+| `supabase-36-mantenimiento.sql` | Parar el juego desde el panel. **Antes de la función** | Aplicado |
+| `supabase-37-botes.sql` | El bote de un torneo también está en circulación | Aplicado |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -56,7 +56,7 @@ experiencia y sube de nivel.
 | `supabase-28-cuadrar.sql` | Cuadra los libros tras el descuadre del panel. **Tras la Edge Function** | Una vez |
 | `supabase-29-valvula.sql` | La válvula: solo se paga lo que hay. **Con el token en mainnet** | Escrito |
 | `supabase-30-rescatar.sql` | Rescatar el arma rota y revivir la mascota | Repetible |
-| `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Escrito, sin aplicar |
+| `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Aplicado · **la venta está VIVA** |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-preventa.mjs` | Ataca la preventa **contra el servidor desplegado**. 33 ataques | Herramienta |
 | `prueba-pago-devnet.mjs` | Compra de verdad contra devnet: paga, cobra y no cobra dos veces | Herramienta |
@@ -64,6 +64,7 @@ experiencia y sube de nivel.
 | `LEGAL.md` | Expediente de hechos para el abogado | Guía |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `prueba-mascotas-emparejada.mjs` | Las mide **emparejado**: mismo bruto y semilla, con y sin | Herramienta |
+| `prueba-ascii.mjs` | Acentos donde el editor de Supabase los destroza | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain y la preventa** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
@@ -2628,6 +2629,19 @@ porque en pantalla parece un fallo cualquiera de fuente.
 
 **Los comentarios sí llevan acentos**: su mojibake dentro del editor es fea pero
 no la ve nadie, y el fichero del repositorio es la fuente de verdad.
+
+**Y ya no se comprueba a ojo:** `prueba-ascii.mjs` distingue las tres cosas
+—cadena, identificador y comentario— siguiendo el estado del texto. Hace falta
+un analizador y no un `grep` porque hay que entender también las expresiones
+regulares: la primera versión marcaba `/[^\p{L}\p{N} .'\-]/gu` como cadena,
+porque veía el apóstrofo de dentro. **Un comprobador con un falso positivo
+conocido es uno que se aprende a ignorar**, y entonces no sirve el día que
+encuentra algo — la misma razón por la que la invariante tuvo que aprender a
+contar los botes.
+
+Encontró tres que llevaban tiempo ahí, y una de ellas **la ve el jugador**:
+`"carácter no válido en base58: "` sale por `no pude verificar la firma: …`, así
+que quien mandara una dirección mal formada leía `car√°cter no v√°lido`.
 
 **Los IDENTIFICADORES también en ASCII, y esto es lo importante.** Una función
 se llamaba `dueñoDe` y el despliegue fallaba entero con
