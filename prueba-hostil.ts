@@ -241,16 +241,20 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
   probar("tocar el bruto de otro jugador", v.level>1||v.arma!=="ninguna"||v.wins>0, `nivel ${v.level} · arma ${v.arma} · ${v.wins}V`);
 
   // 12 · rutas de admin sin ser admin
+  /* El total se CUENTA, no se escribe. Decia "de 7" con ocho rutas en la lista:
+     un numero a mano en una prueba envejece solo, y aqui mentia justo sobre
+     cuanta superficie se estaba atacando. */
   let admins=0;
+  let RUTAS_ADMIN = 0;
   for(const a of ["admin_resumen","admin_jugadores","admin_editar_bruto","admin_borrar_jugador"]){
     const r=await pedir({accion:a,token:A.token,id:A.id,address:B.dir,campos:{coins:1e9}});
-    if(r.s===200) admins++;
+    RUTAS_ADMIN++; if(r.s===200) admins++;
   }
   for(const a of ["admin_preventa","admin_preventa_config","admin_red","admin_mantenimiento"]){
     const r=await pedir({accion:a,token:A.token,campos:{activa:true,precio_lamports:1},motivo:"me la abro yo solo"});
-    if(r.s===200) admins++;
+    RUTAS_ADMIN++; if(r.s===200) admins++;
   }
-  probar("entrar en las rutas de admin", admins>0, `${admins} de 7 respondieron`);
+  probar("entrar en las rutas de admin", admins>0, `${admins} de ${RUTAS_ADMIN} respondieron`);
 
   /* La preventa es la unica parte del juego donde alguien manda SOL de verdad
      antes de recibir nada. Encenderla desde fuera del panel seria abrir la
