@@ -2090,7 +2090,7 @@ Y editar el cliente es MENOS peligroso que llamar a la API directamente con
 (`prueba-banco.ts`) y la ataca con un cliente reescrito: subirse el nivel,
 regalarse peleas, monedas y armas, inventarse la lista de rivales, elegir la
 semilla, saltarse el precio de la plaza, tocar el bruto de otro y colarse en
-las rutas de admin. **30 ataques, ninguno funciona.**
+las rutas de admin. **33 ataques, ninguno funciona.**
 
 **Si añades una ruta a la función, añádele aquí su ataque antes de
 desplegarla.** Esto aguanta porque se prueba, no porque el código sea bonito.
@@ -2245,6 +2245,41 @@ comprobar nadie más— es que la Edge Function le pasa a Postgres lo que debe:
 > Si alguien quita `p_nivel_min` de una llamada, el SQL usa su valor por
 > defecto (1) y **el candado se apaga sin fallar**. Ningún error que lo delate.
 > Ese es el agujero que este banco existe para encontrar.
+
+### Borrar un jugador quemaba sus monedas
+
+Los pasos de limpieza por SQL (16 y 24) cuadran la reserva después de borrar
+cuentas, con una fórmula razonada que tiene en cuenta el fondo de garantía. El
+botón del panel no lo hacía: borraba la fila y ya.
+
+```
+en circulación  +  reserva restante  +  (fondo − 5.000.000)  =  reserva total
+        ↓ baja                ↑ no sube
+```
+
+No es imprimir dinero, es **quemarlo** — pero `respaldo.mjs` diría «no cuadra»
+a partir de ese día y para siempre, y esas monedas quedan sin poder volver a
+emitirse nunca.
+
+Ahora se devuelven con `emision_reciclar`, que mantiene la invariante exacta:
+el 90% a la reserva y el 10% al fondo, que es justo el término
+`(fondo − 5.000.000)`.
+
+**Y va DESPUÉS del borrado, no antes.** Al revés, si el borrado fallara tras
+haber reciclado, las monedas estarían en los dos sitios a la vez: eso sí sería
+imprimir. Entre quemar e imprimir se elige quemar, y se avisa fuerte al log.
+
+### Comprar una skin salía como si te hubieran pagado
+
+`apuntar` recibe las monedas con signo, y el historial pinta por él: `neg =
+monedas < 0`, y si no lo es le pone un `+` delante y lo colorea de ganancia.
+Los seis apuntes de compra van en negativo… menos el de las skins, que era el
+más nuevo. Comprar una de 45 salía como **«+45»**.
+
+Cuesta cero verlo cuando lo miras y no lo ve nadie mientras no lo mire, porque
+no falla nada. La comprobación lee los apuntes del propio fichero y exige que
+las cinco clases de compra lleven el menos delante — probada devolviendo el
+fallo a mano, que es la única forma de saber que una prueba detecta algo.
 
 ### La defensa estaba en el SQL y la puerta de arriba no se había enterado
 

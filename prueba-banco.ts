@@ -93,8 +93,16 @@ const casa = (fila: any, f: [string, string, string][]) => f.every(([k, op, v]) 
   return resp(null, 405);
 };
 
+/* Una direccion de admin FIJA y conocida. `ADMINS` se calcula al importar el
+   modulo, asi que no se puede cambiar despues: se fija aqui y la prueba se
+   mete una sesion a mano en `T.sessions` para hablar como ella. Sin esto no se
+   puede atacar nada de DENTRO del panel — solo comprobar que la puerta cierra,
+   que es la mitad de la superficie. */
+const ADMIN_DIR = "AdM1nWa11etDePruebaNoUsarJamasEnProduccion11";
+(globalThis as any).__ADMIN_DIR = ADMIN_DIR;
+
 (globalThis as any).Deno = {
-  env: { get: (n: string) => n === "ADMIN_WALLETS" ? "" : "http://x" },
+  env: { get: (n: string) => n === "ADMIN_WALLETS" ? ADMIN_DIR : "http://x" },
   serve: (f: any) => { (globalThis as any).__manejador = f; },
 };
 (globalThis as any).__TABLAS = TABLAS;

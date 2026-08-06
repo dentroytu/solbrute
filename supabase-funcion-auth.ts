@@ -897,7 +897,12 @@ async function manejar(req: Request): Promise<Response> {
        invariante dejaria de cuadrar. `reciclar` no devuelve promesa: se traga
        sus errores a proposito, porque el jugador ya ha pagado. */
     reciclar(f.precio);
-    apuntar(dueno, "skin", familia + ":" + skin, f.precio, { familia, skin });
+    /* En NEGATIVO, como todas las compras. Estaba en positivo —el unico de los
+       seis apuntes que hay— y el historial pinta por el signo: `neg =
+       monedas < 0`, y si no lo es le pone un `+` delante y lo colorea de
+       ganancia. O sea que comprar una skin de 45 salia como «+45», como si te
+       hubieran pagado por comprarla. */
+    apuntar(dueno, "skin", familia + ":" + skin, -f.precio, { familia, skin });
     return responder({ familia, skin, balance: r.balance, skins: r.skins });
   }
 
@@ -2001,8 +2006,43 @@ async function manejar(req: Request): Promise<Response> {
 
       await db("/sessions?address=eq." + encodeURIComponent(dir), { method: "DELETE" }).catch(() => {});
       await db("/players?address=eq." + encodeURIComponent(dir), { method: "DELETE" });
+
+      /* ── Sus monedas VUELVEN a la reserva ─────────────────────────────────
+         Borrar la fila sin mas destruye el saldo sin devolverlo, y entonces la
+         invariante se queda coja PARA SIEMPRE:
+
+             en circulacion + reserva restante + (fondo - 5.000.000) = total
+
+         Al desaparecer el jugador baja el primer sumando y no sube ninguno.
+         No es imprimir dinero —es quemarlo— pero deja `respaldo.mjs` diciendo
+         «no cuadra» a partir de ese dia, y esas monedas quedan sin poder
+         volver a emitirse nunca.
+
+         Los pasos de limpieza por SQL (16 y 24) SI cuadran la reserva despues
+         de borrar, con su formula razonada. El panel no lo hacia: la capa de
+         abajo sabia y la de arriba no. Es el mismo patron de la preventa.
+
+         `emision_reciclar` mantiene la invariante exactamente —el 90% a la
+         reserva y el 10% al fondo, y ese 10% es justo el termino `(fondo -
+         5.000.000)`— y ademas topa contra el techo, asi que no puede
+         desbordarla.
+
+         Va DESPUES del borrado a proposito. Al reves, si el borrado fallara
+         tras haber reciclado, las monedas estarian en los dos sitios a la vez:
+         eso si seria imprimir. Entre quemar y imprimir, se elige quemar. */
+      const saldo = Number(antes.coins || 0);
+      if (saldo > 0) {
+        await db("/rpc/emision_reciclar", {
+          method: "POST", body: JSON.stringify({ p_monedas: Math.round(saldo) }),
+        }).catch((e) => console.error(
+          "BORRE AL JUGADOR " + dir + " CON " + saldo + " MONEDAS Y NO PUDE " +
+          "DEVOLVERLAS A LA RESERVA: " + e.message + " — la invariante queda " +
+          "corta en " + saldo + ". Se cuadra con supabase-24."));
+      }
+
       await anotar("borrar_jugador", dir, { ...antes, brutos: suyos }, null);
-      return responder({ ok: true, brutos_borrados: (suyos || []).length });
+      return responder({ ok: true, brutos_borrados: (suyos || []).length,
+                         devueltas: saldo });
     }
 
     return responder({ error: "accion de admin desconocida" }, 400);

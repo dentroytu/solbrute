@@ -187,14 +187,34 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
       ["comprar_skin",     v => ({accion:"comprar_skin",     token:A.token, arma:v, skin:0})],
       ["poner_skin",       v => ({accion:"poner_skin",       token:A.token, bruteId:A.id, arma:v, skin:0})],
     ];
+    /* ── Lo que se mide NO es el codigo de estado ─────────────────────────
+       La primera version contaba «200 = agujero», y fallaba 1 de cada 6
+       pasadas por un motivo que no tenia nada que ver: en las pruebas de
+       antes el bruto pelea, a veces sube de nivel y le toca un ARMA. Entonces
+       `poner_skin` encuentra un arma de verdad, deriva su familia —ignorando
+       el `arma` del cuerpo, que es justo el arreglo— y llama a Postgres. El
+       banco no ejecuta Postgres, asi que devuelve 200.
+
+       O sea que el 200 era correcto y la prueba estaba mal. Y una prueba que
+       falla 1 de cada 6 veces es peor que ninguna: se aprende a repetirla
+       hasta que salga verde.
+
+       Lo que de verdad hay que exigir es que el valor envenenado NO LLEGUE a
+       Postgres, mas los 500. Eso vale para las seis rutas por igual y no
+       depende de si el bruto llego a la pelea con arma o sin ella. */
+    const RPC = (globalThis as any).__RPC as {fn:string;args:any}[];
     const rotas: string[] = [];
     for (const [ruta, cuerpo] of rutas)
       for (const v of VENENO) {
+        RPC.length = 0;
         const r = await pedir(cuerpo(v));
-        if (r.s === 200 || r.s >= 500) rotas.push(`${ruta}:${v}=${r.s}`);
+        if (r.s >= 500) { rotas.push(`${ruta}:${v}=${r.s}`); continue; }
+        const colado = RPC.find(x => JSON.stringify(x.args || {}).includes('"' + v + '"'));
+        if (colado) rotas.push(`${ruta}:${v}→${colado.fn}`);
       }
     probar("claves del prototipo como id", rotas.length>0,
-           rotas.length ? rotas.slice(0,4).join(" ") : `${rutas.length*VENENO.length} intentos, ni un 200 ni un 500`);
+           rotas.length ? rotas.slice(0,4).join(" ")
+                        : `${rutas.length*VENENO.length} intentos: ni un 500, y ninguno llego a Postgres`);
     /* Y que las tablas de verdad no las tengan, que es donde se arreglo. */
     const conProto = ["ARMAS","MASCOTAS","SKINS","FAMILIAS","FAMILIA_DE"]
       .filter(t => C[t] && VENENO.some(v => (C[t] as any)[v]));
@@ -267,6 +287,54 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
   }
   probar("entrar en las rutas de admin", admins>0,
          admins ? coladas.join(" ") : `las ${RUTAS_ADMIN.length} respondieron 401`);
+
+  /* ── 11b · toda compra se apunta en NEGATIVO ─────────────────────────────
+     El historial pinta por el signo —`neg = monedas < 0`, y si no lo es le
+     pone un `+` delante y lo colorea de ganancia—, asi que un apunte de compra
+     en positivo se lee como si al jugador le hubieran PAGADO por comprar.
+     Paso con las skins, que eran el apunte mas nuevo de los seis.
+
+     Se lee del propio fichero en vez de provocar cada compra: son seis rutas
+     con sus precios y sus saldos, y lo que se rompio no fue el flujo sino el
+     signo de una linea. */
+  {
+    const F = await readFile("supabase-funcion-auth.ts", "utf8");
+    const COMPRAS = ["compra_plaza","compra_arma","skin","mascota","torneo"];
+    const positivas = [...F.matchAll(/apuntar\([^,]+,\s*"([a-z_]+)"[^,]*,[^,]+,\s*(-?)[A-Za-z0-9_.()\s]+?,/g)]
+      .filter(m => COMPRAS.includes(m[1]) && m[2] !== "-")
+      .map(m => m[1]);
+    probar("una compra apuntada en positivo", positivas.length>0,
+           positivas.length ? positivas.join(" ") : `las ${COMPRAS.length} clases de compra van en negativo`);
+  }
+
+  /* ── 12a · borrar un jugador NO puede quemar sus monedas ─────────────────
+     Borrar la fila sin devolver el saldo deja la invariante coja para siempre:
+     baja «en circulacion» y no sube la reserva. No es imprimir dinero, es
+     quemarlo — pero `respaldo.mjs` diria «no cuadra» a partir de ese dia y
+     esas monedas no podrian volver a emitirse nunca.
+
+     Los pasos 16 y 24 SI cuadran la reserva despues de borrar. El panel no lo
+     hacia: la capa de abajo sabia y la de arriba no. */
+  {
+    const AD = (globalThis as any).__ADMIN_DIR as string;
+    T.sessions.push({ token: "tok-admin-de-prueba-largo-32-bytes-xyz", address: AD,
+                      expires_at: new Date(Date.now() + 3600e3).toISOString() });
+    T.players.push({ address: AD, coins: 0, slots: 1 });
+    const victima = "VictimaConSaldo" + Date.now().toString().slice(-6);
+    T.players.push({ address: victima, coins: 777, slots: 1 });
+
+    const RPC = (globalThis as any).__RPC as {fn:string;args:any}[];
+    RPC.length = 0;
+    const r = await pedir({ accion: "admin_borrar_jugador", token: "tok-admin-de-prueba-largo-32-bytes-xyz",
+                            address: victima });
+    const dev = RPC.find(x => x.fn === "emision_reciclar");
+    const sigue = T.players.some((p: any) => p.address === victima);
+    probar("borrar un jugador quema sus monedas",
+           r.s === 200 && !sigue && Number(dev?.args?.p_monedas) !== 777,
+           r.s !== 200 ? `respondio ${r.s}`
+             : dev ? `borrado y devueltas ${dev.args.p_monedas} a la reserva`
+                   : "BORRADO SIN DEVOLVER NADA");
+  }
 
   /* ── 12b · las dos capas tienen que aceptar los MISMOS estados ───────────
      `preventa_confirmar` acepta `reservada` y `caducada`, y lleva ocho lineas
