@@ -361,6 +361,24 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
         : `las dos aceptan ${[...enSql].sort().join(" + ")}`);
   }
 
+  /* ── 12c · el torneo: las dos capas, otra vez ────────────────────────────
+     `torneo_tomar` (SQL) y `admin_torneo_resolver` (la funcion) tienen que
+     aceptar los mismos estados. Si el SQL admite rescatar uno atascado y el
+     panel sigue exigiendo `inscripcion`, el rescate existe y no hay boton que
+     lo alcance — que es exactamente como estaba. */
+  {
+    const sql = await readFile("supabase-38-torneo-atascado.sql", "utf8");
+    const ts  = await readFile("supabase-funcion-auth.ts", "utf8");
+    const mSql = /t\.estado\s+not\s+in\s*\(([^)]*)\)/.exec(sql);
+    const enSql = new Set([...(mSql?.[1] || "").matchAll(/'([a-z_]+)'/g)].map(m => m[1]));
+    const mTs = /antes\.estado !== "([a-z_]+)"\s*&&\s*antes\.estado !== "([a-z_]+)"/.exec(ts);
+    const enTs = new Set([mTs?.[1], mTs?.[2]].filter(Boolean) as string[]);
+    const iguales = enSql.size === enTs.size && [...enSql].every(x => enTs.has(x));
+    probar("estados del torneo desalineados", !iguales,
+      iguales ? `las dos resuelven ${[...enSql].sort().join(" + ")}`
+              : `el SQL ${[...enSql].join("+")} y el panel ${[...enTs].join("+")}`);
+  }
+
   /* Y que la puerta sea de PREFIJO, no una lista. Si alguien la cambiara por
      un `includes([...])`, una ruta nueva nacería abierta y nada lo diría. */
   probar("la puerta de admin es por lista, no por prefijo",

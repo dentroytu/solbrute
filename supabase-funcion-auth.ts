@@ -1836,10 +1836,24 @@ async function manejar(req: Request): Promise<Response> {
       try { campos = saneaTorneo(cuerpo.campos || {}, antes); }
       catch (e) { return errorTorneo((e as Error).message) || responder({ error: "datos no validos" }, 400); }
 
-      /* Con gente dentro, la ENTRADA y las PLAZAS quedan bloqueadas: el bote ya
-         se cobro a ese precio, y bajar las plazas dejaria inscritos fuera. */
+      /* Con gente dentro se bloquean la ENTRADA, las PLAZAS y EL REPARTO: el
+         bote ya se cobro a ese precio, bajar las plazas dejaria inscritos
+         fuera, y mover los porcentajes es cambiarles el premio a quien ya pago
+         por entrar.
+
+         El reparto faltaba. Y el comentario de arriba ya decia que cambiar «la
+         entrada o EL REPARTO con gente ya apuntada seria cambiarles las reglas
+         a mitad de partida» — pero esa guarda solo salta con el torneo ya
+         empezado, o sea cuando las inscripciones estan cerradas. Justo en el
+         hueco donde hay gente dentro y todavia se admiten mas, se podia. */
       const dentro = (await db("/tournament_entries?torneo_id=eq." + id + "&select=id"))?.length || 0;
-      if (dentro > 0) { delete campos.entrada; delete campos.plazas; }
+      if (dentro > 0) {
+        /* Los cuatro porcentajes juntos: `saneaTorneo` los valida como un
+           bloque que debe sumar 100, asi que quitar tres y dejar uno dejaria
+           un reparto que no suma. */
+        for (const k of ["entrada", "plazas", "pct_1", "pct_2", "pct_semis", "pct_casa"])
+          delete campos[k];
+      }
 
       if (!Object.keys(campos).length) return responder({ torneo: antes, sin_cambios: true });
       const fila = await db("/tournaments?id=eq." + id, {
@@ -1863,14 +1877,29 @@ async function manejar(req: Request): Promise<Response> {
       if (!id) return responder({ error: "identificador no valido" }, 400);
       const antes = (await db("/tournaments?id=eq." + id + "&select=*"))?.[0];
       if (!antes) return responder({ error: "ese torneo no existe" }, 404);
-      if (antes.estado !== "inscripcion") {
-        return responder({ error: "solo se puede resolver uno con las inscripciones abiertas",
+      /* `en_curso` tambien entra, y es lo que RESCATA uno atascado. Resolver
+         son dos llamadas y entre medias se simula el cuadro entero: si algo
+         falla en medio, el torneo se queda en 'en_curso' con el bote dentro y
+         nadie cobra. Antes esta linea impedia sacarlo desde el panel, asi que
+         hacia falta SQL a mano.
+
+         Rehacerlo no duplica nada porque `torneo_cerrar` es atomico: un torneo
+         en 'en_curso' es, con certeza, uno del que no se guardo ni un combate
+         ni un premio. Ver `supabase-38-torneo-atascado.sql`. */
+      if (antes.estado !== "inscripcion" && antes.estado !== "en_curso") {
+        return responder({ error: "solo se puede resolver uno abierto o atascado",
                            clase: "no_resoluble" }, 409);
       }
       await db("/tournaments?id=eq." + id, {
         method: "PATCH", body: JSON.stringify({ empieza_at: new Date().toISOString() }),
       });
       const r = await resolverTorneo(Number(id));
+      /* `resolverTorneo` devuelve null cuando `torneo_tomar` dice que no toca.
+         Antes eso salia como `resuelto: null` y se leia igual que un exito. */
+      if (r === null) {
+        return responder({ error: "ese torneo no se puede resolver ahora",
+                           clase: "no_resoluble" }, 409);
+      }
       await anotar("torneo_resolver", String(id), antes, r);
       return responder({ resuelto: r });
     }

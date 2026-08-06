@@ -30,6 +30,7 @@ experiencia y sube de nivel.
 | `supabase-35-armas-17.sql` | Abre el `check` a las diecisiete. **Antes de la función** | Escrito |
 | `supabase-36-mantenimiento.sql` | Parar el juego desde el panel. **Antes de la función** | Aplicado |
 | `supabase-37-botes.sql` | El bote de un torneo también está en circulación | Aplicado |
+| `supabase-38-torneo-atascado.sql` | Rescatar un torneo a medio resolver. **Con la Edge Function** | Escrito |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -2091,7 +2092,7 @@ Y editar el cliente es MENOS peligroso que llamar a la API directamente con
 (`prueba-banco.ts`) y la ataca con un cliente reescrito: subirse el nivel,
 regalarse peleas, monedas y armas, inventarse la lista de rivales, elegir la
 semilla, saltarse el precio de la plaza, tocar el bruto de otro y colarse en
-las rutas de admin. **33 ataques, ninguno funciona.**
+las rutas de admin. **35 ataques, ninguno funciona.**
 
 **Si añades una ruta a la función, añádele aquí su ataque antes de
 desplegarla.** Esto aguanta porque se prueba, no porque el código sea bonito.
@@ -2246,6 +2247,50 @@ comprobar nadie más— es que la Edge Function le pasa a Postgres lo que debe:
 > Si alguien quita `p_nivel_min` de una llamada, el SQL usa su valor por
 > defecto (1) y **el candado se apaga sin fallar**. Ningún error que lo delate.
 > Ese es el agujero que este banco existe para encontrar.
+
+### Un torneo se podía quedar atascado con el bote dentro
+
+Resolver un torneo son dos llamadas, y entre medias pasa todo el trabajo:
+
+```
+torneo_tomar    exige 'inscripcion'   →  deja 'en_curso'
+   ...barajar, simular los 15 combates de un cuadro de 16,
+      y mandar el cuadro entero con el registro de cada pelea...
+torneo_cerrar   exige 'en_curso'      →  deja 'terminado'
+```
+
+Si algo falla en medio —un fallo de red al mandar el cuadro, que con 16
+inscritos son varios cientos de KB— el torneo se queda en `en_curso` **para
+siempre**: el bote retenido, nadie cobra. Y `admin_torneo_resolver` exigía
+`inscripcion`, así que desde el panel tampoco había forma de sacarlo. Hacía
+falta SQL a mano.
+
+**Lo que hace seguro el rescate es que `torneo_cerrar` es atómico.** Es una
+función de plpgsql, o sea una transacción: si falla a mitad no deja escrito ni
+un combate ni un premio. Así que un torneo en `en_curso` es, con certeza, uno
+del que no se guardó nada, y rehacerlo no puede duplicar nada. Si en cambio
+llegó a guardar y lo que se perdió fue la respuesta, el estado ya es
+`terminado` y el mismo `if` lo rechaza. Los dos casos, el mismo estado.
+
+Hoy no hay ningún torneo creado, así que era latente. Se arregla ahora porque
+el día que pase habrá dinero de gente dentro.
+
+### El reparto se podía cambiar con gente ya apuntada
+
+`admin_torneo_editar` bloquea la entrada y las plazas cuando hay inscritos —«el
+bote ya se cobró a ese precio»— y no los porcentajes del premio.
+
+Y el comentario de arriba **ya decía lo correcto**: «cambiar la entrada *o el
+reparto* con gente ya apuntada sería cambiarles las reglas a mitad de partida».
+Pero esa guarda solo salta con el torneo ya empezado, o sea con las
+inscripciones cerradas. Justo en el hueco donde hay gente dentro y todavía se
+admiten más, se podía.
+
+Es la tercera vez en un día que aparece lo mismo: **el comentario describe la
+defensa completa y el código implementa la mitad.**
+
+Los cuatro porcentajes se bloquean juntos, porque `saneaTorneo` los valida como
+un bloque que debe sumar 100 y quitar tres dejaría un reparto que no suma.
 
 ### Borrar un jugador quemaba sus monedas
 
