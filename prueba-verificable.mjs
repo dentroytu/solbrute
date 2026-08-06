@@ -27,6 +27,11 @@ import "./brute-combate.js";
 
 const C = globalThis.BruteCombate;
 const PAGINA = readFileSync(new URL("./pelea.html", import.meta.url), "utf8");
+/* El registro escrito vivia dentro de `pelea.html` y se mudo a la arena
+   compartida cuando las dos paginas pasaron a animar desde el mismo sitio. Esta
+   prueba mira los DOS: da igual cual de los dos nombre un evento, lo que no
+   puede pasar es que no lo nombre ninguno. */
+const ARENA = readFileSync(new URL("./brute-arena.js", import.meta.url), "utf8");
 
 /* La MISMA logica que `verificar()` en pelea.html. Se repite aqui a proposito:
    si algun dia se separan, esta prueba deja de medir lo que cree medir — y por
@@ -49,6 +54,10 @@ const mismoLog = (a, b) => JSON.stringify(canonico(a)) === JSON.stringify(canoni
 
 function verificar(f) {
   if (!f.a_snapshot) return "antigua";
+  /* Igual que la pagina: recalcular con otras reglas da otro combate, y eso no
+     es un amaño. «No lo puedo comprobar» y «no cuadra» son cosas distintas. */
+  if (f.reglas == null) return "sin_reglas";
+  if (Number(f.reglas) !== Number(C.VERSION)) return "otras_reglas";
   const mio = JSON.parse(JSON.stringify(f.a_snapshot));
   const foe = JSON.parse(JSON.stringify(f.b_snapshot));
   const calc = C.simulate(mio, foe, Number(f.seed));
@@ -80,6 +89,11 @@ const B = { name:"Rufus", lv:7, xp:0, hpMax:70, str:4, agi:5, spd:3, w:2, l:2,
 const hacer = (seed) => {
   const f = C.simulate({ ...A }, { ...B }, seed);
   return { seed, a_snapshot:{ ...A }, b_snapshot:{ ...B },
+           /* Las reglas con las que se jugo, que es el cuarto dato que hace
+              falta para recalcular. Sin el, una pelea honesta sale como
+              «no se puede comprobar» — que es lo correcto, pero aqui se
+              fabrican peleas de HOY. */
+           reglas: C.VERSION,
            log:f.log, winner:f.winner, turns:f.turns };
 };
 
@@ -154,6 +168,25 @@ console.log("\n¿Sirve de algo la verificacion?\n");
 { const f = hacer(12345); delete f.a_snapshot;
   P("pelea antigua, sin snapshot propio", verificar(f), "antigua"); }
 
+// ── 5b · las REGLAS con las que se jugo ───────────────────────────────────
+/* Al recalibrar las mascotas subio la VERSION de 13 a 14, y `pelea.html` empezo
+   a recalcular las peleas viejas con las reglas nuevas: le salia otro combate y
+   decia «✗ NO CUADRA» de todo el historial. En la pagina que vende combate
+   verificable, ese cartel es lo peor que puede decir.
+   «No lo puedo comprobar» y «no cuadra» son cosas distintas. */
+{
+  const f = hacer(31337);
+  P("una pelea de hoy se comprueba", verificar(f), "cuadra");
+  P("jugada con otra version de las reglas",
+    verificar({ ...f, reglas: C.VERSION - 1 }), "otras_reglas");
+  P("jugada antes de que se apuntara la version",
+    verificar({ ...f, reglas: null }), "sin_reglas");
+  /* Y lo que NO puede pasar: que la excusa de las reglas tape un amaño. Con la
+     version correcta, un ganador cambiado sigue teniendo que saltar. */
+  P("con la version buena, un amaño sigue saltando",
+    verificar({ ...f, winner: f.winner === "A" ? "B" : "A" }), "no_cuadra");
+}
+
 // ── 6 · la pagina nombra todos los eventos ────────────────────────────────
 /* Con los dos llevando arma y mascota salen los nueve tipos. */
 {
@@ -161,11 +194,19 @@ console.log("\n¿Sirve de algo la verificacion?\n");
   for (let i = 0; i < 3000; i++)
     for (const e of C.simulate({ ...A }, { ...B }, i * 104729).log) tipos.add(e.type);
 
-  const nombrados = new Set([...PAGINA.matchAll(/case "(\w+)":/g)].map((m) => m[1]));
+  /* Dos formas de nombrarlos, porque las dos existen: `case "x":` en un switch
+     y `e.type === "x"` en una cadena de ifs. Buscar solo una fue lo que hizo
+     que esta prueba fallara al mover el registro, diciendo que faltaban los
+     nueve cuando estaban todos. */
+  const FUENTE = PAGINA + "\n" + ARENA;
+  const nombrados = new Set([
+    ...[...FUENTE.matchAll(/case "(\w+)":/g)].map((m) => m[1]),
+    ...[...FUENTE.matchAll(/e\.type === "(\w+)"/g)].map((m) => m[1]),
+  ]);
   const faltan = [...tipos].filter((t) => !nombrados.has(t));
   const sobran = [...nombrados].filter((t) => !tipos.has(t));
 
-  P(`pelea.html nombra los ${tipos.size} tipos de evento`,
+  P(`se nombran los ${tipos.size} tipos de evento`,
     faltan.length ? "faltan: " + faltan.join(",") : "todos", "todos");
   /* Los que sobran no rompen nada, pero casi siempre son un nombre viejo que
      se quedo ahi — como `mascota` cuando el tipo pasó a llamarse `muerde`. */

@@ -1233,6 +1233,13 @@ async function manejar(req: Request): Promise<Response> {
       headers: { Prefer: "return=representation" },
       body: JSON.stringify({
         seed, a_brute: fila.id, a_owner: dueno, a_snapshot: aAntes,
+        /* CON QUE REGLAS se jugo. Es el cuarto dato que hace falta para poder
+           recalcular una pelea, y faltaba: al subir VERSION de 13 a 14 por las
+           mascotas, `pelea.html` empezo a recalcular las peleas viejas con las
+           reglas nuevas y a decir «NO CUADRA» de todo el historial — que es
+           justo el cartel que esa pagina existe para no tener que enseñar.
+           Ver `supabase-39-reglas.sql`. */
+        reglas: C.VERSION,
         b_brute: foe.rid || null, b_name: String(foe.name || "?").slice(0, 32),
         b_bot: !!foe.bot, b_snapshot: foe,
         winner: fight.winner, turns: fight.turns, log: fight.log,

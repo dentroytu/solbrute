@@ -11,6 +11,7 @@ experiencia y sube de nivel.
 | `index.html` | Landing pública | Terminada |
 | `app.html` | La app: puerta, ludus, creador, emparejamiento, arena | Prototipo funcional |
 | `brute-render.js` | Renderizador de brutos por capas, compartido | Estable |
+| `brute-arena.js` | **La arena, compartida**: poses, paso, golpe y registro | Estable |
 | `supabase-cliente.js` | Acceso a la base de datos (jugadores, brutos, rivales) | Funcionando |
 | `wallet-solana.js` | Conectar y firmar con Phantom / Solflare | Funcionando |
 | `supabase-funcion-auth.ts` | Edge Function: verifica firmas y hace las escrituras | Desplegada |
@@ -31,6 +32,7 @@ experiencia y sube de nivel.
 | `supabase-36-mantenimiento.sql` | Parar el juego desde el panel. **Antes de la función** | Aplicado |
 | `supabase-37-botes.sql` | El bote de un torneo también está en circulación | Aplicado |
 | `supabase-38-torneo-atascado.sql` | Rescatar un torneo a medio resolver. **Con la Edge Function** | Escrito |
+| `supabase-39-reglas.sql` | `fights.reglas`: con qué versión se jugó. **Antes de la función** | Escrito |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -879,6 +881,66 @@ la función, porque recrearla vuelve a conceder el permiso por defecto. Fue lo
 que pasó: el paso 8 deshizo en silencio lo que había puesto el 7.
 
 ---
+
+## La arena vive en un fichero, y las dos páginas la usan
+
+`brute-arena.js`. Estuvo entera dentro de `app.html` —397 líneas contando el
+CSS— y por eso `pelea.html` no podía animar nada: enseñaba el combate como una
+lista de texto.
+
+Copiarla habría sido repetir exactamente lo de `brute-render.js`, que estuvo
+duplicado a mano en los dos HTML hasta que las copias se desincronizaron.
+
+**El CSS viaja dentro** y se inyecta al crear la primera arena. Dejarlo en cada
+página tiene una trampa peor que la del JS: **una diferencia de CSS no da
+error**. Da una animación que se ve bien en una página y mal en la otra, y
+nadie mira las dos a la vez.
+
+Lo que se queda en `app.html` es lo que es suyo: pedirle la pelea al servidor y
+el cartel del final con la recompensa. `pelea.html` no tiene ludus al que
+volver ni monedas que enseñar.
+
+**Y hay una ganancia que no es de orden:** para probar un cambio en la
+animación había que jugar una pelea. Ahora se reproduce **cualquier pelea
+guardada**, al instante y con la misma semilla. Es el mejor banco de pruebas
+que puede tener una animación.
+
+### Las reglas con las que se jugó, que era el cuarto dato
+
+Al recalibrar las mascotas subió la `VERSION` de 13 a 14. Y desde ese momento
+`pelea.html` recalculaba **cualquier pelea vieja con las reglas nuevas**, le
+salía otro combate, y decía:
+
+```
+✗ NO CUADRA
+```
+
+De todo el historial. En la página que existe para demostrar que no engañas,
+por un cambio de equilibrio hecho a la vista de todos.
+
+La causa es la misma familia que el fallo del `a_snapshot`, y con la misma
+forma: para recalcular hacen falta **cuatro** cosas y `fights` guardaba tres.
+
+```
+seed         ✓
+a_snapshot   ✓
+b_snapshot   ✓
+las REGLAS   ✗
+```
+
+El paso 32 arregló la tercera y dejó escrito «para recalcular hacen falta tres
+cosas». Eran cuatro.
+
+`supabase-39-reglas.sql` añade la columna. **No hace que una pelea vieja se
+pueda recalcular** —las reglas de la v13 ya no están en el navegador de nadie—
+sino que la página pueda decir la verdad: «se jugó con la 13 y tú tienes la
+14». Las peleas anteriores se quedan en `null` y eso también se dice tal cual,
+en vez de rellenarlo con un número que nadie comprobó.
+
+**«No lo puedo comprobar» y «no cuadra» son cosas distintas**, y confundirlas
+aquí es el peor sitio para hacerlo. Por eso la prueba exige además que la
+excusa de las reglas **no tape un amaño**: con la versión correcta, un ganador
+cambiado sigue saltando.
 
 ## La pelea tiene su propio enlace, y se verifica sola
 

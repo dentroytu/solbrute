@@ -366,41 +366,11 @@
   .match-note{ font-size:12px; color:var(--muted); margin-bottom:18px; max-width:560px; }
 
   /* arena */
-  .huds{ display:flex; align-items:flex-start; gap:12px; margin-bottom:13px; }
-  .hud{ flex:1; min-width:0; } .hud.right{ text-align:right; }
-  .hud-name{ font-family:'Cinzel',serif; font-weight:800; font-size:15px; color:var(--bronze-light); letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .hud-sub{ font-size:10px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
-  .bar{ height:14px; margin-top:5px; border-radius:3px; overflow:hidden; background:#150f06; border:1.5px solid var(--bronze); }
-  .bar .fill{ height:100%; width:100%; background:linear-gradient(180deg,var(--blood-bright),#7d1f1c); transition:width .32s cubic-bezier(.2,.8,.3,1); }
-  .hud-hp{ font-size:11px; color:var(--muted); margin-top:3px; font-variant-numeric:tabular-nums; }
-  /* La mascota lleva su propia vida, mas fina que la del bruto y debajo: es un
-     acompanante, no un segundo luchador con el mismo peso visual. Roja porque
-     aqui rojo significa vida, como en todo el juego. */
-  .pet-row{ display:flex; align-items:center; gap:6px; margin-top:5px; opacity:.95; }
-  /* `display:flex` GANA a la regla `[hidden]{display:none}` del navegador, asi
-     que sin esta linea la barra se marcaba como oculta y se seguia viendo — un
-     bruto sin mascota mostraba una barra vacia a cero. Sin error y sin aviso.
-     Cada vez que se le pone `display` a algo que a veces va con `hidden`, hay
-     que escribir esta pareja. */
-  .pet-row[hidden]{ display:none; }
-  .hud.right .pet-row{ flex-direction:row-reverse; }
-  .pet-row svg{ width:20px; height:20px; display:block; }
-  .pet-bar{ flex:1; height:7px; border-radius:3px; overflow:hidden;
-            background:#150f06; border:1px solid var(--bronze); }
-  .pet-bar .fill{ height:100%; width:100%;
-                  background:linear-gradient(180deg,#d1554f,#6d1a17);
-                  transition:width .32s cubic-bezier(.2,.8,.3,1); }
-  .pet-hp{ font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; min-width:14px; }
-  /* El dano que hace LA MASCOTA, aparte del del bruto. Sin esto el jugador no
-     tiene forma de saber si su lobo aporta algo o es un adorno caro: los dos
-     numeros iban sumados en la barra del bruto y no se distinguian. */
-  .pet-dmg{ font-size:10px; color:var(--bronze-light); font-variant-numeric:tabular-nums;
-            min-width:22px; opacity:.9; }
-  .pet-dmg::before{ content:"\2694\FE0F "; font-size:9px; opacity:.8; }
-  /* Caida: se queda a la vista, apagada. Quitarla del HUD haria pensar que
-     nunca estuvo. */
-  .pet-row.down{ opacity:.34; filter:grayscale(1); }
-  .pet-row.down .pet-bar .fill{ width:0 !important; }
+  /* El CSS de la arena —los HUDs, los luchadores, las poses, el registro—
+     vive en `brute-arena.js` y se inyecta al crearla. Dejarlo aqui ademas
+     seria volver al problema de las copias, con el agravante de que una
+     diferencia de CSS no da error: da una animacion que se ve bien en una
+     pagina y mal en la otra, y nadie mira las dos a la vez. */
   .turn-badge{ flex-shrink:0; align-self:center; text-align:center; font-family:'Cinzel',serif; font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.08em; min-width:52px; }
   .turn-badge b{ display:block; font-size:18px; color:var(--blood-bright); }
   /* ── El candado de nivel en la tienda ──
@@ -426,18 +396,6 @@
 
      Mientras no haya imagen, `--fondo` no existe y se ve el degradado de
      siempre: la arena no se rompe por no tener las imagenes subidas. */
-  .arena-fondo{ position:absolute; inset:0; z-index:0; pointer-events:none;
-                background-image:var(--fondo, none);
-                background-size:cover; background-repeat:no-repeat;
-                background-position:center var(--foco, 66%); }
-  .arena-nom{ color:var(--bronze); margin-right:6px; }
-  .arena-velo{ position:absolute; inset:0; z-index:1; pointer-events:none;
-               background:linear-gradient(180deg,
-                 rgba(12,10,7,calc(var(--velo,.34) + .18)) 0%,
-                 rgba(12,10,7,calc(var(--velo,.34) - .08)) 34%,
-                 rgba(12,10,7,var(--velo,.34)) 74%,
-                 rgba(12,10,7,calc(var(--velo,.34) + .30)) 100%); }
-  .arena > .fighter, .arena > .banner, .arena > .dmg{ z-index:2; }
   /* ── Lo que se puede recuperar ──
      En bronce y no en rojo: es una oportunidad, no una alarma. El rojo esta
      reservado para lo que ya has perdido; esto todavia no lo has perdido del
@@ -492,86 +450,12 @@
   .ret-r .est.pendiente{ color:var(--torch); }
   .ret-r .est.fallida, .ret-r .est.revision{ color:var(--blood-bright); }
   .ret-r .est.devuelta{ color:var(--muted); }
-  .arena{ position:relative; height:250px; border-radius:16px; overflow:hidden; border:1px solid var(--line); margin-bottom:15px; background:radial-gradient(ellipse 60% 42% at 50% 96%, rgba(255,157,66,.2), transparent 70%), linear-gradient(180deg,#1a1409,#241b0d 62%,#2e2412); }
-  .arena::after{ content:""; position:absolute; left:50%; bottom:26px; transform:translateX(-50%); width:74%; height:60px; border-radius:50%; border:2px solid rgba(239,231,216,.08); }
-  /* ── EL MOVIMIENTO ──
-     Antes el bruto entero se deslizaba 56px con `translateX` y ya. Ahora
-     CAMINA hasta el rival y le pega: el cuerpo se desplaza y las piernas y los
-     brazos giran sobre sus articulaciones.
 
-     Las articulaciones viven en el SVG (`j-pieI`, `j-brazoA`…) con su pivote
-     puesto en `transform-origin`. Aqui solo se les cambia el angulo: NO se
-     vuelve a dibujar el sprite en cada fotograma. Redibujarlo serian 3,8 KB de
-     SVG por cuadro y a 60 fps eso no va en un movil.
 
-     `transform-box: view-box` hace que el pivote se lea en unidades del SVG y
-     no en la caja del elemento; sin eso, cada articulacion gira sobre su
-     propio centro y el bruto se desmonta. */
-  .fighter{ position:absolute; bottom:22px; width:116px;
-            transition:transform var(--paso, .30s) cubic-bezier(.33,.9,.35,1); }
-  .fighter [class^="j-"]{ transform-box:view-box;
-                          transition:transform var(--art, .14s) cubic-bezier(.3,1.1,.4,1); }
-  /* `overflow:visible` y no un lienzo mas ancho, que es la trampa aqui.
-     ────────────────────────────────────────────────────────────────────────
-     Al golpear, el brazo gira ~76 grados y el arma sale por la derecha: la
-     punta del mandoble cae en x=150 y el lienzo acaba en 110. Un SVG recorta
-     a su viewBox por defecto, asi que el arma DESAPARECIA a media animacion.
 
-     Ensanchar el viewBox seria lo obvio y esta mal: `.fighter` fija el ancho
-     en 116px, asi que mas unidades en el mismo ancho es el bruto mas pequeño.
-     Con `overflow:visible` el lienzo sigue igual —el bruto conserva su tamaño—
-     y solo el arma puede asomar.
 
-     Ya pasaba con las armas vectoriales: el mandoble llegaba a x=125 y se
-     cortaba igual. Los iconos, que son mas largos, solo lo hicieron evidente. */
-  .fighter svg{ width:100%; height:auto; display:block; overflow:visible; }
-  .fighter.left{ left:11%; } .fighter.right{ right:11%; }
-  /* La distancia ya no es fija: se mide entre los dos en `medirAlcance()`,
-     porque la arena cambia de ancho con la ventana y 56px se quedaba a medio
-     camino en pantalla grande y se pasaba en movil. */
-  .fighter.lunge-r{ transform:translateX(var(--alcance,56px)); }
-  .fighter.lunge-l{ transform:translateX(calc(var(--alcance,56px) * -1)); }
-  .fighter.knock-r{ transform:translateX(15px); } .fighter.knock-l{ transform:translateX(-15px); }
-  .fighter.hop-r{ transform:translateX(25px) translateY(-13px); } .fighter.hop-l{ transform:translateX(-25px) translateY(-13px); }
-  .fighter.down{ transform:rotate(-74deg) translateY(25px); opacity:.55; transition:transform .7s ease, opacity .7s ease; }
-  .fighter.right.down{ transform:rotate(74deg) translateY(25px); }
-  .fighter.flash svg{ filter:brightness(2.4) saturate(.4); }
-  .dmg{ position:absolute; font-family:'Cinzel',serif; font-weight:800; font-size:21px; color:var(--blood-bright); text-shadow:0 2px 6px #000; pointer-events:none; animation:floatUp 1s ease forwards; }
-  .dmg.crit{ font-size:29px; color:var(--torch); }
-  .dmg.miss{ font-size:14px; color:var(--muted); font-family:inherit; letter-spacing:.06em; }
-  @keyframes floatUp{ 0%{opacity:0;transform:translateY(6px) scale(.7)} 22%{opacity:1;transform:translateY(-6px) scale(1.12)} 100%{opacity:0;transform:translateY(-50px) scale(1)} }
-  .banner{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; gap:5px; background:rgba(12,10,7,.84); backdrop-filter:blur(3px); z-index:5; padding:16px; text-align:center; }
-  .banner.show{ display:flex; animation:fadeIn .4s ease; }
-  @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
-  .banner .what{ font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--blood-bright); }
-  .banner .who{ font-family:'Cinzel',serif; font-size:clamp(21px,5vw,32px); font-weight:900; color:var(--bronze-light); }
-  .banner .rew{ font-size:12px; color:var(--muted); margin-top:6px; }
-  .banner .rew b{ color:var(--sol-teal); }
-  .banner .rew .perdida{ color:var(--blood-bright); }
-  /* El cambio del día va en su propia línea y apagado: es información, no
-     premio. Si compitiera en color con las monedas, el jugador leería primero
-     la letra pequeña que lo que acaba de ganar. */
-  .banner .rate{ display:block; margin-top:4px; font-size:11px; opacity:.6; }
-  .banner .btn{ margin-top:14px; }
-  /* El enlace a la pelea. `[hidden]` no gana a `display:inline-flex` de `.btn`,
-     asi que hace falta la regla — es el mismo caso que la barra de vida de la
-     mascota y que el boton de reclamar de la preventa. */
-  .banner-btns{ display:flex; gap:9px; align-items:center; justify-content:center; flex-wrap:wrap; }
   .btn[hidden]{ display:none; }
 
-  .arena-controls{ display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
-  .spd{ display:flex; gap:3px; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:3px; margin-left:auto; }
-  .spd button{ background:none; border:none; color:var(--muted); font-family:inherit; font-size:11.5px; font-weight:700; padding:6px 9px; border-radius:6px; cursor:pointer; }
-  .spd button.on{ background:var(--bronze); color:#241a06; }
-  .seedline{ font-size:11px; color:var(--muted); margin-bottom:14px; font-variant-numeric:tabular-nums; }
-  .seedline b{ color:var(--sol-teal); }
-  .log{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px 15px; max-height:180px; overflow-y:auto; font-size:12.5px; font-variant-numeric:tabular-nums; }
-  .log-line{ padding:3px 0; color:var(--muted); border-bottom:1px solid rgba(58,46,28,.4); }
-  .log-line:last-child{ border-bottom:none; }
-  .log-line .tn{ color:var(--bronze); font-weight:700; margin-right:6px; }
-  .log-line b{ color:var(--text); font-weight:600; }
-  .log-line.crit{ color:var(--torch); } .log-line.dodge{ color:var(--sol-teal); }
-  .log-line.ko{ color:var(--blood-bright); font-weight:700; }
 
   /* forge + creator */
   .forge-grid{ display:grid; grid-template-columns:280px 1fr; gap:24px; align-items:start; }
@@ -622,8 +506,6 @@
   .forge-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
 
 
-  .dmg.pet{ color:var(--bronze-light); text-shadow:0 0 8px rgba(201,138,58,.55); }
-  .log-line.pet{ color:var(--bronze-light); }
   @media(prefers-reduced-motion:reduce){ .fighter,.bar .fill{ transition:none; } .dmg{ animation:none; opacity:1; } }
 </style>
 </head>
@@ -804,43 +686,22 @@
 
   <!-- 4 · FIGHT -->
   <section class="screen" id="scFight">
-    <div class="huds">
-      <div class="hud left">
-        <div class="hud-name" id="nameA">—</div><div class="hud-sub" id="subA"></div>
-        <div class="bar"><div class="fill" id="fillA"></div></div>
-        <div class="hud-hp"><span id="hpA">0</span> / <span id="hpMaxA">0</span></div>
-        <div class="pet-row" id="petA" hidden><span id="petIcoA"></span><div class="pet-bar"><div class="fill" id="petFillA"></div></div><span class="pet-hp" id="petHpA">0</span><span class="pet-dmg" id="petDmgA">0</span></div>
-      </div>
-      <div class="turn-badge"><span id="turnLbl">TURNO</span><b id="turnOut">0</b></div>
-      <div class="hud right">
-        <div class="hud-name" id="nameB">—</div><div class="hud-sub" id="subB"></div>
-        <div class="bar"><div class="fill" id="fillB"></div></div>
-        <div class="hud-hp"><span id="hpB">0</span> / <span id="hpMaxB">0</span></div>
-        <div class="pet-row" id="petB" hidden><span id="petIcoB"></span><div class="pet-bar"><div class="fill" id="petFillB"></div></div><span class="pet-hp" id="petHpB">0</span><span class="pet-dmg" id="petDmgB">0</span></div>
-      </div>
-    </div>
-    <div class="arena" id="arena">
-      <div class="arena-fondo" id="arenaFondo"></div>
-      <div class="arena-velo"></div>
-      <div class="fighter left" id="figA"></div>
-      <div class="fighter right" id="figB"></div>
-      <div class="banner" id="banner">
-        <div class="what" id="bannerWhat"></div>
-        <div class="who" id="bannerWho"></div>
-        <div class="rew" id="bannerRew"></div>
-        <div class="banner-btns">
-          <button class="btn btn-bronze js-back" data-i18n="to_ludus">Back to the ludus</button>
-          <a class="btn btn-ghost btn-sm" id="btnCompartir" target="_blank" rel="noopener"
-             data-i18n="share_fight" hidden>See this fight</a>
-        </div>
+    <!-- La arena la monta `brute-arena.js`: los HUDs, el escenario, los dos
+         brutos, los controles, la semilla y el registro. Aqui solo queda el
+         CARTEL DEL FINAL, que es de esta pagina y no de la otra — `pelea.html`
+         no tiene ludus al que volver ni recompensa que enseñar. Se mete dentro
+         de la arena al crearla, porque su CSS ocupa la caja entera. -->
+    <div id="arenaCaja"></div>
+    <div class="banner" id="banner">
+      <div class="what" id="bannerWhat"></div>
+      <div class="who" id="bannerWho"></div>
+      <div class="rew" id="bannerRew"></div>
+      <div class="banner-btns">
+        <button class="btn btn-bronze js-back" data-i18n="to_ludus">Back to the ludus</button>
+        <a class="btn btn-ghost btn-sm" id="btnCompartir" target="_blank" rel="noopener"
+           data-i18n="share_fight" hidden>See this fight</a>
       </div>
     </div>
-    <div class="arena-controls">
-      <button class="btn btn-ghost btn-sm" id="btnSkip" data-i18n="skip">Skip to result</button>
-      <div class="spd" id="spd"><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button></div>
-    </div>
-    <div class="seedline"><span data-i18n="seed">seed</span> <b id="seedOut">—</b> · <b id="arenaNom" class="arena-nom"></b> <span data-i18n="seed_note">the same number replays the same fight</span></div>
-    <div class="log" id="log"></div>
   </section>
 
   <!-- RETIRADA -->
@@ -971,6 +832,7 @@
 <script src="supabase-cliente.js"></script>
 <script src="wallet-solana.js"></script>
 <script src="brute-combate.js"></script>
+<script src="brute-arena.js"></script>
 <script>
 (function(){
   "use strict";
@@ -2662,13 +2524,40 @@
     el("oppList").querySelectorAll(".js-pick").forEach(b => b.onclick = () => startFight(+b.dataset.i));
   }
 
-  /* ═══════════ arena ═══════════ */
-  let fight = null, foe = null, speed = 1, abort = false, playing = false;
-  const wait = ms => new Promise(r => setTimeout(r, ms/speed));
+  /* ═══════════ arena ═══════════
+     La animacion vive en `brute-arena.js`, compartida con `pelea.html`. Aqui
+     se queda solo lo que es de ESTA pagina: pedirle la pelea al servidor, y el
+     cartel del final con la recompensa y el enlace para compartir.
+
+     Estuvo entera aqui dentro, y `pelea.html` no podia animar nada por eso.
+     Copiarla habria sido repetir lo de `brute-render.js`, que estuvo duplicado
+     a mano en los dos HTML hasta que las copias se desincronizaron. */
+  let fight = null, foe = null, playing = false;
 
   /* Guarda lo que decidió el servidor, para que el cartel del final diga lo
      que de verdad se ha escrito y no lo que calcule el navegador. */
   let premio = null;
+
+  const arena = window.BruteArena.crear({
+    caja: el("arenaCaja"),
+    controles: true,
+    /* Los textos salen de la tabla de idiomas, asi que la arena habla el idioma
+       que tenga puesto el jugador sin saber nada de traducciones. */
+    txt: {
+      dodge: t("lg_dodge"), crit: t("lg_crit"), hit: t("lg_hit"), dmg: t("lg_dmg"),
+      disarm: t("lg_disarm"), bite: t("lg_bite"), petmiss: t("lg_petmiss"),
+      cover: t("lg_cover"), through: t("lg_through"), all: t("lg_all"),
+      petdown: t("lg_petdown"), petdead: t("lg_petdead"), ko: t("lg_ko"),
+      esquivado: t("dodge_txt"),
+    },
+    textoSemilla: t("seed"),
+    textoSaltar: t("skip"),
+    bicho: id => O("bichos")[id] || id,
+    arena: id => O("arenas")[id] || "",
+    alAcabar: () => finish(),
+  });
+  /* El cartel va DENTRO de la arena: su CSS ocupa la caja entera. */
+  arena.arena.appendChild(el("banner"));
 
   async function startFight(idx){
     const opponent = pool[idx];
@@ -2696,276 +2585,13 @@
     balance = r.balance;
     el("balNum").textContent = balance;
 
-    el("seedOut").textContent = r.seed;
-    el("nameA").textContent = active.name; el("nameB").textContent = foe.name;
-    el("subA").textContent = `Nv. ${active.lv} · ${active.w}${t("wins")} ${active.l}${t("losses")}`;
-    el("subB").textContent = `Nv. ${foe.lv} · ${foe.w}${t("wins")} ${foe.l}${t("losses")}`;
-    el("hpMaxA").textContent = active.hpMax; el("hpMaxB").textContent = foe.hpMax;
-    el("hpA").textContent = active.hpMax;    el("hpB").textContent = foe.hpMax;
-    el("fillA").style.width = "100%";        el("fillB").style.width = "100%";
-    el("turnOut").textContent = "0"; el("log").innerHTML = "";
     el("banner").classList.remove("show");
-    el("figA").innerHTML = sprite(active, true);
-    el("figB").innerHTML = sprite(foe, false);
-    el("figA").className = "fighter left"; el("figB").className = "fighter right";
-    montarMascota("A", active.mascota); montarMascota("B", foe.mascota);
-    pose("A", "guardia"); pose("B", "guardia");
-    montarArena(r.seed);
-    show("scFight"); play();
-  }
-  function addLog(e){
-    const box = el("log"), d = document.createElement("div");
-    let cls = "log-line", txt = "";
-    /* El `else` de antes convertia en KO CUALQUIER evento que no estuviera
-       arriba, y `disarm` ya lo era: aparecia como «undefined queda fuera de
-       combate» en uno de cada tres combates con arma. Ahora cada tipo se
-       nombra y lo desconocido no se pinta, que es lo unico honesto. */
-    const bicho = e.mascota ? (O("bichos")[e.mascota] || e.mascota) : "";
-    if(e.type === "dodge"){ cls += " dodge"; txt = `<b>${esc(e.def)}</b> ${t("lg_dodge")} <b>${esc(e.att)}</b>`; }
-    else if(e.type === "crit"){ cls += " crit"; txt = `<b>${esc(e.att)}</b> ${t("lg_crit")} ${e.dmg} ${t("lg_dmg")}`; }
-    else if(e.type === "hit"){ txt = `<b>${esc(e.att)}</b> ${t("lg_hit")} <b>${esc(e.def)}</b> — ${e.dmg} ${t("lg_dmg")}`; }
-    else if(e.type === "disarm"){ cls += " dodge"; txt = `<b>${esc(e.att)}</b> ${t("lg_disarm")} <b>${esc(e.arma)}</b>`; }
-    else if(e.type === "muerde"){ cls += " pet"; txt = `<b>${esc(bicho)}</b> ${t("lg_bite")} <b>${esc(e.def)}</b> — ${e.dmg} ${t("lg_dmg")}`; }
-    else if(e.type === "mascota_falla"){ cls += " dodge"; txt = `<b>${esc(bicho)}</b> ${t("lg_petmiss")} <b>${esc(e.def)}</b>`; }
-    else if(e.type === "cubre"){ cls += " pet"; txt = `<b>${esc(bicho)}</b> ${t("lg_cover")} <b>${esc(e.att)}</b> — ${e.dmg}` + (e.pasa > 0 ? `, ${t("lg_through")} ${e.pasa}` : ` (${t("lg_all")})`); }
-    else if(e.type === "cae_mascota"){ cls += " ko"; txt = `<b>${esc(bicho)}</b> ${t(e.definitiva ? "lg_petdead" : "lg_petdown")}`; }
-    else if(e.type === "ko"){ cls += " ko"; txt = `<b>${esc(e.def)}</b> ${t("lg_ko")}`; }
-    else return;
-    d.className = cls; d.innerHTML = `<span class="tn">T${e.turn}</span>${txt}`;
-    box.appendChild(d); box.scrollTop = box.scrollHeight;
-  }
-  /* ═══════════ las poses ═══════════
-     Un angulo por articulacion, en grados. El sprite NO se redibuja: se le
-     cambia el `transform` a los cinco grupos que ya trae dentro.
-
-     Las poses son pocas y a proposito. Un juego de lucha de verdad tendria
-     veinte; aqui el combate ya esta decidido antes de animarse y lo unico que
-     hace falta es que se ENTIENDA quien pega, quien esquiva y quien encaja. */
-  const POSES = {
-    /* Nueve articulaciones. Las que mas se notan no son los brazos: son el
-       TORSO —inclina todo el cuerpo de golpe— y el CODO, que es lo que hace
-       que un golpe se arme antes de salir en vez de aparecer estirado. */
-    guardia: { pieI:  0, pieD:  0, torso:  0, brazoB:   0, codoB:   0, cabeza:  0, brazoA:   0, codoA:   0, melena:  0 },
-    paso1:   { pieI: 18, pieD:-14, torso: -3, brazoB:  17, codoB: -10, cabeza: -2, brazoA:  -7, codoA:   6, melena: -8 },
-    paso2:   { pieI:-16, pieD: 18, torso:  3, brazoB: -13, codoB:   8, cabeza:  2, brazoA:   6, codoA:  -5, melena:  9 },
-    /* Cargar es echarse ATRAS: el peso va a la pierna de atras, el torso se
-       abre y el codo se cierra. Es el gesto que anuncia el golpe. */
-    carga:   { pieI:-18, pieD: 13, torso: -9, brazoB: -26, codoB:  16, cabeza: -4, brazoA: -17, codoA: -13, melena:-16 },
-    /* Y golpear es lo contrario, entero y de una vez. */
-    golpe:   { pieI: 16, pieD:-18, torso: 15, brazoB:  30, codoB: -16, cabeza:  8, brazoA:  50, codoA:  26, melena: 22 },
-    esquiva: { pieI:-11, pieD: -7, torso:-17, brazoB: -22, codoB:  20, cabeza:-14, brazoA:  -9, codoA:  16, melena:-20 },
-    /* Encajar es salir despedido hacia ATRAS. Estaba con el torso a +14, o sea
-       inclinandose hacia el que le pega — leyendo igual que un golpe. */
-    encaja:  { pieI:  9, pieD:-11, torso:-15, brazoB: -28, codoB:  24, cabeza:-19, brazoA: -14, codoA:  18, melena:-24 },
-  };
-  function pose(side, nombre){
-    const p = POSES[nombre] || POSES.guardia;
-    const fig = el("fig"+side);
-    for(const [j, ang] of Object.entries(p)){
-      const g = fig.querySelector(".j-"+j);
-      if(g) g.style.transform = "rotate(" + ang + "deg)";
-    }
-  }
-  /* Las dos piernas alternan mientras el bruto se desplaza. Es lo unico que
-     convierte un deslizamiento en un paso: sin esto parece que patina. */
-  function caminar(side, veces, paso){
-    let i = 0;
-    /* `reloj`, no `t`: ese nombre es la funcion de traduccion y llamarlo igual
-       la tapa dentro de la funcion. Hoy aqui no se traduce nada, pero la
-       proxima vez que alguien anada un texto se encuentra con `t is not a
-       function` y sin motivo aparente. */
-    const reloj = setInterval(() => { pose(side, i++ % 2 ? "paso2" : "paso1"); }, paso);
-    setTimeout(() => { clearInterval(reloj); }, veces * paso);
+    arena.montar(active, foe, r.seed);
+    playing = true;
+    show("scFight");
+    arena.reproducir(fight.log);
   }
 
-  /* La distancia hasta el rival se MIDE, no se supone: la arena cambia de
-     ancho con la ventana, y los 56px fijos de antes se quedaban a medio camino
-     en pantalla grande y se pasaban de largo en movil. Se deja un hueco para
-     que no se solapen los cuerpos. */
-  function medirAlcance(){
-    const a = el("figA").getBoundingClientRect(), b = el("figB").getBoundingClientRect();
-    const hueco = Math.max(0, b.left - a.right);
-    /* 0.91 y no 0.82: con 82% quedaban ~100px sin cubrir sobre un hueco de
-       575, y el arma se paraba a un palmo del rival. Se deja un resto de ~50px
-       porque el arma sobresale del cuerpo y lo cubre — a 100% se solapan los
-       dos cuerpos, que se lee peor que quedarse corto. */
-    el("arena").style.setProperty("--alcance", Math.round(hueco * .91) + "px");
-  }
-
-  function floatDmg(side, text, kind){
-    const s = document.createElement("div");
-    s.className = "dmg" + (kind ? " "+kind : "");
-    s.textContent = text;
-    /* La mascota se dibuja a los pies del bruto, asi que su numero sale abajo.
-       No es estetica: a 4x se solapan varios numeros en el mismo punto y no se
-       leia ninguno. A cada altura, el suyo. */
-    s.style.left = (side === "A" ? 18 : 66) + "%";
-    s.style.bottom = (kind === "pet" ? 74 : 150) + "px";
-    el("arena").appendChild(s); setTimeout(() => s.remove(), 1100);
-  }
-  function setHp(side, hp, hpMax){
-    el("fill"+side).style.width = Math.round(hp/hpMax*100)+"%";
-    el("hp"+side).textContent = hp;
-  }
-  /* La vida de la mascota se lleva EN EL NAVEGADOR mientras se reproduce, no
-     viene en cada evento: el registro solo dice cuanto encajo. Es un contador
-     de reproduccion, no una fuente de verdad — quien decide es `simulate()`. */
-  let petHp = { A:0, B:0 }, petMax = { A:0, B:0 }, petDmg = { A:0, B:0 };
-  /* ── El escenario ──
-     Sale de la semilla, asi que el rival ve el mismo sitio que tu y una pelea
-     guardada se puede reproducir entera. Si no hay imagen subida todavia, se
-     queda el degradado de siempre en vez de un hueco negro. */
-  /* Las imagenes viven en Supabase Storage, NO en el repositorio: este es
-     publico y la licencia de craftpix prohibe redistribuir los ficheros. Aqui
-     la web los usa; el repositorio no los reparte.
-
-     Si esta constante se vacia, la arena vuelve al degradado de siempre en vez
-     de quedarse en negro. */
-  const ARENA_BASE = "https://ihrcvartuuyvftxdxztt.supabase.co/storage/v1/object/public/arenas/";
-  function montarArena(seed){
-    const a = arenaDe(seed);
-    const caja = el("arena");
-    caja.style.setProperty("--velo", a.velo);
-    caja.style.setProperty("--foco", a.foco);
-    caja.style.setProperty("--fondo", ARENA_BASE ? `url("${ARENA_BASE}${a.id}.jpg")` : "none");
-    el("arenaFondo").style.filter = a.filtro || "";
-    el("arenaNom").textContent = O("arenas")[a.id] || "";
-  }
-
-  function montarMascota(side, id){
-    const fila = el("pet"+side);
-    fila.classList.remove("down");
-    const m = MASCOTAS[id];
-    if(!m || !m.hp){ fila.hidden = true; petMax[side] = 0; return; }
-    fila.hidden = false;
-    petMax[side] = petHp[side] = m.hp;
-    petDmg[side] = 0;
-    el("petIco"+side).innerHTML = iconoMascota(id);
-    el("petFill"+side).style.width = "100%";
-    el("petHp"+side).textContent = m.hp;
-    el("petDmg"+side).textContent = "0";
-  }
-  /* `side` es el que RECIBE el mordisco, asi que quien lo da es la mascota del
-     otro lado. Apuntarlo al reves haria que tu contador subiera cuando te
-     muerden a ti, que es justo lo contrario de lo que dice. */
-  function apuntarMordisco(sideRecibe, dmg){
-    const s = sideRecibe === "A" ? "B" : "A";
-    if(!petMax[s]) return;
-    petDmg[s] += dmg;
-    el("petDmg"+s).textContent = petDmg[s];
-  }
-  function danarMascota(side, dmg){
-    if(!petMax[side]) return;
-    petHp[side] = Math.max(0, petHp[side] - dmg);
-    el("petFill"+side).style.width = Math.round(petHp[side]/petMax[side]*100)+"%";
-    el("petHp"+side).textContent = petHp[side];
-  }
-  /* Cae: se apaga en el HUD y DESAPARECE de la arena. Redibujar el sprite sin
-     ella es lo que hace que la caida se vea; si solo cambiara una barra, el
-     jugador seguiria viendo a su lobo peleando despues de haberlo perdido. */
-  function caerMascota(side){
-    el("pet"+side).classList.add("down");
-    const b = side === "A" ? active : foe;
-    if(b) el("fig"+side).innerHTML = sprite({ ...b, mascota:"ninguna" }, side === "A");
-  }
-  async function play(){
-    playing = true; abort = false;
-    /* Se mide AQUI y no al montar: al montar la pantalla todavia esta oculta,
-       `getBoundingClientRect()` devuelve ceros y el alcance salia 0px — el
-       bruto se quedaba clavado en su sitio. Un elemento con `display:none` no
-       tiene medidas, solo lo parece. */
-    medirAlcance();
-    await wait(400);
-    for(const e of fight.log){
-      if(abort) return;
-      el("turnOut").textContent = e.turn;
-      const attSide = e.side === "A" ? "B" : "A";
-      const attFig = el("fig"+attSide), defFig = el("fig"+e.side), attLeft = attSide === "A";
-      if(e.type === "ko"){
-        pose(e.side, "encaja");
-        defFig.classList.add("down"); addLog(e); await wait(700); continue;
-      }
-
-      /* Estos dos NO son un ataque, y ademas en `disarm` el `side` es el del
-         ATACANTE, no el del que recibe. Metidos en el flujo de abajo el juego
-         animaba al bruto equivocado. */
-      if(e.type === "disarm"){
-        const fig = el("fig"+e.side);
-        fig.classList.add(e.side === "A" ? "hop-r" : "hop-l");
-        addLog(e); await wait(300);
-        fig.classList.remove("hop-r","hop-l");
-        continue;
-      }
-      if(e.type === "cae_mascota"){
-        caerMascota(e.side); addLog(e);
-        await wait(e.definitiva ? 620 : 380);
-        continue;
-      }
-
-      /* ── EL ACERCAMIENTO ──
-         El atacante CAMINA hasta el rival: el cuerpo se desplaza la distancia
-         medida y las piernas alternan mientras dura. Solo se acerca quien
-         golpea de verdad; la mascota muerde desde su sitio, que para eso tiene
-         cuatro patas y esta al lado.
-
-         El paso dura mas que el golpe a proposito: acercarse es lo que se ve,
-         y si va tan rapido como el impacto no se lee como un paso. */
-      const seAcerca = e.type !== "muerde" && e.type !== "mascota_falla";
-      if(seAcerca){
-        pose(attSide, "paso1");
-        caminar(attSide, 4, 78);
-        attFig.classList.add(attLeft ? "lunge-r" : "lunge-l");
-        await wait(300);
-        pose(attSide, "carga");
-        await wait(90);
-        pose(attSide, "golpe");
-      }
-      await wait(170);
-      if(e.type === "dodge" || e.type === "mascota_falla"){
-        defFig.classList.add(attLeft ? "hop-r" : "hop-l");
-        pose(e.side, "esquiva");
-        floatDmg(e.side, t("dodge_txt"), "miss"); addLog(e);
-        await wait(230); defFig.classList.remove("hop-r","hop-l");
-        pose(e.side, "guardia");
-      }else if(e.type === "cubre"){
-        /* La mascota encaja el golpe ENTERO y al bruto le llega lo que no
-           absorbe. Son dos numeros distintos y salen a alturas distintas: el
-           suyo en bronce abajo, el tuyo en rojo arriba. Si saliera uno solo,
-           el jugador creeria que se ha librado del golpe — y no. */
-        floatDmg(e.side, "−"+e.dmg, "pet");
-        danarMascota(e.side, e.dmg);
-        if(e.pasa > 0){
-          defFig.classList.add("flash", attLeft ? "knock-r" : "knock-l");
-          floatDmg(e.side, "−"+e.pasa, "");
-          if(typeof e.hp === "number") setHp(e.side, e.hp, e.hpMax);
-        }
-        addLog(e);
-        await wait(260);
-        defFig.classList.remove("flash","knock-r","knock-l");
-      }else{
-        defFig.classList.add("flash", attLeft ? "knock-r" : "knock-l");
-        pose(e.side, "encaja");
-        floatDmg(e.side, "−"+e.dmg, e.type === "crit" ? "crit" : e.type === "muerde" ? "pet" : "");
-        if(e.type === "muerde") apuntarMordisco(e.side, e.dmg);
-        setHp(e.side, e.hp, e.hpMax); addLog(e);
-        await wait(e.type === "crit" ? 330 : 230);
-        defFig.classList.remove("flash","knock-r","knock-l");
-        pose(e.side, "guardia");
-      }
-      /* ── LA VUELTA ──
-         Vuelve andando a su sitio. Sin esto el bruto reaparece de golpe donde
-         estaba, y el siguiente turno empieza con un salto que no ha hecho
-         nadie. */
-      if(seAcerca){
-        caminar(attSide, 3, 78);
-        attFig.classList.remove("lunge-r","lunge-l");
-        await wait(240);
-        pose(attSide, "guardia");
-      }
-      await wait(120);
-    }
-    finish();
-  }
   function finish(){
     if(!playing || !premio) return;
     playing = false;
@@ -3032,33 +2658,9 @@
     el("banner").classList.add("show");
     el("balNum").textContent = balance;
   }
-  el("btnSkip").onclick = () => {
-    if(!playing) return;
-    abort = true;
-    /* Sin esto los brutos se quedan congelados a media zancada, con una pierna
-       en el aire, mientras se lee el resultado. */
-    pose("A", "guardia"); pose("B", "guardia");
-    el("figA").classList.remove("lunge-r","lunge-l");
-    el("figB").classList.remove("lunge-r","lunge-l");
-    fight.log.forEach(e => {
-      addLog(e);
-      if(e.type === "hit" || e.type === "crit" || e.type === "muerde") setHp(e.side, e.hp, e.hpMax);
-      if(e.type === "muerde") apuntarMordisco(e.side, e.dmg);
-      if(e.type === "cubre"){
-        danarMascota(e.side, e.dmg);
-        if(e.pasa > 0 && typeof e.hp === "number") setHp(e.side, e.hp, e.hpMax);
-      }
-      if(e.type === "cae_mascota") caerMascota(e.side);
-      if(e.type === "ko") el("fig"+e.side).classList.add("down");
-    });
-    el("turnOut").textContent = fight.turns;
-    playing = true; finish();
-  };
-  el("spd").onclick = ev => {
-    const b = ev.target.closest("button"); if(!b) return;
-    speed = +b.dataset.s;
-    el("spd").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-  };
+  /* El boton de saltar lo pinta la arena; aqui solo se le dice contra que
+     registro saltar, que es el de la pelea en curso. */
+  arena.botonSaltar.onclick = () => { if(playing) arena.saltar(fight.log); };
 
   /* ═══════════ forja con creador ═══════════ */
   let look = null, stats = null, pendingPrice = 0;
@@ -3198,7 +2800,9 @@
 
   /* ═══════════ navegación ═══════════ */
   function show(id){
-    if(id !== "scFight"){ abort = true; playing = false; }
+    /* Salir de la arena corta la reproduccion: si no, sigue animando por
+       detras y el cartel del final aparece sobre otra pantalla. */
+    if(id !== "scFight"){ arena.cortar(); playing = false; }
     document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id));
     const inApp = id !== "scGate";
     el("walletChip").classList.toggle("show", inApp);
@@ -3323,7 +2927,6 @@
   };
   /* La arena cambia de ancho al girar el movil o redimensionar; si no se
      vuelve a medir, el bruto se queda corto o se pasa de largo. */
-  window.addEventListener("resize", () => { if(el("scFight").classList.contains("active")) medirAlcance(); });
   el("btnLudus").onclick = () => show("scRoster");
   el("btnRank").onclick = openRank;
   el("btnArm").onclick = () => openArmeria();

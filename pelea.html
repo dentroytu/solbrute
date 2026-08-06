@@ -139,6 +139,7 @@
 
 <script src="brute-render.js"></script>
 <script src="brute-combate.js"></script>
+<script src="brute-arena.js"></script>
 <script>
 (function(){
   "use strict";
@@ -159,6 +160,13 @@
      la página en blanco por culpa del bruto de OTRO. Se recorta a rango legal. */
   const NOMBRE_ARMA = { ninguna:"puños", daga:"daga", escudo:"escudo", lanza:"lanza", mandoble:"mandoble" };
   const NOMBRE_MASC = { ninguna:"", perro:"perro", lobo:"lobo", oso:"oso" };
+  /* `app.html` los saca de su tabla de idiomas; esta página va solo en español,
+     así que los lleva aquí. Las claves son las de `ARENA_IDS`, no un invento:
+     al escribirlas de memoria salieron las seis mal y el escenario aparecía sin
+     nombre, sin dar ningún error. Si no encaja una, se enseña el propio
+     identificador — feo, pero visible, que es lo que hace que se arregle. */
+  const ARENAS_ES = { cueva:"La cueva", yermo:"El yermo", osario:"El osario",
+                      bosque:"El bosque", hielo:"El hielo", averno:"El averno" };
 
   function ficha(b, gana, nombre, bot){
     const lleva = [];
@@ -198,22 +206,6 @@
      La primera versión de esta página decía «el animal de Rufus falla» cuando
      el lobo era de Galba. Con `att`, `def` y `mascota` dentro del evento no hay
      nada que deducir — y por eso se usan esos. */
-  function frase(e){
-    switch (e.type) {
-      case "hit":   return [`${esc(e.att)} golpea a ${esc(e.def)}`, e.dmg];
-      case "crit":  return [`${esc(e.att)} acierta un golpe crítico a ${esc(e.def)}`, e.dmg];
-      case "dodge": return [`${esc(e.def)} esquiva el golpe de ${esc(e.att)}`, null];
-      case "disarm":return [`${esc(e.att)} pierde su ${esc(String(e.arma || "arma").toLowerCase())}`, null];
-      /* `def` es el CUBIERTO, o sea el DUEÑO del animal. Escrito al revés, el
-         registro decía «el oso encaja el golpe de Galba», que era su amo. */
-      case "cubre": return [`el ${esc(e.mascota)} de ${esc(e.def)} se interpone al golpe de ${esc(e.att)}`, e.dmg];
-      case "muerde":        return [`el ${esc(e.mascota)} muerde a ${esc(e.def)}`, e.dmg];
-      case "mascota_falla": return [`el ${esc(e.mascota)} falla contra ${esc(e.def)}`, null];
-      case "cae_mascota":   return [`cae el ${esc(e.mascota)}` + (e.definitiva ? " y no se levanta" : ""), null];
-      case "ko":    return [`${esc(e.def)} queda fuera de combate`, null];
-      default:      return null;
-    }
-  }
 
   /* ══════════════════════════════════════════════════════════════════════
      LA VERIFICACIÓN
@@ -253,6 +245,21 @@
 
   function verificar(f){
     if (!f.a_snapshot) return { estado: "antigua" };
+
+    /* ── Las REGLAS con las que se jugó ────────────────────────────────────
+       Recalcular con unas reglas distintas de las que se usaron da otro
+       combate, y eso NO es que la pelea esté amañada: es que el equilibrio
+       cambió. Sin esta comprobación, subir la VERSION —cosa que pasa cada vez
+       que se recalibra algo— hacía que el historial entero saliera con un
+       «✗ NO CUADRA» rojo. En la página que vende combate verificable, eso es
+       lo peor que puede decir.
+
+       `no lo puedo comprobar` y `no cuadra` son cosas distintas. */
+    if (f.reglas == null) return { estado: "sin_reglas" };
+    if (Number(f.reglas) !== Number(C.VERSION)) {
+      return { estado: "otras_reglas", suya: Number(f.reglas), mia: Number(C.VERSION) };
+    }
+
     try {
       /* Copia profunda: `simulate()` MUTA los combatientes que recibe. Sin
          esto, verificar dos veces daría resultados distintos. */
@@ -284,6 +291,21 @@
         Es anterior al registro completo: se guardaba una copia congelada del rival, pero del
         bruto de casa solo una referencia — y ese dato ya no existe en ningún sitio.
         Se enseña tal cual quedó guardada. Las peleas nuevas sí se pueden comprobar.</div>`;
+    }
+    if (v.estado === "sin_reglas") {
+      return `<div class="veredicto gris"><b>Esta pelea no se puede recalcular</b>
+        Se jugó antes de que se apuntara con qué versión de las reglas. Recalcularla con las
+        de hoy daría otro combate y no probaría nada, así que no se hace: decir
+        «no cuadra» cuando lo que no cuadra es la comparación sería mentir al revés.
+        Se enseña tal cual quedó guardada.</div>`;
+    }
+    if (v.estado === "otras_reglas") {
+      return `<div class="veredicto gris"><b>Esta pelea se jugó con otras reglas</b>
+        Se simuló con la versión <code>${esc(v.suya)}</code> de <code>brute-combate.js</code>
+        y este navegador tiene la <code>${esc(v.mia)}</code>. Entre una y otra cambió el
+        equilibrio, así que el mismo combate da otro resultado — y eso no es un fallo ni un
+        amaño, es que las reglas cambiaron a la vista de todos.
+        Las peleas jugadas con la versión <code>${esc(v.mia)}</code> sí se comprueban aquí.</div>`;
     }
     if (v.estado === "error") {
       return `<div class="veredicto gris"><b>No se ha podido recalcular</b>${esc(v.detalle || "")}</div>`;
@@ -330,15 +352,6 @@
          </div>`;
 
     const v = verificar(f);
-    const eventos = (f.log || []).map(e => {
-      const p = frase(e);
-      if (!p) return "";
-      const clase = e.type === "ko" ? " ko" : e.type === "cae_mascota" ? " cae" : "";
-      return `<div class="ev${clase}"><span class="t">${esc(e.turn == null ? "" : e.turn)}</span>` +
-             `<span class="x">${p[0]}</span>` +
-             `${p[1] == null ? "" : `<span class="d">−${esc(p[1])}</span>`}</div>`;
-    }).join("");
-
     document.title = `${nA} vs ${nB} — SolBrute`;
 
     $("salida").innerHTML = `
@@ -357,9 +370,28 @@
 
       ${pintarVeredicto(v, f)}
 
-      <h2>El combate, turno a turno</h2>
-      <div class="registro">${eventos || '<div class="ev"><span class="x">Sin eventos.</span></div>'}</div>
+      <h2>El combate</h2>
+      <div id="arena"></div>
     `;
+
+    /* ── La animacion ──
+       El mismo `brute-arena.js` que usa el juego. No es una copia: si algo se
+       arregla en la arena, se arregla aqui el mismo dia.
+
+       Y va DESPUES de pintar, porque la arena mide el hueco entre los dos
+       brutos para saber cuanto tiene que andar el atacante — y un elemento que
+       todavia no esta en la pagina no tiene medidas. */
+    const arena = window.BruteArena.crear({
+      caja: $("arena"),
+      controles: true,
+      textoSemilla: "semilla",
+      textoSaltar: "Ver el registro entero",
+      bicho: id => NOMBRE_MASC[id] || id,
+      arena: id => ARENAS_ES[id] || id,
+    });
+    arena.montar(A, { ...B, name: nB }, f.seed);
+    if (arena.botonSaltar) arena.botonSaltar.onclick = () => arena.saltar(f.log);
+    arena.reproducir(f.log);
   }
 
   arrancar();
