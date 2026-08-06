@@ -964,6 +964,32 @@ animación había que jugar una pelea. Ahora se reproduce **cualquier pelea
 guardada**, al instante y con la misma semilla. Es el mejor banco de pruebas
 que puede tener una animación.
 
+### El enlace no arranca solo
+
+En el juego la pelea empieza sola porque acabas de darle a «Pelear»: la
+pediste. En el enlace llegas desde fuera, a lo mejor a mitad de otra cosa, y
+encontrarte una animación ya empezada es peor de dos formas — no ves el
+principio y no la has pedido. Así que hay un botón, y la arena se queda montada
+esperando: los dos brutos, el escenario y las vidas a tope, que además es una
+buena imagen fija para quien solo pasaba a ver quién ganó.
+
+### La trampa del CSS se cumplió el primer día
+
+La cabecera de `brute-arena.js` avisa de que una diferencia de CSS **no da
+error**: da una animación que se ve bien en una página y mal en la otra, y
+nadie mira las dos a la vez.
+
+Pasó al extraerlo. Dos reglas —`.turn-badge` y `.turn-badge b{display:block}`—
+se quedaron fuera por un rango mal cerrado. `app.html` seguía teniéndolas y se
+veía perfecto; `pelea.html` enseñaba **«TURNO0»**, pegado. Ninguna prueba lo
+habría dicho: solo se ve mirando la otra página.
+
+Y de paso, quitar el marcado de la arena de `app.html` dejó una línea huérfana
+—`el("turnLbl").textContent = …`— que reventaba `applyLang()` **entero**. Lo
+que se veía no era el turno: era que en la puerta ponía `…` en vez de
+«Detectada», porque `pintarWallets()` iba después del error y no llegaba a
+ejecutarse. **Un fallo en un sitio, el síntoma en otro que no se le parece.**
+
 ### Las reglas con las que se jugó, que era el cuarto dato
 
 Al recalibrar las mascotas subió la `VERSION` de 13 a 14. Y desde ese momento

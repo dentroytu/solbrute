@@ -371,8 +371,6 @@
      seria volver al problema de las copias, con el agravante de que una
      diferencia de CSS no da error: da una animacion que se ve bien en una
      pagina y mal en la otra, y nadie mira las dos a la vez. */
-  .turn-badge{ flex-shrink:0; align-self:center; text-align:center; font-family:'Cinzel',serif; font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.08em; min-width:52px; }
-  .turn-badge b{ display:block; font-size:18px; color:var(--blood-bright); }
   /* ── El candado de nivel en la tienda ──
      Lo bloqueado NO se esconde. Saber que existe un mandoble a nivel 7 es la
      mitad del motivo para subir de nivel; esconderlo deja la tienda pareciendo
@@ -2550,6 +2548,7 @@
       petdown: t("lg_petdown"), petdead: t("lg_petdead"), ko: t("lg_ko"),
       esquivado: t("dodge_txt"),
     },
+    textoTurno: t("turn"),
     textoSemilla: t("seed"),
     textoSaltar: t("skip"),
     bicho: id => O("bichos")[id] || id,
@@ -3004,8 +3003,23 @@
       const v = T[l][n.getAttribute("data-i18n")];
       if(v !== undefined) n.textContent = v;
     });
-    el("turnLbl").textContent = t("turn");
     document.querySelectorAll(".lang-btn").forEach(b => b.classList.toggle("active", b.dataset.lang === l));
+    /* La arena se crea una vez y vive todo el rato, asi que sus textos hay que
+       refrescarlos aqui. Antes esto era una linea (`turnLbl`) y al mover el
+       marcado al modulo se quedo sin dueño: reventaba `applyLang` entero, y con
+       el todo lo que venia detras — incluido el «detectada / no detectada» de
+       la puerta, que salia como «…». */
+    if(typeof arena !== "undefined" && arena.textos) arena.textos({
+      textoTurno: t("turn"), textoSaltar: t("skip"), textoSemilla: t("seed"),
+      txt: {
+        dodge: t("lg_dodge"), crit: t("lg_crit"), hit: t("lg_hit"), dmg: t("lg_dmg"),
+        disarm: t("lg_disarm"), bite: t("lg_bite"), petmiss: t("lg_petmiss"),
+        cover: t("lg_cover"), through: t("lg_through"), all: t("lg_all"),
+        petdown: t("lg_petdown"), petdead: t("lg_petdead"), ko: t("lg_ko"),
+        esquivado: t("dodge_txt"),
+      },
+    });
+
     const cur = document.querySelector(".screen.active");
     if(!cur) return;
     if(cur.id === "scRoster") renderRoster();

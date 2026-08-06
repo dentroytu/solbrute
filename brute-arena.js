@@ -80,6 +80,15 @@
      nunca estuvo. */
   .pet-row.down{ opacity:.34; filter:grayscale(1); }
   .pet-row.down .pet-bar .fill{ width:0 !important; }
+  /* El rotulo y el numero, uno encima del otro. Sin el display:block del
+     numero salen pegados —«TURNO0»— y no da ningun error: solo se ve mal. Estas
+     dos reglas se quedaron fuera al extraer el CSS y app.html seguia
+     teniendolas, asi que se veia bien alli y mal en pelea.html. Es exactamente
+     la trampa que avisa la cabecera de este fichero, cumplida el primer dia.
+     (Sin acentos graves aqui dentro: esto vive en una plantilla y un backtick
+     la cierra. Ya paso al montar el fichero.) */
+  .turn-badge{ flex-shrink:0; align-self:center; text-align:center; font-family:'Cinzel',serif; font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.08em; min-width:52px; }
+  .turn-badge b{ display:block; font-size:18px; color:var(--blood-bright); }
   .arena-fondo{ position:absolute; inset:0; z-index:0; pointer-events:none;
                 background-image:var(--fondo, none);
                 background-size:cover; background-repeat:no-repeat;
@@ -247,7 +256,11 @@
      que la pagina supiera como se llaman las piezas de dentro. */
   function crear(op) {
     inyectarCSS();
-    const t = Object.assign({}, TXT, op.txt || {});
+    /* `let` y no `const`: los textos se pueden cambiar en marcha. La app
+       arranca en ingles y el jugador cambia de idioma cuando quiere, y la
+       arena se crea UNA vez — sin esto se quedaria en el idioma de arranque
+       para siempre. */
+    let t = Object.assign({}, TXT, op.txt || {});
     const nombreBicho = op.bicho || ((id) => id);
     const nombreArena = op.arena || (() => "");
     const caja = op.caja;
@@ -259,7 +272,7 @@
           '<div class="hud-hp"><span class="v">0</span> / <span class="m">0</span></div>' +
           '<div class="pet-row" hidden><span class="ico"></span><div class="pet-bar"><div class="fill"></div></div>' +
             '<span class="pet-hp">0</span><span class="pet-dmg">0</span></div></div>' +
-        '<div class="turn-badge">T<span class="turno">0</span></div>' +
+        '<div class="turn-badge"><span class="rotulo"></span><b class="turno">0</b></div>' +
         '<div class="hud right"><div class="hud-name"></div><div class="hud-sub"></div>' +
           '<div class="bar"><div class="fill"></div></div>' +
           '<div class="hud-hp"><span class="v">0</span> / <span class="m">0</span></div>' +
@@ -296,6 +309,7 @@
         pet: huds[1].querySelector(".pet-row"),
       },
     };
+    q(".turn-badge .rotulo").textContent = op.textoTurno || "TURNO";
     const elArena = q(".arena"), elTurno = q(".turno"),
           elSeed = q(".seedline"), elLog = q(".log");
 
@@ -619,8 +633,19 @@
        alcance con ella. */
     window.addEventListener("resize", medirAlcance);
 
+    /* Cambiar los textos en marcha. Repinta los rotulos fijos; el registro ya
+       escrito se queda como estaba —traducir hacia atras una pelea a medio
+       reproducir marearia mas que ayudar— y las lineas nuevas salen ya en el
+       idioma nuevo. */
+    function textos(nuevos) {
+      t = Object.assign({}, t, nuevos.txt || {});
+      if (nuevos.textoTurno) q(".turn-badge .rotulo").textContent = nuevos.textoTurno;
+      if (nuevos.textoSaltar && op.controles) caja.querySelector(".js-skip").textContent = nuevos.textoSaltar;
+      if (nuevos.textoSemilla) op.textoSemilla = nuevos.textoSemilla;
+    }
+
     return {
-      caja, arena: elArena, montar, reproducir, saltar, medir: medirAlcance,
+      caja, arena: elArena, montar, reproducir, saltar, medir: medirAlcance, textos,
       botonSaltar: op.controles ? caja.querySelector(".js-skip") : null,
       velocidad: (n) => { velocidad = Number(n) || 1; },
       cortar: () => { cortar = true; },

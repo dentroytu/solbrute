@@ -122,6 +122,23 @@
   .ev.ko{ background:rgba(179,49,44,.1); }
   .ev.ko .x{ color:var(--blood-bright); font-family:'Cinzel',serif; }
   .ev.cae .x{ color:var(--torch); }
+  /* El botón de reproducir. Grande y centrado: es lo único que hay que pulsar
+     en toda la página, así que no tiene por qué ser discreto. */
+  .play{ position:absolute; inset:0; z-index:3; display:flex; align-items:center; justify-content:center;
+         background:rgba(12,10,7,.42); border:none; cursor:pointer; padding:0;
+         transition:background .18s ease; }
+  .play:hover{ background:rgba(12,10,7,.28); }
+  .play .tri{ width:64px; height:64px; border-radius:50%;
+              background:var(--blood); border:2px solid var(--blood-bright);
+              box-shadow:0 6px 24px rgba(0,0,0,.5);
+              display:flex; align-items:center; justify-content:center;
+              transition:transform .18s ease; }
+  .play:hover .tri{ transform:scale(1.08); }
+  /* El triángulo, con un borde: un carácter ▶ se ve de distinto tamaño en cada
+     sistema y aquí es la pieza principal. */
+  .play .tri::after{ content:""; border-style:solid; border-width:13px 0 13px 21px;
+                     border-color:transparent transparent transparent #fff3f0;
+                     margin-left:5px; }
   .pie{ text-align:center; color:var(--muted); font-size:11.5px; margin-top:28px; line-height:1.7; }
 </style>
 </head>
@@ -391,7 +408,22 @@
     });
     arena.montar(A, { ...B, name: nB }, f.seed);
     if (arena.botonSaltar) arena.botonSaltar.onclick = () => arena.saltar(f.log);
-    arena.reproducir(f.log);
+
+    /* ── No arranca sola ───────────────────────────────────────────────────
+       En el juego la pelea empieza sola porque acabas de darle a «Pelear»: la
+       pediste tú. Aquí llegas desde un enlace, a lo mejor a mitad de otra
+       cosa, y encontrarte una animación ya empezada es peor de dos formas: no
+       ves el principio, y no la has pedido.
+
+       Con el botón, la arena se queda montada —los dos brutos, el escenario,
+       las vidas a tope— que además es una buena imagen fija para quien solo
+       pasaba a mirar quién ganó. */
+    const play = document.createElement("button");
+    play.className = "play";
+    play.innerHTML = '<span class="tri"></span>';
+    play.title = "Ver el combate";
+    arena.arena.appendChild(play);
+    play.onclick = () => { play.remove(); arena.reproducir(f.log); };
   }
 
   arrancar();
