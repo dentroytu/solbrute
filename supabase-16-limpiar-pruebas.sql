@@ -16,14 +16,23 @@
 -- llamar así a su bruto y este fichero no tiene forma de saberlo. Una lista
 -- explícita no puede llevarse por delante a nadie por accidente.
 --
--- Los otros tres jugadores con 0 monedas —los de `Arbitrado`, `Sala7huk` e
--- `Iconok5i`— NO están aquí. No son míos.
+-- ── `Arbitrado`, `Sala7huk` e `Iconok5i`: la nota que estaba mal ─────────
+-- Este fichero decía «NO están aquí. No son míos», y por eso quedaron fuera
+-- durante meses. El 07/08 el dueño confirmó que SÍ son pruebas suyas, así que
+-- ya están en la lista.
 --
--- Esa línea es la que hay que leer antes de tocar nada. Al repasar las cuentas
--- el 07/08 di por hecho que esos tres también eran pruebas viejas, por el
--- aspecto de los nombres. No lo son: es gente que entró a probar el juego, y
--- borrarlos habría sido llevarse por delante a jugadores de verdad. **Un
--- nombre no dice de quién es una cuenta.** Por eso esto va por dirección.
+-- Se deja escrito porque el episodio entero es la lección: primero di por
+-- hecho que eran pruebas por el ASPECTO de los nombres, luego el comentario me
+-- corrigió, y al final el comentario era el que estaba equivocado. Ni el
+-- nombre ni un comentario dicen de quién es una cuenta — **solo lo sabe el
+-- dueño, y hay que preguntárselo.**
+--
+-- Y por eso esto sigue borrando por DIRECCIÓN y no por patrón: da igual
+-- cuántas veces se equivoque quien escribe la lista, no puede llevarse por
+-- delante a nadie que no esté nombrado a mano.
+--
+-- La única que NO está y no debe estar es la del dueño (`tito`, `tita`,
+-- `test`): 7bXra…2reZ.
 -- ══════════════════════════════════════════════════════════════════════════
 
 create temp table _basura (address text primary key);
@@ -42,7 +51,13 @@ insert into _basura values
   -- antes de mainnet ensucia menos que borrar cuentas a mano cada dia.
   ('Eecet4Y5bddApzeTi4UAZYr1T3oxVk2jXL7onj6ntDWf'),  -- Ev983490
   ('CPy75zsY6t2A3ZFg1fDoBc1DPZX3g8PuWNiuQaNe3XyU'),  -- Ev836500
-  ('H8W7WLgj1tfnxkJk562P7Gyjrssz1xBi7x9d5PgQGLtb'); -- Chk4517221, la de comprobar la v14
+  ('H8W7WLgj1tfnxkJk562P7Gyjrssz1xBi7x9d5PgQGLtb'),  -- Chk4517221, la de comprobar la v14
+  -- Las cuatro que este fichero daba por NO mias. Lo eran: confirmado por el
+  -- dueño el 07/08. Ver la nota de arriba.
+  ('CCYXMEnhKZjH5WW43YnP3pizAyVz7sGM6RyASMdyvmCx'),  -- Arbitrado
+  ('HkSPFBiesxW21tpaMcUTnjrBHcocb843u1wSRkFKQ24t'),  -- Sala7huk
+  ('2EiWESwFsZpLBUzFe9T2Gkhh4uUpQ6rcdCJk3WUTes51'),  -- Iconok5i
+  ('EfkqapVzTkbQg9qAWXWiLtdskfB3M6FWCK18bXEsznMa'); -- conecto y no llego a forjar
 
 -- Borrar por dirección es idempotente: las que ya no existan no hacen nada.
 -- Por eso este fichero se puede volver a pasar cada vez que se añada una
