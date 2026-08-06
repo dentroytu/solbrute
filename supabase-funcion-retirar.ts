@@ -77,16 +77,48 @@ import {
   createTransferInstruction,
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddress,
+  getMint,
 } from "npm:@solana/spl-token@0.4.15";
 
 const URL_SB  = Deno.env.get("SUPABASE_URL")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RPC     = Deno.env.get("SOLANA_RPC") || "https://api.devnet.solana.com";
 
-/* Los $BRUTE tienen 9 decimales, igual que el mint creado en devnet. Si algún
-   día se crea el de mainnet con otros, esto hay que cambiarlo aquí — mandar
-   con los decimales equivocados es enviar mil veces de más o de menos. */
-const DECIMALES = 9n;
+/* ══════════════════════════════════════════════════════════════════════════
+   LOS DECIMALES SE LE PREGUNTAN AL MINT, NO SE SUPONEN
+   ══════════════════════════════════════════════════════════════════════════
+   Aqui habia un `const DECIMALES = 9n` con un comentario que decia «si algun
+   dia se crea el de mainnet con otros, esto hay que cambiarlo aqui».
+
+   Y un comentario no es una comprobacion. Es la misma leccion que dejo el
+   agujero de las skins, con la diferencia de que este cuesta MUCHO mas caro:
+   el mint de mainnet no existe todavia, y si sale con 6 decimales —que es lo
+   que usa USDC y de lo mas comun— cada retirada manda MIL VECES lo que toca.
+   El tesoro se vacia con las primeras retiradas y en la cadena no hay vuelta
+   atras.
+
+   No hace falta acordarse: el propio mint lleva sus decimales dentro y se
+   leen con una llamada. Se cachea porque de un mint no cambian nunca —el
+   campo es inmutable— asi que preguntarlo una vez por arranque en frio sobra.
+
+   Si algun dia no coinciden con lo esperado, NO se envia: se responde 503 y se
+   deja dicho en el log cual es cual. Parar es recuperable; mandar mil veces de
+   mas, no. */
+const DECIMALES_ESPERADOS = 9;
+
+let decCache: { mint: string; dec: bigint } | null = null;
+async function decimalesDe(con: Connection, mint: PublicKey): Promise<bigint> {
+  const k = mint.toBase58();
+  if (decCache && decCache.mint === k) return decCache.dec;
+  const info = await getMint(con, mint);
+  if (info.decimals !== DECIMALES_ESPERADOS) {
+    console.error("MINT CON DECIMALES INESPERADOS: " + k + " tiene " + info.decimals +
+                  " y se esperaban " + DECIMALES_ESPERADOS + ". NO se envia nada.");
+    throw new Error("decimales_inesperados:" + info.decimals);
+  }
+  decCache = { mint: k, dec: BigInt(info.decimals) };
+  return decCache.dec;
+}
 
 /* La misma lista que usa `auth`, leida del mismo secreto. Se repite aqui en vez
    de preguntarle a la otra funcion porque una funcion que mueve dinero conviene
@@ -231,12 +263,45 @@ const destinoPub = (t: string) => new PublicKey(t);
    que `String.fromCharCode(...)` no llega a desbordar la pila. */
 const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
 
+/* La misma lista que `auth`. Va repetida a proposito: son dos funciones
+   desplegadas por separado y una constante compartida por URL es justo lo que
+   el empaquetador de Supabase no deja hacer. Si se añade un dominio, va en las
+   DOS — como ya avisa la nota del dominio propio en CLAUDE.md. */
+const DOMINIOS_OK = [
+  "solbrute.io",
+  "www.solbrute.io",
+  "dentroytu.github.io",
+  "localhost:8777",
+  "127.0.0.1:8777",
+];
+
 async function firmaValida(address: string, mensaje: string, firma: string): Promise<boolean> {
   try {
     /* El mensaje tiene que llevar la propia direccion y una fecha reciente.
        Sin la direccion, una firma dada en otro sitio valdria aqui; sin la
        fecha, una capturada valdria para siempre. */
     if (!mensaje.includes(address)) return false;
+
+    /* ── Y tiene que nombrar ESTE sitio y ESTA operacion ──────────────────
+       Faltaba, y era el mismo agujero contra el que ya se defiende el login:
+       «sin el dominio, una web fraudulenta podria reutilizar tu firma aqui».
+
+       Comprobar solo «lleva tu direccion y una fecha ISO» acepta un formato
+       comunisimo: media cripto pide firmar exactamente eso. Con una firma que
+       el comprador hubiera dado en CUALQUIER otra web se podia llamar a
+       `pv_reservar` en su nombre y bloquear cupo con direcciones ajenas — que
+       es literalmente lo unico que esta firma existe para impedir.
+
+       No hay robo posible por aqui: los tokens de `pv_reclamar` van siempre a
+       la direccion del firmante. Lo que se evita es el bloqueo del cupo.
+
+       La landing ya mandaba las dos cosas dentro del mensaje (`location.host`
+       y «SolBrute presale»); lo que faltaba era que el servidor las exigiera.
+       Mandarlas y no comprobarlas es decoracion. */
+    const primera = mensaje.split("\n")[0] || "";
+    if (!DOMINIOS_OK.some((d) => primera.startsWith(d + " "))) return false;
+    if (!mensaje.includes("SolBrute presale")) return false;
+
     const m = /(\d{4}-\d{2}-\d{2}T[\d:.]+Z)/.exec(mensaje);
     if (!m) return false;
     const edad = Date.now() - Date.parse(m[1]);
@@ -540,7 +605,8 @@ Deno.serve(async (req) => {
           tx.add(createAssociatedTokenAccountIdempotentInstruction(
             cofre.publicKey, llegada, destino, mint));
           tx.add(createTransferInstruction(
-            origen, llegada, cofre.publicKey, tokens * (10n ** DECIMALES)));
+            origen, llegada, cofre.publicKey,
+            tokens * (10n ** await decimalesDe(conP, mint))));
           tx.sign(cofre);
           firmaEnv = bs58(tx.signature!);
 
@@ -711,9 +777,12 @@ Deno.serve(async (req) => {
       const tx = new Transaction();
       tx.add(createAssociatedTokenAccountIdempotentInstruction(
         tesoro.publicKey, llegada, destino, mint));
+      /* Si los decimales no cuadran esto LANZA, y lanza ANTES de firmar y de
+         mandar nada: se cae al catch con `emitido = false` y el saldo vuelve
+         intacto. Es el orden que hace que parar sea gratis. */
       tx.add(createTransferInstruction(
         origen, llegada, tesoro.publicKey,
-        BigInt(ap.tokens) * 10n ** DECIMALES));
+        BigInt(ap.tokens) * 10n ** await decimalesDe(con, mint)));
 
       const bh = await con.getLatestBlockhash("confirmed");
       ultimoBloqueValido = bh.lastValidBlockHeight;

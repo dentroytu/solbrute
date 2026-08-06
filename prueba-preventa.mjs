@@ -179,6 +179,40 @@ for (const [nombre, mins] of [["de hace una hora", 60], ["del futuro", -60]]) {
   probar("firmar un mensaje sin fecha", r.s === 200, `${r.s} ${r.j.clase || ""}`);
 }
 
+// ── 6b · una firma dada en OTRA WEB ───────────────────────────────────────
+// El servidor solo exigia que el mensaje llevara tu direccion y una fecha ISO
+// reciente. Eso es un formato comunisimo —media cripto pide firmar exactamente
+// eso— asi que una firma que el comprador hubiera dado en cualquier otro sitio
+// servia aqui para reservar en su nombre y bloquear cupo con direcciones
+// ajenas: literalmente lo unico que esta firma existe para impedir.
+//
+// No habia robo posible —los tokens de `pv_reclamar` van siempre a la
+// direccion del firmante— pero si el bloqueo del cupo.
+//
+// La landing YA mandaba el dominio y el proposito dentro del mensaje. Lo que
+// faltaba era que el servidor los exigiera. Mandar algo y no comprobarlo es
+// decoracion.
+{
+  const casos = [
+    ["de otra web (otro dominio)",
+     ["malaweb.xyz wants you to sign in:", yo.dir, "", "Issued At: " + new Date().toISOString()]],
+    ["dominio bueno, sin decir para que",
+     ["solbrute.io wants you to verify your Solana account:", yo.dir, "",
+      "Issued At: " + new Date().toISOString()]],
+    ["sin dominio ninguno delante",
+     ["Sign this to continue", yo.dir, "", "SolBrute presale.", "",
+      "Issued At: " + new Date().toISOString()]],
+  ];
+  for (const [nombre, lineas] of casos) {
+    const msg = lineas.join("\n");
+    const r = await pedir({
+      accion: "pv_reservar", address: yo.dir, tokens: 1000,
+      mensaje: msg, firma: firmar(yo.priv, msg),
+    });
+    probar("firma valida " + nombre, r.s === 200, `${r.s} ${r.j.clase || ""}`);
+  }
+}
+
 // ── 7 · direcciones que no lo son ─────────────────────────────────────────
 for (const mala of ["", "0x1234", "'; drop table preventa; --", "1".repeat(200)]) {
   const r = await pedir({ accion: "pv_reservar", address: mala, tokens: 1 });

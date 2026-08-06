@@ -2245,6 +2245,58 @@ comprobar nadie más— es que la Edge Function le pasa a Postgres lo que debe:
 > defecto (1) y **el candado se apaga sin fallar**. Ningún error que lo delate.
 > Ese es el agujero que este banco existe para encontrar.
 
+### Los decimales del token se suponían, y eso vacía el tesoro
+
+El fallo **más caro** que puede tener este proyecto, y todavía no ha pasado
+porque el mint de mainnet no existe.
+
+`supabase-funcion-retirar.ts` mandaba con `const DECIMALES = 9n`, y encima
+llevaba este comentario:
+
+> *«Si algún día se crea el de mainnet con otros, esto hay que cambiarlo aquí —
+> mandar con los decimales equivocados es enviar mil veces de más o de menos.»*
+
+O sea que el riesgo estaba identificado, escrito, y **confiado a que alguien se
+acuerde**. Si el mint de mainnet sale con 6 decimales —lo que usa USDC, y de lo
+más común— la primera retirada de 100 monedas manda 100.000 tokens. El tesoro se
+vacía con las primeras y en la cadena no hay vuelta atrás.
+
+Ahora se le **preguntan al mint**, que los lleva dentro y son inmutables: se
+leen una vez por arranque en frío y se cachean. Si no cuadran con los esperados,
+no se envía nada — 503, y el log dice qué mint tiene qué. **Parar es
+recuperable; mandar mil veces de más, no.**
+
+Y el orden importa: la comprobación lanza **antes** de firmar y de mandar, así
+que se cae por el camino de `emitido = false` y el saldo del jugador vuelve
+intacto.
+
+Es la misma lección que el agujero de las skins, con tres ceros más: **un
+comentario no es una comprobación.**
+
+### La firma de la preventa no ataba el dominio
+
+El login lo ata desde el primer día, y la nota que lo explica dice por qué:
+«sin él, una web fraudulenta podría reutilizar tu firma aquí». La preventa vive
+en la landing, usa otra función, y ahí no se hizo.
+
+`firmaValida` exigía solo dos cosas: que el mensaje contuviera tu dirección y
+una fecha ISO reciente. Eso es un formato **comunísimo** — media cripto pide
+firmar exactamente eso. Así que una firma que el comprador hubiera dado en
+cualquier otra web servía aquí.
+
+No hay robo posible por ese camino: los tokens de `pv_reclamar` van siempre a la
+dirección del firmante. Lo que sí se podía era **reservar cupo en nombre de
+otro**, que es literalmente lo único que esa firma existe para impedir.
+
+Lo llamativo es dónde estaba el fallo: **la landing ya mandaba el dominio y el
+propósito dentro del mensaje.** Lo que faltaba era que el servidor los exigiera.
+Mandar un dato y no comprobarlo es decoración — y peor, decoración que se lee
+como una defensa cuando alguien audita el cliente.
+
+`DOMINIOS_OK` va ahora también en `supabase-funcion-retirar.ts`, repetida a
+propósito: son dos funciones desplegadas por separado. **Si se añade un dominio,
+va en las dos.**
+
 ### Una skin de dagas puesta en un mandoble
 
 El agujero **económico** de la revisión, y lo tapaba un comentario que decía lo
