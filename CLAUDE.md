@@ -2671,6 +2671,27 @@ saldos de gente.
 
 ## Verificación rápida antes de dar algo por bueno
 
+**Antes de publicar, y en este orden.** Se para en la primera que falle:
+
+```bash
+node prueba-escape.mjs app.html pelea.html index.html admin.html \
+  && node prueba-ascii.mjs supabase-funcion-auth.ts supabase-funcion-retirar.ts \
+  && node prueba-verificable.mjs | tail -3 \
+  && node --check brute-render.js && node --check brute-combate.js \
+  && echo "TODO BIEN"
+```
+
+Ninguna necesita internet ni claves: leen los ficheros y simulan. Las que SÍ
+hablan con el servidor —`prueba-hostil.ts`, `prueba-preventa.mjs`,
+`respaldo.mjs`— van aparte, porque tardan y porque tocan cosas de verdad.
+
+Si tocas el equilibrio (`ARMAS`, `MASCOTAS`, las constantes de la curva), además:
+
+```bash
+node prueba-mascotas.mjs && node prueba-mascotas-emparejada.mjs
+```
+
+
 ```bash
 # claves de traducción usadas pero no definidas, y listas descuadradas
 grep -o 'data-i18n="[^"]*"' app.html | sort -u | wc -l
