@@ -24,6 +24,7 @@
    ══════════════════════════════════════════════════════════════════════════ */
 import "./funcion-bajo-prueba.ts";
 import { webcrypto, generateKeyPairSync, sign as firmarNode } from "node:crypto";
+import { readFile } from "node:fs/promises";
 
 const H = (globalThis as any).__manejador;
 const T = (globalThis as any).__TABLAS;
@@ -241,20 +242,62 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
   probar("tocar el bruto de otro jugador", v.level>1||v.arma!=="ninguna"||v.wins>0, `nivel ${v.level} · arma ${v.arma} · ${v.wins}V`);
 
   // 12 · rutas de admin sin ser admin
-  /* El total se CUENTA, no se escribe. Decia "de 7" con ocho rutas en la lista:
-     un numero a mano en una prueba envejece solo, y aqui mentia justo sobre
-     cuanta superficie se estaba atacando. */
-  let admins=0;
-  let RUTAS_ADMIN = 0;
-  for(const a of ["admin_resumen","admin_jugadores","admin_editar_bruto","admin_borrar_jugador"]){
-    const r=await pedir({accion:a,token:A.token,id:A.id,address:B.dir,campos:{coins:1e9}});
-    RUTAS_ADMIN++; if(r.s===200) admins++;
+  /* ── La lista se LEE del fichero, no se escribe aqui ──────────────────────
+     Estaba a mano con ocho rutas cuando ya habia quince, y ademas el total
+     decia "de 7". Una lista copiada envejece sola: el dia que se añada
+     `admin_lo_que_sea`, esta prueba seguiria en verde sin haberla tocado — y
+     habria dicho "aguanta" sobre una superficie que no miro.
+
+     Ahora sale del propio `supabase-funcion-auth.ts`, asi que una ruta nueva
+     entra en el ataque el mismo dia que se escribe. */
+  const FUENTE = await readFile("supabase-funcion-auth.ts", "utf8");
+  const RUTAS_ADMIN = [...FUENTE.matchAll(/accion === "(admin_[a-z_0-9]+)"/g)]
+    .map(m => m[1]).filter((v, i, a) => a.indexOf(v) === i);
+  let admins = 0;
+  const coladas: string[] = [];
+  for (const a of RUTAS_ADMIN) {
+    /* Un cuerpo con TODO lo que pide cualquiera de ellas: si alguna se cuela
+       por faltarle un campo, se cuela de verdad y no por accidente. */
+    const r = await pedir({
+      accion: a, token: A.token, id: A.id, torneoId: 1, bruteId: A.id,
+      address: B.dir, campos: { coins: 1e9, activa: true, precio_lamports: 1 },
+      motivo: "me la abro yo solo", activo: true,
+    });
+    if (r.s === 200) { admins++; coladas.push(a); }
   }
-  for(const a of ["admin_preventa","admin_preventa_config","admin_red","admin_mantenimiento"]){
-    const r=await pedir({accion:a,token:A.token,campos:{activa:true,precio_lamports:1},motivo:"me la abro yo solo"});
-    RUTAS_ADMIN++; if(r.s===200) admins++;
+  probar("entrar en las rutas de admin", admins>0,
+         admins ? coladas.join(" ") : `las ${RUTAS_ADMIN.length} respondieron 401`);
+
+  /* ── 12b · las dos capas tienen que aceptar los MISMOS estados ───────────
+     `preventa_confirmar` acepta `reservada` y `caducada`, y lleva ocho lineas
+     explicando que la segunda es lo que impide quedarse con el SOL de alguien
+     por quince segundos de red. La Edge Function devolvia 410 antes de llegar
+     a llamarla, asi que esa defensa no se ejecutaba nunca.
+
+     Es el patron de siempre en este proyecto: una capa defiende y la de encima
+     no se ha enterado. No se puede probar con una peticion —haria falta una
+     reserva de verdad caducando a mitad— pero SI se puede leer las dos listas
+     y exigir que coincidan, que es lo que de verdad se rompio. */
+  {
+    const sql = await readFile("supabase-31-preventa.sql", "utf8");
+    const ts  = await readFile("supabase-funcion-retirar.ts", "utf8");
+    const mSql = /c\.estado\s+not\s+in\s*\(([^)]*)\)/.exec(sql);
+    const enSql = new Set([...(mSql?.[1] || "").matchAll(/'([a-z]+)'/g)].map(m => m[1]));
+    const mTs = /compra\.estado !== "([a-z]+)"(?:\s*&&\s*compra\.estado !== "([a-z]+)")?/.exec(ts);
+    const enTs = new Set([mTs?.[1], mTs?.[2]].filter(Boolean) as string[]);
+    const soloSql = [...enSql].filter(x => !enTs.has(x));
+    const soloTs  = [...enTs].filter(x => !enSql.has(x));
+    probar("estados de la preventa desalineados", soloSql.length>0 || soloTs.length>0,
+      soloSql.length || soloTs.length
+        ? `el SQL acepta ${[...enSql].join("+")} y la funcion ${[...enTs].join("+")}`
+        : `las dos aceptan ${[...enSql].sort().join(" + ")}`);
   }
-  probar("entrar en las rutas de admin", admins>0, `${admins} de ${RUTAS_ADMIN} respondieron`);
+
+  /* Y que la puerta sea de PREFIJO, no una lista. Si alguien la cambiara por
+     un `includes([...])`, una ruta nueva nacería abierta y nada lo diría. */
+  probar("la puerta de admin es por lista, no por prefijo",
+         !/accion\.startsWith\("admin_"\)/.test(FUENTE),
+         'la cubre `accion.startsWith("admin_")`');
 
   /* La preventa es la unica parte del juego donde alguien manda SOL de verdad
      antes de recibir nada. Encenderla desde fuera del panel seria abrir la

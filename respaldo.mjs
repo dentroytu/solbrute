@@ -90,10 +90,29 @@ if (process.argv[2] === "--ver") {
   const e = c.tablas.economia?.[0];
   if (e) {
     const circ = (c.tablas.players || []).reduce((a, p) => a + Number(p.coins || 0), 0);
-    const suma = circ + Number(e.reserva_restante) + (Number(e.reserva_seguridad) - 5_000_000);
+
+    /* ── El bote de un torneo abierto TAMBIEN esta en circulacion ───────────
+       Al inscribirse, las monedas salen de `players.coins` y entran en
+       `tournaments.bote`: siguen existiendo, solo que en deposito. Sumando
+       unicamente `players.coins`, esta comprobacion daba «no cuadra» por la
+       cantidad exacta del bote cada vez que hubiera un torneo abierto.
+
+       Y eso es peor que no comprobar nada. Una alarma que salta sola todas las
+       semanas enseña a ignorarla, y entonces no se mira el dia que el
+       descuadre es de verdad. Un torneo `terminado` o `cancelado` ya no
+       retiene nada: los premios volvieron a los jugadores y el resto se
+       reciclo. */
+    const enDeposito = (c.tablas.tournaments || [])
+      .filter((t) => t.estado !== "terminado" && t.estado !== "cancelado")
+      .reduce((a, t) => a + Number(t.bote || 0), 0);
+
+    const suma = circ + enDeposito + Number(e.reserva_restante) +
+                 (Number(e.reserva_seguridad) - 5_000_000);
     const cuadra = suma === Number(e.reserva_total);
     if (!cuadra) mal++;
-    console.log(`\n  ${cuadra ? "✓" : "✗"} circulacion ${circ} + reserva ${e.reserva_restante} ` +
+    console.log(`\n  ${cuadra ? "✓" : "✗"} circulacion ${circ}` +
+                (enDeposito ? ` + botes ${enDeposito}` : "") +
+                ` + reserva ${e.reserva_restante} ` +
                 `+ fondo extra ${Number(e.reserva_seguridad) - 5_000_000} = ${suma}` +
                 (cuadra ? "" : `  ← deberia dar ${e.reserva_total}`));
   }

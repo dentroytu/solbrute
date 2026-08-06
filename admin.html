@@ -878,7 +878,13 @@
       { lbl:"Brutos",           num:n(r.brutos) },
       { lbl:"Peleas hoy",       num:n(r.peleas_hoy),        sub:n(r.peleas_total) + " en total" },
       { lbl:"Monedas hoy",      num:n(r.monedas_hoy),       sub:n(r.monedas_7d) + " en 7 días", dinero:true },
-      { lbl:"Monedas en juego", num:n(r.monedas_en_juego),  sub:"suma de todos los saldos", dinero:true },
+      /* El deposito solo se enseña si hay algo retenido. Una tarjeta a cero
+         permanente es ruido; y cuando NO hay torneos abiertos, "monedas en
+         juego" ya es la cifra completa. */
+      { lbl:"Monedas en juego", num:n(r.monedas_en_juego),
+        sub: Number(r.monedas_deposito) > 0
+             ? "saldos · " + n(r.monedas_deposito) + " mas en botes"
+             : "suma de todos los saldos", dinero:true },
     ];
     el("tarjetas").innerHTML = t.map(x => `
       <div class="tarjeta${x.dinero ? " dinero" : ""}">

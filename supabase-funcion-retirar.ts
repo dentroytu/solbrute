@@ -549,7 +549,31 @@ Deno.serve(async (req) => {
         if (compra.estado === "pagada" || compra.estado === "entregada") {
           return responder({ ya: true, tokens: compra.tokens });
         }
-        if (compra.estado !== "reservada") return responder({ error: "esa reserva ya no vale", clase: "caducada" }, 410);
+        /* ── Una CADUCADA tambien pasa, y esto es dinero de alguien ───────
+           `preventa_confirmar` acepta `caducada` a proposito y lleva un
+           comentario de ocho lineas explicando por que: el comprador firma
+           dentro de la ventana y la red asienta la transaccion despues.
+           Firmar en el minuto 14:50 y que se confirme en el 15:05 es normal.
+
+           Y aqui se devolvia 410 ANTES de llamarla, asi que esa defensa no
+           llegaba a ejecutarse nunca. El estado pasa a `caducada` de forma
+           perezosa —lo hace la reserva de OTRA persona, en `preventa_reservar`—
+           o sea que ni siquiera dependia de Alicia:
+
+               12:14     Alicia firma y paga, su SOL sale de su wallet
+               12:15:02  Bruno reserva → esa llamada caduca la fila de Alicia
+               12:15:10  Alicia dice "he pagado"  →  410
+
+           Su SOL en nuestra wallet y ninguna compra apuntada. Es exactamente
+           el caso que el SQL describe y que arriba se estaba impidiendo.
+
+           No abre nada: quien llega hasta aqui ya paso `pagoValido`, que lo
+           comprueba EN LA CADENA. Si no pago, no llega.
+
+           `cancelada` si se rechaza: esa se anulo a mano, no por el reloj. */
+        if (compra.estado !== "reservada" && compra.estado !== "caducada") {
+          return responder({ error: "esa reserva ya no vale", clase: "caducada" }, 410);
+        }
 
         const v = await pagoValido(conP, firma, dir, String(fila?.wallet || ""), Number(compra.lamports));
         if (!v.ok) {

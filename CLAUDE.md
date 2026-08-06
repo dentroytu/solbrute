@@ -29,6 +29,7 @@ experiencia y sube de nivel.
 | `supabase-34-skins.sql` | Skins de arma: `players.skins` y `brutes.arma_skin` | Aplicado |
 | `supabase-35-armas-17.sql` | Abre el `check` a las diecisiete. **Antes de la función** | Escrito |
 | `supabase-36-mantenimiento.sql` | Parar el juego desde el panel. **Antes de la función** | Escrito |
+| `supabase-37-botes.sql` | El bote de un torneo también está en circulación | Escrito |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -2089,7 +2090,7 @@ Y editar el cliente es MENOS peligroso que llamar a la API directamente con
 (`prueba-banco.ts`) y la ataca con un cliente reescrito: subirse el nivel,
 regalarse peleas, monedas y armas, inventarse la lista de rivales, elegir la
 semilla, saltarse el precio de la plaza, tocar el bruto de otro y colarse en
-las rutas de admin. **27 ataques, ninguno funciona.**
+las rutas de admin. **30 ataques, ninguno funciona.**
 
 **Si añades una ruta a la función, añádele aquí su ataque antes de
 desplegarla.** Esto aguanta porque se prueba, no porque el código sea bonito.
@@ -2244,6 +2245,65 @@ comprobar nadie más— es que la Edge Function le pasa a Postgres lo que debe:
 > Si alguien quita `p_nivel_min` de una llamada, el SQL usa su valor por
 > defecto (1) y **el candado se apaga sin fallar**. Ningún error que lo delate.
 > Ese es el agujero que este banco existe para encontrar.
+
+### La defensa estaba en el SQL y la puerta de arriba no se había enterado
+
+`preventa_confirmar` acepta una reserva **caducada** a propósito, con ocho
+líneas explicando por qué: el comprador firma dentro de la ventana y la red
+asienta la transacción después. Firmar en el 14:50 y que se confirme en el
+15:05 es normal, y rechazarlo sería quedarse con su SOL.
+
+Y la Edge Function respondía **410 antes de llamarla**, así que esa defensa no
+llegaba a ejecutarse nunca.
+
+Lo que lo hace peor es cómo caduca una reserva: **de forma perezosa, y la
+dispara otra persona**. La barre `preventa_reservar`, o sea la reserva del
+siguiente comprador. No dependía ni de ir lento:
+
+```
+12:14     Alicia firma y paga        ← el SOL sale de su wallet
+12:15:02  Bruno reserva → esa llamada marca la fila de Alicia como caducada
+12:15:05  la red asienta el pago de Alicia
+12:15:10  Alicia dice «he pagado»  →  410
+```
+
+Su SOL en nuestra wallet y ninguna compra apuntada.
+
+No abre nada dejarla pasar: quien llega ahí ya pasó `pagoValido`, que lo
+comprueba en la cadena. `cancelada` se sigue rechazando — esa se anuló a mano,
+no por el reloj.
+
+**Es el mismo patrón que la firma sin dominio, y ya van dos en un día:** una
+capa defiende, la de encima no lo sabe, y el comentario de la de abajo se lee
+como si el problema estuviera resuelto. Por eso la comprobación que lo blinda
+no es una petición —haría falta una reserva caducando a mitad— sino **leer las
+dos listas de estados y exigir que coincidan**. Es la misma comprobación barata
+que ya usan las marcas de Postgres y los tipos de evento.
+
+### El bote de un torneo también está en circulación
+
+Al inscribirse, las monedas **salen de `players.coins` y entran en
+`tournaments.bote`**. Siguen existiendo; están en depósito. Y la invariante
+sumaba solo `players.coins`:
+
+```
+en circulación  +  reserva restante  =  reserva total     ← se queda corta
+```
+
+Así que `respaldo.mjs` habría dicho **«no cuadra»** por la cantidad exacta del
+bote cada vez que hubiera un torneo abierto. Y eso es peor que no comprobar:
+una alarma que salta sola todas las semanas enseña a ignorarla, y entonces no
+se mira el día que el descuadre es de verdad.
+
+El panel tenía el mismo hueco en `monedas_en_juego` — enseñaba monedas
+«desaparecidas» justo cuando hay un torneo vivo, que con un token de por medio
+es el susto que no conviene darse sin motivo. `supabase-37-botes.sql` añade
+`monedas_deposito` **al lado**, sin cambiarle el sentido al número que ya
+estaba: comparar dos capturas de pantalla y que no cuadren, sin saber cuál medía
+qué, es peor que tener un número de más.
+
+Un torneo `terminado` o `cancelado` no retiene nada: los premios volvieron a
+los jugadores y el resto pasó por `emision_reciclar`.
 
 ### Los decimales del token se suponían, y eso vacía el tesoro
 
