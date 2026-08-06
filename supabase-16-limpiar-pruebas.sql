@@ -18,6 +18,12 @@
 --
 -- Los otros tres jugadores con 0 monedas —los de `Arbitrado`, `Sala7huk` e
 -- `Iconok5i`— NO están aquí. No son míos.
+--
+-- Esa línea es la que hay que leer antes de tocar nada. Al repasar las cuentas
+-- el 07/08 di por hecho que esos tres también eran pruebas viejas, por el
+-- aspecto de los nombres. No lo son: es gente que entró a probar el juego, y
+-- borrarlos habría sido llevarse por delante a jugadores de verdad. **Un
+-- nombre no dice de quién es una cuenta.** Por eso esto va por dirección.
 -- ══════════════════════════════════════════════════════════════════════════
 
 create temp table _basura (address text primary key);
@@ -30,7 +36,13 @@ insert into _basura values
   ('AtEjHgCABUisVDHhHmR4aq5jcCpkE83BcAYsY2xxKGhc'),  -- sin bruto
   ('8VB1Lj8LZCae1TLz2bkYc34gMujxkQX7k2zcjAiAikqa'),  -- sin bruto
   ('BQNUEfMmBLQ5MQfw54rmx1cQxP4jAMfi9ZtqiKK44Zyd'),  -- sin bruto
-  ('3BTanRiTZ5i5Lo3PPpEyuiM6KVWBokFyi14zFdVTwhBT'); -- Ev…, la prueba del tablón
+  ('3BTanRiTZ5i5Lo3PPpEyuiM6KVWBokFyi14zFdVTwhBT'),  -- Ev…, la prueba del tablón
+  -- Las tres de la revision de seguridad (2026-08-06/07). Se dejaron a
+  -- proposito: son 8 monedas en un juego sin token, y limpiarlas de una vez
+  -- antes de mainnet ensucia menos que borrar cuentas a mano cada dia.
+  ('Eecet4Y5bddApzeTi4UAZYr1T3oxVk2jXL7onj6ntDWf'),  -- Ev983490
+  ('CPy75zsY6t2A3ZFg1fDoBc1DPZX3g8PuWNiuQaNe3XyU'),  -- Ev836500
+  ('H8W7WLgj1tfnxkJk562P7Gyjrssz1xBi7x9d5PgQGLtb'); -- Chk4517221, la de comprobar la v14
 
 -- Borrar por dirección es idempotente: las que ya no existan no hacen nada.
 -- Por eso este fichero se puede volver a pasar cada vez que se añada una
