@@ -260,6 +260,35 @@ a jugadores legítimos. Diluir y vigilar es la respuesta realista.
 
 ---
 
+## 6b · Que una caída no parezca un juego roto
+
+**El 6 de agosto de 2026 GitHub tuvo una caída de Actions y Pages** (`major
+outage`, cuatro horas) y `solbrute.io` se quedó en el 404 blanco de GitHub. Sin
+token de por medio fue una molestia; con la preventa abierta habría sido gente
+pagando SOL contra una web que no responde.
+
+Son **tres averías distintas** y cada una necesita su respuesta:
+
+| qué falla | qué lo cubre | estado |
+|---|---|---|
+| una ruta que no existe | `404.html` propio | hecho |
+| la base de datos en obras | el modo mantenimiento (paso 36) | hecho |
+| **el alojamiento caído** | una CDN delante, o cambiar de alojamiento | **pendiente** |
+
+La tercera es la que no se arregla con un fichero: **si el alojamiento está
+caído, no se sirve nada tuyo** — ni un cartel de mantenimiento, ni el `404.html`.
+Lo único que funciona es que haya algo DELANTE con una copia en caché.
+
+**Cloudflare lo hace en el plan gratuito** («Always Online»: sirve la última
+copia buena cuando el origen no responde), y si además el sitio se aloja en
+Cloudflare Pages, el origen deja de ser GitHub.
+
+Y una lección que costó cara ese día: **no toques la configuración del
+alojamiento en mitad de una caída.** Antes de pulsar «Unpublish», el sitio
+servía la versión anterior y funcionaba; después ya no se pudo republicar hasta
+que GitHub se recuperó. Cuando el proveedor está en obras, lo único que hay que
+hacer es esperar.
+
 ## 7 · Lo técnico que queda pendiente
 
 | | Qué | Por qué |

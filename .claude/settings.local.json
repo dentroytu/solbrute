@@ -236,7 +236,29 @@
       "Bash(curl -s \"https://bartostore.es/products.json?limit=250&page=1\" -o p1.json -w \"HTTP:%{http_code}\\\\n\")",
       "Bash(awk '{print $5}')",
       "Bash(curl -s \"https://bartostore.es/products.json?limit=250&page=2\" -o p2.json)",
-      "Bash(curl -s \"https://bartostore.es/collections.json?limit=250\" -o cols.json)"
+      "Bash(curl -s \"https://bartostore.es/collections.json?limit=250\" -o cols.json)",
+      "Bash(node migracion/normalizar.mjs)",
+      "Bash(node migracion/descargar-imagenes.mjs)",
+      "Bash(git ls-remote *)",
+      "WebFetch(domain:docs.medusajs.com)",
+      "Bash(npm run *)",
+      "Bash(tee /tmp/medusa-dev.log)",
+      "Bash(gh run *)",
+      "Bash(awk -F'\\\\t' '{print \"  \"$2\"  \"$3\"  \"$8}')",
+      "Bash(npx medusa *)",
+      "Bash(curl -s https://www.githubstatus.com/api/v2/summary.json)",
+      "Bash(pkill -f \"medusa develop\")",
+      "Bash(pkill -f \"apps/backend\")",
+      "Bash(pkill -9 -f medusa)",
+      "Bash(curl -s -o /dev/null -w \"puerto 9000: HTTP %{http_code}\\\\n\" --max-time 3 http://localhost:9000/health)",
+      "Bash(cd ~/Proyectos/bartostore/apps/backend && npm run dev 2>&1 | tee /tmp/medusa-dev.log)",
+      "Bash(curl -sI \"https://solbrute.io/app.html\")",
+      "Bash(curl -s https://solbrute.io/brute-combate.js?x=__TRACKED_VAR__)",
+      "Bash(awk '{print $1, $NF}')",
+      "Bash(curl -s -o /dev/null -w '  solbrute.io → %{http_code}\\\\n' https://solbrute.io/?cb=__TRACKED_VAR__)",
+      "Bash(tee /tmp/storefront.log)",
+      "Bash(curl -s -o /dev/null -w ' solbrute.io → %{http_code}\\\\n' https://solbrute.io/?cb=__TRACKED_VAR__)",
+      "Bash(curl -s https://www.githubstatus.com/api/v2/incidents/unresolved.json)"
     ]
   }
 }

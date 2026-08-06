@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SolBrute — page not found</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<!--
+  ══════════════════════════════════════════════════════════════════════════
+  La pagina que sale cuando una URL no existe
+  ══════════════════════════════════════════════════════════════════════════
+  GitHub Pages sirve este fichero para cualquier ruta que no encuentre. Sin
+  el, sale la pagina blanca de GitHub con su logo — que le dice al visitante
+  que se ha equivocado de sitio, no que se ha equivocado de direccion.
+
+  ── Lo que esto NO cubre, y conviene tenerlo claro ────────────────────────
+  Si el alojamiento entero esta caido, este fichero tampoco se sirve: no llega
+  a leerse nada del repositorio. Para eso hace falta algo DELANTE del
+  alojamiento —una CDN con copia en cache— y eso no se arregla con un HTML.
+
+  Son tres averias distintas:
+
+    ruta que no existe        →  este fichero
+    base de datos en obras    →  el modo mantenimiento (paso 36)
+    alojamiento caido         →  una CDN delante, o cambiar de alojamiento
+
+  ── Sin fuentes propias ni scripts ────────────────────────────────────────
+  Cuanto menos necesite esta pagina para pintarse, mas probable es que se vea
+  el dia que algo va mal. Solo HTML y CSS.
+  ══════════════════════════════════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --bg-deep:#0c0a07; --line:#3a2e1c; --blood-bright:#e0453f;
+    --bronze:#c98a3a; --bronze-light:#e5ab5c; --text:#efe7d8; --muted:#a8998a;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:radial-gradient(ellipse 800px 420px at 50% 20%, #2c2013 0%, transparent 60%), var(--bg-deep);
+    color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif;
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:24px; text-align:center;
+  }
+  .caja{ max-width:440px; }
+  .marca{ font-family:'Cinzel',serif; font-weight:800; font-size:17px; letter-spacing:.05em;
+        color:var(--bronze); text-decoration:none; display:inline-block; margin-bottom:34px; }
+  .marca span{ color:var(--blood-bright); }
+  .num{ font-family:'Cinzel',serif; font-size:58px; font-weight:900; color:var(--bronze);
+        line-height:1; margin-bottom:14px; }
+  h1{ font-family:'Cinzel',serif; font-size:22px; color:var(--bronze-light); margin-bottom:12px; }
+  p{ color:var(--muted); font-size:14px; line-height:1.75; }
+  .btns{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:26px; }
+  .btn{ font-family:inherit; font-weight:700; font-size:13.5px; padding:11px 20px;
+        border-radius:10px; text-decoration:none; display:inline-block; }
+  .btn-p{ background:#b3312c; color:#fff3f0; border:1px solid var(--blood-bright); }
+  .btn-g{ background:transparent; color:var(--bronze-light); border:1px solid var(--line); }
+  .btn:hover{ filter:brightness(1.12); }
+</style>
+</head>
+<body>
+  <div class="caja">
+    <a class="marca" href="/">SOL<span>BRUTE</span></a>
+    <div class="num">404</div>
+    <h1>Esa puerta no existe</h1>
+    <p>La dirección que has abierto no lleva a ningún sitio del ludus.
+       Puede que el enlace esté mal copiado o que la página ya no esté.</p>
+    <div class="btns">
+      <a class="btn btn-p" href="/app.html">⚔️ Entrar a la arena</a>
+      <a class="btn btn-g" href="/">Volver al inicio</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -21,6 +21,7 @@ experiencia y sube de nivel.
 | `supabase-07-peleas.sql` | Tabla `fights` y resumen para el panel | Aplicado |
 | `supabase-08-admin.sql` | Tabla `admin_log` (auditoría) | Aplicado |
 | `supabase-09-armas.sql` | `brutes.arma` y `brutes.armas` | Aplicado (`armas` **ya no se usa**, ver paso 14) |
+| `404.html` | La página de ruta no encontrada, con el arte del juego | Funcionando |
 | `pelea.html` | **Una pelea, con su enlace, y se verifica sola** | Funcionando |
 | `prueba-verificable.mjs` | Comprueba que la verificación detecta una pelea manipulada | Herramienta |
 | `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Aplicado |
