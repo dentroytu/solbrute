@@ -836,6 +836,35 @@ Esconder botones en el navegador no para nada: las rutas se llaman con `curl`.
 **El administrador pasa siempre.** Si se bloqueara, quedarías fuera de tu propio
 panel justo cuando necesitas entrar a apagarlo.
 
+### Y el cartel tampoco sabía quién eras
+
+Arreglado el login, seguía sin poder entrar: **el cartel lo pinta el
+navegador**, y lo pintaba mirando solo si el juego está parado. El servidor
+decía que sí y la pantalla decía que no.
+
+Dos cosas más, encadenadas:
+
+- **El administrador no ve el cartel.** La app ya sabe quién eres —`esAdmin()`,
+  que sale de lo que respondió el servidor al firmar— y no lo estaba mirando.
+- **En la puerta tampoco se enseña.** Tapar la puerta impide iniciar sesión, y
+  sin sesión nadie puede demostrar que es administrador. Otra vez el cerrojo
+  por dentro, una capa más arriba. No se pierde nada: quien no sea admin firma,
+  entra, y se encuentra el cartel en la pantalla siguiente — que es donde están
+  los botones que darían error.
+
+**Y el aviso a quien ya estaba dentro no existía.** El comentario decía «se
+vuelve a pintar si alguna llamada devuelve `mantenimiento`»; el cliente lanzaba
+el error con su clase desde el primer día y **no lo escuchaba nadie**. Quien
+estuviera jugando cuando se encendía veía errores sueltos —«no he podido
+resolver el combate»— en vez del cartel, que es exactamente lo que este modo
+existe para evitar. Va por evento (`solbrute:mantenimiento`) y no ruta por
+ruta: encadenarlo en cada llamada es lo que se olvida en la de mañana.
+
+**Tres capas, y el mismo fallo en las tres.** La Edge Function, el cartel y el
+aviso: en las tres el comentario describía la defensa entera y el código hacía
+la mitad. Salió porque el dueño lo dejó encendido de verdad — ninguna prueba lo
+habría encontrado, porque todas presuponen que se puede entrar.
+
 ### Y se cerró por dentro el primer día que se usó de verdad
 
 Esa frase describía la defensa entera y el código hacía la mitad. Las rutas de

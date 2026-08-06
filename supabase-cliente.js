@@ -182,6 +182,19 @@
       if(datos.clase === "mantenimiento"){
         const e = ErrorDB("mantenimiento", datos.error || "en mantenimiento");
         e.mensaje = datos.mensaje; e.hasta = datos.hasta;
+        /* Y se AVISA, que es lo que faltaba. La clase existia desde el primer
+           dia y no la escuchaba nadie: quien estuviera jugando cuando se
+           encendia el mantenimiento veia errores sueltos —«no he podido
+           resolver el combate»— en vez del cartel. O sea justo lo que el modo
+           mantenimiento existe para evitar.
+
+           Va por evento y no por retorno porque esto puede saltar en cualquier
+           llamada, y encadenar el aviso ruta por ruta es lo que se olvida en la
+           ruta de mañana. */
+        try{
+          window.dispatchEvent(new CustomEvent("solbrute:mantenimiento",
+            { detail: { mantenimiento:true, mensaje: datos.mensaje, hasta: datos.hasta } }));
+        }catch(_){}
         throw e;
       }
       throw ErrorDB("auth", datos.error || ("HTTP " + r.status));

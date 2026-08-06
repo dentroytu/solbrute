@@ -3034,6 +3034,29 @@
      desde la consola no desbloquea nada: las rutas siguen respondiendo 503. */
   function pintarMante(m){
     if(!m || !m.mantenimiento){ el("mante").hidden = true; return; }
+
+    /* ── El administrador NO ve el cartel ──────────────────────────────────
+       El servidor ya le deja pasar —comprueba su sesion contra la lista— pero
+       el cartel lo pinta ESTA pagina, y lo pintaba mirando solo si el juego
+       esta parado. Asi que el dueño se quedaba fuera de su propio juego
+       viendo «volvemos pronto», con el servidor diciendo que si.
+
+       Es el mismo fallo que el del login, una capa mas arriba: la defensa
+       existe en el servidor y la pantalla no se ha enterado. */
+    if(SolBruteDB.esAdmin && SolBruteDB.esAdmin()){ el("mante").hidden = true; return; }
+
+    /* ── Y en la PUERTA tampoco ────────────────────────────────────────────
+       Tapar la puerta impide iniciar sesion, y sin sesion nadie puede
+       demostrar que es administrador — ni el dueño. Un cartel que impide
+       demostrar que puedes pasar es el mismo cerrojo por dentro que ya tuvo
+       la Edge Function.
+
+       No se pierde nada: quien no sea admin firma, entra, y se encuentra el
+       cartel en la pantalla siguiente. Que es donde de verdad importa, porque
+       es donde estan los botones que darian error. */
+    const cur = document.querySelector(".screen.active");
+    if(cur && cur.id === "scGate"){ el("mante").hidden = true; return; }
+
     el("mante").hidden = false;
     /* El mensaje del panel gana al de por defecto, pero solo si lo hay: un
        cartel vacío es peor que uno genérico. */
@@ -3049,6 +3072,10 @@
     catch(e){ /* sin servidor no se dice nada: ya fallará lo siguiente */ }
   }
   el("btnManteVer").addEventListener("click", () => location.reload());
+  /* Para quien ya estaba dentro cuando se paro el juego. El cliente lanza un
+     error con clase `mantenimiento` desde que existe el modo, y no lo escuchaba
+     nadie: se veian errores sueltos en vez del cartel. */
+  window.addEventListener("solbrute:mantenimiento", ev => pintarMante(ev.detail));
   mirarMante();
 
   applyLang("en"); show("scGate");
