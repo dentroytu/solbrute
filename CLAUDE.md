@@ -836,6 +836,36 @@ Esconder botones en el navegador no para nada: las rutas se llaman con `curl`.
 **El administrador pasa siempre.** Si se bloqueara, quedarías fuera de tu propio
 panel justo cuando necesitas entrar a apagarlo.
 
+### Y se cerró por dentro el primer día que se usó de verdad
+
+Esa frase describía la defensa entera y el código hacía la mitad. Las rutas de
+admin empiezan por `admin_` y pasaban. **`nonce` y `verify` no** — y son con
+las que se entra. Durante el login todavía no hay token, así que `duenoDe`
+devolvía `null` y la puerta echaba a todo el mundo, administrador incluido.
+
+O sea el fallo exacto contra el que avisa el párrafo de arriba: con el juego
+parado, el dueño **no podía iniciar sesión ni en el juego ni en el panel**, y
+solo se salía de ahí con un `update` a mano en el SQL Editor:
+
+```sql
+update mantenimiento set activo = false where id = 1;
+```
+
+Un interruptor de emergencia que se cierra por dentro. Y no salió probándolo:
+salió cuando el dueño lo dejó puesto varios días a propósito y quiso entrar.
+
+Dejar el login abierto no abre nada: `nonce` y `verify` no tocan el estado del
+juego, solo demuestran de quién es una wallet. Quien no sea admin entra y se
+encuentra el 503 en la petición siguiente — que es **mejor**, porque así ve el
+cartel de mantenimiento en vez de un login que falla sin explicar por qué.
+
+**La prueba se probó devolviendo el fallo a mano, y menos mal:** la primera
+versión buscaba la lista de rutas libres y la encontraba declarada aunque el
+`if` no la usara, así que daba el visto bueno con el fallo puesto. Es la misma
+trampa de siempre — un detector que no se ha visto fallar no se sabe si
+detecta.
+
+
 ### La caché de diez segundos
 
 Sin ella, cada login y cada pelea pagarían una consulta más para preguntar algo

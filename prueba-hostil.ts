@@ -307,6 +307,43 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
            positivas.length ? positivas.join(" ") : `las ${COMPRAS.length} clases de compra van en negativo`);
   }
 
+  /* ── 11c · el mantenimiento no puede cerrarse por dentro ─────────────────
+     La puerta del mantenimiento dejaba pasar las rutas `admin_` pero NO
+     `nonce` ni `verify`, que son con las que se entra. Y durante el login
+     todavia no hay token, asi que echaba a todo el mundo — administrador
+     incluido. El resultado: con el juego parado, el dueño no podia iniciar
+     sesion ni en el juego ni en el panel, y solo se salia con un `update` a
+     mano en el SQL Editor.
+
+     Un interruptor de emergencia que se cierra por dentro. Y el comentario que
+     hay encima ya decia que el admin tenia que pasar SIEMPRE. */
+  {
+    T.mantenimiento[0].activo = true;
+    /* La funcion cachea la respuesta diez segundos; el reloj no se puede mover
+       desde aqui, asi que se comprueba lo unico que importa y no depende de la
+       cache: que las rutas de login no esten detras de la puerta. */
+    const F = await readFile("supabase-funcion-auth.ts", "utf8");
+    /* Dos formas de escribirlo y las dos valen: los nombres sueltos dentro del
+       `if`, o una lista aparte. Buscar solo una fue lo que hizo que esta misma
+       prueba dijera «siguen detras» con el fallo ya arreglado. */
+    const cond = /if \(!accion\.startsWith\("admin_"\)([^{]*)\)\s*\{/.exec(F);
+    /* La lista solo cuenta si la CONDICION la usa. Sin esto, la prueba
+       encontraba `SIN_PUERTA` declarada y daba el visto bueno aunque el `if`
+       no la mirara — o sea aprobaba con el fallo puesto. Se vio devolviendo el
+       fallo a mano, que es la unica forma de saber si un detector detecta. */
+    const usaLista = /SIN_PUERTA/.test(cond?.[1] || "");
+    const lista = usaLista ? /SIN_PUERTA\s*=\s*\[([^\]]*)\]/.exec(F) : null;
+    const libres = new Set([
+      ...[...(cond?.[1] || "").matchAll(/"(\w+)"/g)].map(x => x[1]),
+      ...[...(lista?.[1] || "").matchAll(/"(\w+)"/g)].map(x => x[1]),
+    ]);
+    const faltan = ["nonce", "verify"].filter(x => !libres.has(x));
+    probar("el mantenimiento cierra la puerta por dentro", faltan.length > 0,
+      faltan.length ? `${faltan.join(" y ")} quedan detras de la puerta`
+                    : "nonce y verify pasan: siempre se puede entrar a apagarlo");
+    T.mantenimiento[0].activo = false;
+  }
+
   /* ── 12a · borrar un jugador NO puede quemar sus monedas ─────────────────
      Borrar la fila sin devolver el saldo deja la invariante coja para siempre:
      baja «en circulacion» y no sube la reserva. No es imprimir dinero, es

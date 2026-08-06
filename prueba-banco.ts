@@ -5,7 +5,13 @@
 
    Banco de pruebas: corre la Edge Function REAL contra una base de datos
    simulada en memoria, para poder atacarla antes de desplegarla. */
-const TABLAS: Record<string, any[]> = { players: [], brutes: [], sessions: [], auth_nonces: [], fights: [], admin_log: [] };
+/* `mantenimiento` con su fila, porque sin ella la Edge Function no puede
+   leerla, falla abierta —«si la consulta falla, se sigue como si no hubiera
+   mantenimiento»— y el ataque que comprueba que el login pasa la puerta no
+   ejercita nada. Una prueba que pasa porque la funcion se rindio antes de
+   llegar no esta probando nada. */
+const TABLAS: Record<string, any[]> = { players: [], brutes: [], sessions: [], auth_nonces: [], fights: [], admin_log: [],
+  mantenimiento: [{ id: 1, activo: false, mensaje: null, hasta: null }] };
 let SEQ = 1;
 /* Registro de las llamadas a funciones de Postgres, para poder comprobar
    CON QUE se las llamo. Ver el bloque /rpc/ mas abajo. */

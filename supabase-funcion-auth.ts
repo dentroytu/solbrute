@@ -516,14 +516,32 @@ async function manejar(req: Request): Promise<Response> {
      wallet, que es justo lo que hace falta para poder pintarlo en la puerta.
 
      Las rutas de admin tampoco se bloquean: si se bloquearan, quedarias fuera
-     de tu propio panel justo cuando necesitas entrar a apagarlo. */
+     de tu propio panel justo cuando necesitas entrar a apagarlo.
+
+     ── Y EL LOGIN TAMPOCO, que es lo que faltaba ─────────────────────────
+     Esa frase de arriba describia la defensa entera y el codigo hacia la
+     mitad: las rutas de admin empiezan por `admin_` y pasaban, pero `nonce` y
+     `verify` NO — y son con las que se entra. Durante el login todavia no hay
+     token, asi que `duenoDe` devuelve null y la puerta echaba a todo el mundo,
+     administrador incluido.
+
+     El resultado era el fallo exacto contra el que avisa el parrafo anterior:
+     con el mantenimiento puesto, el dueño no podia iniciar sesion NI en el
+     juego ni en el panel, y solo se salia de ahi con un `update` a mano en el
+     SQL Editor. Un interruptor de emergencia que se cierra por dentro.
+
+     Dejarlas abiertas no abre nada: `nonce` y `verify` no tocan el estado del
+     juego, solo demuestran de quien es una wallet. Quien no sea admin entrara
+     y se encontrara el 503 en la siguiente peticion — que es lo que se quiere,
+     porque asi ve el cartel de mantenimiento en vez de un login que falla. */
+  const SIN_PUERTA = ["nonce", "verify"];
   if (accion === "estado") {
     const m = await mantenimiento();
     return responder({ mantenimiento: m.activo, mensaje: m.mensaje, hasta: m.hasta,
                        version: C.VERSION });
   }
 
-  if (!accion.startsWith("admin_")) {
+  if (!accion.startsWith("admin_") && !SIN_PUERTA.includes(accion)) {
     const m = await mantenimiento();
     if (m.activo) {
       /* El administrador pasa. Se comprueba con la sesion, que es lo unico que
