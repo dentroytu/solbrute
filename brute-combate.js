@@ -38,7 +38,7 @@
      el servidor se queda con las reglas viejas: entonces nadie podrá pelear y
      saldrá "el juego se ha actualizado, recarga" — molesto, pero infinitamente
      mejor que arbitrar partidas con dos reglamentos distintos. */
-  const VERSION = 13;  // 11: -5% de vida inicial · 12: nueve armas · 13: diecisiete
+  const VERSION = 14;  // 11: -5% de vida · 12: nueve armas · 13: diecisiete · 14: mascotas recalibradas
 
   /* ═══════════ equilibrio ═══════════
      Un bruto nuevo sale flojo a propósito: 1-4 sobre un tope de 10. Si
@@ -529,9 +529,29 @@
        ini     lo que te resta de iniciativa por llevarla */
   const MASCOTAS = {
     ninguna: { nombre:"ninguna", nivel:1,  ataca:0,    dmg:0, cubre:0,    absorbe:0,    hp:0,  mortal:0,    ini:0, precio:0 },
-    perro:   { nombre:"perro",   nivel:1,  ataca:0.45, dmg:1, cubre:0.38, absorbe:0.30, hp:30, mortal:0.10, ini:5, precio:115 },
-    lobo:    { nombre:"lobo",    nivel:4,  ataca:0.32, dmg:2, cubre:0.38, absorbe:0.30, hp:26, mortal:0.09, ini:5, precio:105 },
-    oso:     { nombre:"oso",     nivel:8,  ataca:0.30, dmg:1, cubre:0.38, absorbe:0.30, hp:38, mortal:0.09, ini:5, precio:175 },
+    /* ── Recalibradas contra las DIECISIETE armas ────────────────────────
+       Estaban cuadradas contra un juego de cinco. Al entrar las demas —y al
+       recalibrarse los `dmg` de todas— el entorno cambio y a las mascotas no
+       las volvio a medir nadie: la ventaja se habia ido de +7,0 a +9,2 / +10,1
+       / +11,2, separadas 2 puntos entre ellas en vez de 0,3, y el sumidero se
+       habia encogido solo (morian cada 27-59 combates en vez de cada 20-30).
+
+       Dan MAS ventaja y cuestan MENOS. Es justo la direccion equivocada, y es
+       lo mismo que ya avisa la nota de las armas: añadir armas obliga a
+       recalibrar lo que ya estaba. Con las mascotas no se hizo.
+
+       Medido emparejado —los mismos brutos y la misma semilla, con mascota y
+       sin ella— porque sin emparejar el margen de error es +-1,6 puntos y el
+       objetivo esta en 0,3: la primera calibracion estaba persiguiendo ruido.
+
+       `cubre` es COMPARTIDO a proposito: lo que distingue a una mascota de
+       otra es como muerde y cuanto aguanta, no cuanto se interpone. Y la
+       identidad se fijo A MANO antes de calibrar, porque dejando que el
+       calibrador moviera todo salian las tres identicas —misma vida, mismo
+       precio— o sea reskins con tres nombres. */
+    perro:   { nombre:"perro",   nivel:1,  ataca:0.475, dmg:1, cubre:0.213, absorbe:0.30, hp:24, mortal:0.280, ini:5, precio:80  },
+    lobo:    { nombre:"lobo",    nivel:4,  ataca:0.257, dmg:2, cubre:0.213, absorbe:0.30, hp:21, mortal:0.229, ini:5, precio:70  },
+    oso:     { nombre:"oso",     nivel:8,  ataca:0.460, dmg:1, cubre:0.213, absorbe:0.30, hp:27, mortal:0.278, ini:5, precio:110 },
   };
   const MASCOTAS_REALES = ["perro","lobo","oso"];
   const mascota = id => MASCOTAS[id] || MASCOTAS.ninguna;
@@ -757,6 +777,29 @@
       }
     }
     return { coins, xp, subio, ganancia };
+  }
+
+  /* ── Sin prototipo, y esto no es manía ────────────────────────────────
+     Un objeto normal hereda de `Object.prototype`, asi que `ARMAS["constructor"]`
+     NO es undefined: es una funcion. Y toda comprobacion escrita como
+
+         const w = ARMAS[id];  if (!w) return "esa arma no existe";
+
+     la da por buena. Con `arma: "constructor"` la ruta seguia adelante con
+     `w.precio === undefined`, se lo mandaba a Postgres, y salia un 500 mudo —
+     el mismo patron que el `tokens: 1e21` de la preventa: el servidor
+     cayendose por algo que el navegador manda cuando quiere.
+
+     Vale para `constructor`, `__proto__`, `toString`, `valueOf` y todo lo que
+     cuelgue del prototipo.
+
+     Se arregla en la RAIZ y no ruta por ruta: quitandole el prototipo a las
+     tablas, `ARMAS["constructor"]` vuelve a ser undefined y las decenas de
+     comprobaciones que ya existen pasan a ser correctas de golpe. Una defensa
+     que hay que acordarse de repetir en cada sitio es una defensa que se
+     olvida en el sitio nuevo. */
+  for (const tabla of [ARMAS, MASCOTAS, SKINS, FAMILIAS, FAMILIA_DE]) {
+    Object.setPrototypeOf(tabla, null);
   }
 
   globalThis.BruteCombate = {

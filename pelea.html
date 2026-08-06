@@ -157,19 +157,6 @@
 
   /* Un `look` fuera de rango hace que el renderizador lance, y aquí eso dejaría
      la página en blanco por culpa del bruto de OTRO. Se recorta a rango legal. */
-  function lookSano(l){
-    const R = window.BruteRender;
-    const n = (v, max) => Math.min(Math.max(Math.floor(Number(v) || 0), 0), max);
-    l = l || {};
-    return {
-      sex: n(l.sex, 1), skin: n(l.skin, R.SKIN.length - 1),
-      hair: n(l.hair, 5), hairC: n(l.hairC, R.HAIRC.length - 1),
-      cloth: n(l.cloth, R.CLOTHS.length - 1), clothC: n(l.clothC, R.CLOTHC.length - 1),
-      face: n(l.face, R.FACES.length - 1), eyeC: n(l.eyeC, R.EYEC.length - 1),
-      tat: n(l.tat, R.TATS.length - 1), tatC: n(l.tatC, R.INK.length - 1),
-    };
-  }
-
   const NOMBRE_ARMA = { ninguna:"puños", daga:"daga", escudo:"escudo", lanza:"lanza", mandoble:"mandoble" };
   const NOMBRE_MASC = { ninguna:"", perro:"perro", lobo:"lobo", oso:"oso" };
 
@@ -178,7 +165,7 @@
     if (b.arma && b.arma !== "ninguna") lleva.push(NOMBRE_ARMA[b.arma] || b.arma);
     if (b.mascota && b.mascota !== "ninguna") lleva.push(NOMBRE_MASC[b.mascota] || b.mascota);
     return `<div class="lado${gana ? " gana" : ""}">
-      <div class="retrato">${bust(lookSano(b.look))}</div>
+      <div class="retrato">${bust(b.look)}</div>
       <div class="nom">${esc(nombre)}${bot ? '<span class="bot">BOT</span>' : ""}</div>
       <div class="nv">Nivel ${Number(b.lv) || 1}</div>
       <div class="atrs">

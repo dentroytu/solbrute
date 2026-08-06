@@ -156,8 +156,75 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
            mal.length ? mal.map(r=>`${r.args.p_arma||r.args.p_id}=${r.args.p_precio}`).join(" ")
                       : `${R.length} compras con el precio de brute-combate.js`);
   }
-  probar("comprar un arma inexistente", (await pedir({accion:"comprar",token:A.token,arma:"excalibur"})).s===200, "se acepta");
-  probar("comprar 'ninguna' (puños) pagando", (await pedir({accion:"comprar",token:A.token,arma:"ninguna"})).s===200, "se acepta");
+  /* El detalle decia "se acepta" SIEMPRE, ganara o perdiera el ataque. Un
+     banco cuyo texto dice lo contrario de su veredicto se lee mal justo el dia
+     que encuentra algo. Ahora enseña el codigo que respondio de verdad. */
+  {
+    const r1 = await pedir({accion:"comprar",token:A.token,arma:"excalibur"});
+    probar("comprar un arma inexistente", r1.s===200, `respondio ${r1.s}`);
+    const r2 = await pedir({accion:"comprar",token:A.token,arma:"ninguna"});
+    probar("comprar 'ninguna' (puños) pagando", r2.s===200, `respondio ${r2.s}`);
+  }
+
+  /* ── 9c · las claves del PROTOTIPO ────────────────────────────────────────
+     `ARMAS["constructor"]` no es undefined: es una funcion, o sea verdadera. Y
+     media docena de rutas comprueban la existencia con `if (!w)`, asi que
+     pasaba, `w.precio` salia undefined, JSON.stringify borraba la clave, y
+     PostgREST devolvia PGRST202 → 500 mudo. Alcanzable por cualquier jugador
+     con sesion.
+
+     Se arreglo quitandole el prototipo a las tablas en brute-combate.js. Esta
+     prueba es lo que impide que vuelva el dia que alguien escriba una tabla
+     nueva sin acordarse. */
+  {
+    const VENENO = ["constructor","__proto__","toString","valueOf","hasOwnProperty"];
+    const rutas: [string, (v:string)=>any][] = [
+      ["comprar",          v => ({accion:"comprar",          token:A.token, arma:v})],
+      ["equipar",          v => ({accion:"equipar",          token:A.token, bruteId:A.id, arma:v})],
+      ["comprar_mascota",  v => ({accion:"comprar_mascota",  token:A.token, mascota:v})],
+      ["equipar_mascota",  v => ({accion:"equipar_mascota",  token:A.token, bruteId:A.id, mascota:v})],
+      ["comprar_skin",     v => ({accion:"comprar_skin",     token:A.token, arma:v, skin:0})],
+      ["poner_skin",       v => ({accion:"poner_skin",       token:A.token, bruteId:A.id, arma:v, skin:0})],
+    ];
+    const rotas: string[] = [];
+    for (const [ruta, cuerpo] of rutas)
+      for (const v of VENENO) {
+        const r = await pedir(cuerpo(v));
+        if (r.s === 200 || r.s >= 500) rotas.push(`${ruta}:${v}=${r.s}`);
+      }
+    probar("claves del prototipo como id", rotas.length>0,
+           rotas.length ? rotas.slice(0,4).join(" ") : `${rutas.length*VENENO.length} intentos, ni un 200 ni un 500`);
+    /* Y que las tablas de verdad no las tengan, que es donde se arreglo. */
+    const conProto = ["ARMAS","MASCOTAS","SKINS","FAMILIAS","FAMILIA_DE"]
+      .filter(t => C[t] && VENENO.some(v => (C[t] as any)[v]));
+    probar("las tablas heredan de Object.prototype", conProto.length>0,
+           conProto.length ? conProto.join(",") : "las 5 sin prototipo");
+  }
+
+  /* ── 9d · la skin de una familia puesta en OTRA ───────────────────────────
+     `poner_skin` mandaba a Postgres la familia sacada de `cuerpo.arma`, o sea
+     de lo que dijera el navegador — y Postgres comprueba la propiedad contra
+     ESA familia, pero le pone la skin al arma que el bruto lleva DE VERDAD.
+
+     O sea: una skin de dagas por 45 monedas, puesta en un mandoble, y ese
+     indice se lleva en las ocho familias. Ocho skins al precio de una, con el
+     sumidero convertido en un descuento.
+
+     El banco no ejecuta Postgres, y no hace falta: lo que hay que comprobar es
+     CON QUE se le llama, que es justo para lo que existe. Se le da al bruto un
+     mandoble (familia `espadas`) y se pide la skin diciendo que lleva `daga`.
+     Si la Edge Function repite la mentira, `p_familia` llega como `dagas`. */
+  {
+    bruto(A.id).arma = "mandoble";
+    const RPC=(globalThis as any).__RPC as {fn:string;args:any}[];
+    RPC.length = 0;
+    const r = await pedir({accion:"poner_skin", token:A.token, bruteId:A.id, arma:"daga", skin:3});
+    const l = RPC.find(x => x.fn === "skin_poner");
+    const mintio = l?.args?.p_familia === "dagas";
+    probar("colar la skin de otra familia", mintio || r.s === 200 && !l,
+           l ? `el bruto lleva mandoble y paso p_familia=${l.args.p_familia}` : `respondio ${r.s}, sin llamada`);
+    bruto(A.id).arma = "ninguna";
+  }
 
   // 10 · adelantar el día para recargar peleas
   bruto(A.id).fights_day="2020-01-01";

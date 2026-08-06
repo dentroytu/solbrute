@@ -821,13 +821,22 @@ async function manejar(req: Request): Promise<Response> {
     const bid = idEntero(cuerpo.bruteId);
     if (!bid) return responder({ error: "identificador no valido" }, 400);
     const quiere = String(cuerpo.arma || "ninguna");
+    /* Se valida AQUI y no solo en Postgres, aunque Postgres tambien lo rechaza.
+       El motivo esta en la linea de abajo: `(C.ARMAS[quiere] || {}).nivel || 1`
+       hace que un id que no este en la tabla mande **nivel minimo 1**, o sea el
+       candado de nivel APAGADO, sin error ni aviso. Hoy no se puede llegar ahi
+       porque el `desconocido` de Postgres corta antes; pero "no se puede
+       llegar" es una suposicion que caduca, y esta caduca en cuanto alguien
+       añada un arma al `check` de la tabla y se olvide de `C.ARMAS`. */
+    if (quiere !== "ninguna" && !C.ARMAS[quiere])
+      return responder({ error: "esa arma no existe" }, 400);
 
     let r;
     try {
       r = await db("/rpc/arma_equipar", {
         method: "POST",
         body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_arma: quiere,
-                               p_nivel_min: (C.ARMAS[quiere] || {}).nivel || 1 }),
+                               p_nivel_min: C.ARMAS[quiere].nivel || 1 }),
       });
     } catch (e) {
       const m = (e as Error).message;
@@ -902,12 +911,36 @@ async function manejar(req: Request): Promise<Response> {
     if (skin !== null && (!Number.isInteger(skin) || skin < 0 || skin >= C.SKIN_N)) {
       return responder({ error: "esa skin no existe" }, 400);
     }
+    /* ── La familia sale del BRUTO, no del navegador ──────────────────────
+       Aqui habia un agujero de verdad, y el comentario que lo tapaba decia lo
+       contrario de lo que hacia el codigo: decia «se saca del arma que lleve el
+       bruto» y leia `cuerpo.arma`, o sea lo que dijera el cliente.
+
+       Postgres comprueba que TENGAS la skin en la familia que le mandan, y
+       luego se la pone al arma que el bruto lleva DE VERDAD. Las dos cosas no
+       eran la misma. Asi que comprando UNA skin de dagas por 45 se podia
+       llevar ese mismo indice en las ocho familias: ocho skins al precio de
+       una, y el sumidero convertido en un descuento.
+
+       No se puede arreglar en el SQL porque la tabla de familias vive en
+       `brute-combate.js` y Postgres no la conoce. Se arregla leyendo el arma
+       del bruto —filtrando por dueño, para no confirmarle a nadie que existe
+       el bruto de otro— y derivando la familia de ahi. */
+    let fam: string | null = null;
+    if (skin !== null) {
+      const suyo = await db("/brutes?id=eq." + bid +
+                            "&owner=eq." + encodeURIComponent(dueno) + "&select=arma");
+      const armaReal = String(suyo?.[0]?.arma || "");
+      if (!suyo?.length) return responder({ error: "ese bruto no es tuyo" }, 403);
+      if (!armaReal || armaReal === "ninguna") {
+        return responder({ error: "ese bruto no lleva arma", clase: "sin_arma" }, 403);
+      }
+      fam = C.FAMILIA_DE[armaReal] || null;
+      if (!fam) return responder({ error: "esa arma no existe" }, 400);
+    }
+
     let r;
     try {
-      /* La familia la tiene que mandar la Edge Function: la tabla vive en
-         `brute-combate.js` y Postgres no la conoce. Se saca del arma que lleve
-         el bruto — que es lo mismo que comprueba la funcion. */
-      const fam = C.FAMILIA_DE[String(cuerpo.arma || "")] || null;
       r = await db("/rpc/skin_poner", {
         method: "POST",
         body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_skin: skin,
@@ -1368,12 +1401,16 @@ async function manejar(req: Request): Promise<Response> {
     const bid = idEntero(cuerpo.bruteId);
     if (!bid) return responder({ error: "identificador no valido" }, 400);
     const quiere = String(cuerpo.mascota || "ninguna");
+    /* Igual que en `equipar`: sin esto, un id que no este en la tabla manda
+       nivel minimo 1 y apaga el candado sin dar error. */
+    if (quiere !== "ninguna" && !C.MASCOTAS[quiere])
+      return responder({ error: "esa mascota no existe" }, 400);
     let r;
     try {
       r = await db("/rpc/mascota_equipar", {
         method: "POST",
         body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid), p_id: quiere,
-                               p_nivel_min: (C.MASCOTAS[quiere] || {}).nivel || 1 }),
+                               p_nivel_min: C.MASCOTAS[quiere].nivel || 1 }),
       });
     } catch (e) {
       const t = (e as Error).message;

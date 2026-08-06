@@ -10,3 +10,15 @@ respaldos/
 # Arte comprado (CraftPix): la licencia prohibe redistribuirlo. Copia local
 # solo para mirar; en produccion va a Supabase Storage.
 arte-local/
+
+# Basura de macOS. Estaba SUBIDA al repositorio publico.
+.DS_Store
+
+# Los permisos que se van concediendo sesion a sesion. Estaba subido, y dentro
+# llevaba rastro de OTROS proyectos —"WebFetch(domain:bartostore.es)",
+# "Read(//Users/.../Proyectos/bartostore/**)"— o sea el nombre de otro proyecto,
+# su dominio y como esta montado el disco de casa, en un repositorio publico.
+# No son claves, pero no pinta nada aqui: es un fichero de tu maquina, no del
+# juego. `launch.json` si se queda: eso si describe como se arranca ESTE
+# proyecto y le sirve a cualquiera que lo clone.
+.claude/settings.local.json

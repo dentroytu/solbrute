@@ -62,6 +62,7 @@ experiencia y sube de nivel.
 | `respaldo.mjs` | Copia de seguridad propia de la base, y la comprueba | Herramienta |
 | `LEGAL.md` | Expediente de hechos para el abogado | Guía |
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
+| `prueba-mascotas-emparejada.mjs` | Las mide **emparejado**: mismo bruto y semilla, con y sin | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain y la preventa** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
@@ -1575,15 +1576,56 @@ comprar victorias son tres frenos:
 A +7, quien no lleva gana 43 de cada 100: molesto, no excluyente. Ese era el
 límite buscado.
 
-| | ventaja | cae cada | muere cada | monedas/combate | precio |
+| | ventaja | cae cada | muere cada | coste/combate | precio |
 |---|---|---|---|---|---|
-| perro | +6,7 | 5,6 | 22 | 3,6 | 80 |
-| lobo | +7,0 | 5,7 | 20 | 3,6 | 70 |
-| oso | +7,0 | 5,8 | 30 | 3,6 | 110 |
+| perro | +6,9 | 6,1 | 22 | 3,72 | 80 |
+| lobo | +7,3 | 4,5 | 20 | 3,55 | 70 |
+| oso | +7,1 | 8,4 | 30 | 3,63 | 110 |
 
-Las tres dentro de **0,3 puntos**, equilibradas entre ellas (48,9-51,5%) y con
-el **mismo coste por combate** — que es el número que de verdad las compara,
-igual que con las armas. La duración no se mueve: mediana 8, p95 12.
+Dentro de **0,4 puntos**, equilibradas entre ellas (49,5-50,7%) y con el **mismo
+coste por combate** — que es el número que de verdad las compara, igual que con
+las armas. La duración no se mueve: mediana 8, p95 13.
+
+**Medido con las diecisiete armas puestas, que es el juego de verdad.**
+`prueba-mascotas.mjs` mide a puño limpio (`arma:"ninguna"` en los dos), y ahí
+salen dos puntos menos. Ninguna de las dos está mal: miden entornos distintos, y
+el que importa es el que juega la gente. Ojo además con esa herramienta: sus
+muestras son pequeñas y la ventaja le baila ~2 puntos entre pasadas, así que
+sirve para ver que nada se ha roto, no para afinar a 0,3.
+
+### Y se habían descuadrado solas, sin que nadie las tocara
+
+Estaban cuadradas contra un juego de **cinco** armas. Al entrar las diecisiete
+—y al recalibrarse los `dmg` de todas— el entorno cambió, y a las mascotas no
+las volvió a medir nadie:
+
+| | diseño | a lo que había llegado |
+|---|---|---|
+| ventaja | +7,0 las tres | +9,2 · +10,1 · **+11,2** |
+| separación entre ellas | 0,3 puntos | **2,0 puntos** |
+| muere cada | 20-30 combates | 31 · 27 · **59** |
+
+**Daban más ventaja y costaban menos**, que es exactamente la dirección
+equivocada: a +11,2 quien no lleva mascota gana 39 de cada 100, y la raya del
+diseño estaba en 43. Es lo mismo que ya avisa la nota de las armas —«añadir
+armas obliga a recalibrar las que ya estaban»— y con las mascotas no se hizo.
+
+**Hay que medir EMPAREJADO**, y es lo que hizo posible arreglarlo: los mismos
+brutos y la misma semilla, una vez con mascota y otra sin ella. Sin emparejar,
+casi toda la varianza viene de la tirada de atributos —un bruto con 8 de fuerza
+gana lleve perro o no— y el margen de error sale de ±1,6 puntos. Con un objetivo
+de 0,3, el primer calibrador estaba **persiguiendo ruido**: daba +6,1 y +7,9
+para el mismo valor y se creía las dos.
+
+**Y la identidad se fija A MANO antes de calibrar.** Dejando que el calibrador
+moviera todas las palancas, llegaba a la ventaja pedida con las tres idénticas
+—misma vida, mismo `cubre`, mismo precio, `ataca` casi igual—: tres nombres para
+la misma mascota. Es el mismo criterio que ya tienen las armas. Ahora `cubre` es
+compartido a propósito —lo que distingue a una mascota es cómo muerde y cuánto
+aguanta, no cuánto se interpone— y el oso sigue siendo el que encaja.
+
+Los precios cayeron solos en **80 / 70 / 110**, que es la tabla que ya estaba
+escrita aquí. No fue un rediseño: fue volver a lo que había.
 
 ### Caer y morir son dos cosas distintas
 
@@ -2047,7 +2089,7 @@ Y editar el cliente es MENOS peligroso que llamar a la API directamente con
 (`prueba-banco.ts`) y la ataca con un cliente reescrito: subirse el nivel,
 regalarse peleas, monedas y armas, inventarse la lista de rivales, elegir la
 semilla, saltarse el precio de la plaza, tocar el bruto de otro y colarse en
-las rutas de admin. **23 ataques, ninguno funciona.**
+las rutas de admin. **27 ataques, ninguno funciona.**
 
 **Si añades una ruta a la función, añádele aquí su ataque antes de
 desplegarla.** Esto aguanta porque se prueba, no porque el código sea bonito.
@@ -2202,6 +2244,122 @@ comprobar nadie más— es que la Edge Function le pasa a Postgres lo que debe:
 > Si alguien quita `p_nivel_min` de una llamada, el SQL usa su valor por
 > defecto (1) y **el candado se apaga sin fallar**. Ningún error que lo delate.
 > Ese es el agujero que este banco existe para encontrar.
+
+### Una skin de dagas puesta en un mandoble
+
+El agujero **económico** de la revisión, y lo tapaba un comentario que decía lo
+contrario de lo que hacía el código. `poner_skin`:
+
+> *«La familia se saca del arma que lleve el bruto»* — y leía `cuerpo.arma`.
+
+Postgres comprueba que **tengas** la skin en la familia que le mandan, y luego
+se la pone al arma que el bruto lleva **de verdad**. Dos cosas distintas, y el
+navegador decidía la primera:
+
+```
+compras la skin 3 de dagas          45 monedas
+tu bruto lleva un mandoble
+mandas arma:"daga", skin:3          → Postgres mira dagas, y tienes la 3 ✓
+                                    → el bruto queda con arma_skin = 3
+                                    → y se dibuja icon_04: la 3 de ESPADAS
+```
+
+**Ocho skins al precio de una**, y el mejor sumidero del proyecto convertido en
+un descuento del 87%.
+
+No se puede arreglar en el SQL: la tabla de familias vive en `brute-combate.js`
+y Postgres no la conoce — que es justo por qué el dato venía de fuera. Se
+arregla leyendo el arma del bruto (filtrando por dueño, para no confirmarle a
+nadie que existe el bruto de otro) y derivando la familia de ahí.
+
+**Un comentario no es una comprobación.** Este decía exactamente lo correcto y
+llevaba desde el primer día encima de un código que hacía otra cosa; se leía
+como si ya estuviera resuelto. Lo cazó el banco de ataque preguntando lo único
+que sabe preguntar: *¿con qué llamaste a Postgres?*
+
+### `ARMAS["constructor"]` no es undefined
+
+El fallo más serio de la revisión, y lo alcanzaba **cualquier jugador con
+sesión** — o sea todos.
+
+Media docena de rutas comprueban lo mismo, y parece bastante:
+
+```js
+const w = C.ARMAS[id];
+if (!w || id === "ninguna") return 400;
+```
+
+Pero un objeto normal hereda de `Object.prototype`, así que `ARMAS["constructor"]`
+devuelve una función. Es verdadero. Pasa el `if`. Y entonces `w.precio` es
+`undefined`, `JSON.stringify` **borra la clave entera** al mandarla, PostgREST no
+encuentra ninguna función con esa firma y responde `PGRST202`, que no encaja con
+ninguna marca traducida: **500 mudo**.
+
+Vale igual con `__proto__`, `toString`, `valueOf`. Y alcanzaba a `comprar`,
+`equipar`, `comprar_mascota`, `equipar_mascota`, `comprar_skin` y `poner_skin`.
+
+Es la misma familia que el `tokens: 1e21` de la preventa: **el servidor
+cayéndose por un valor que el navegador puede mandar cuando quiera.** Un 500 no
+es un agujero por sí solo, pero tampoco es aguantar bien.
+
+**Se arregla en la raíz, no ruta por ruta:**
+
+```js
+for (const tabla of [ARMAS, MASCOTAS, SKINS, FAMILIAS, FAMILIA_DE])
+  Object.setPrototypeOf(tabla, null);
+```
+
+Sin prototipo, `ARMAS["constructor"]` vuelve a ser `undefined` y las decenas de
+comprobaciones que ya existían pasan a ser correctas **de golpe**. Ir ruta por
+ruta habría funcionado hoy y habría fallado en la ruta que se escriba mañana:
+una defensa que hay que acordarse de repetir es una defensa que se olvida.
+
+Y sale gratis en los tres sitios a la vez, porque la Edge Function carga el
+mismo fichero (`import "./brute-combate.js"`) que el navegador y que las pruebas.
+
+### El renderizador lanzaba con un aspecto torcido, y no es tu pantalla la que se rompe
+
+`bust()` y `spriteProfile()` reventaban con un `look` fuera de rango
+(`SKIN[L.skin]` es `undefined` y desestructurarlo lanza). Y esto no dibuja solo
+tu bruto: dibuja **el de los demás** — la lista de rivales, la clasificación, el
+tablón. Un solo aspecto torcido en la base deja la pantalla en blanco a todo el
+mundo, no a su dueño.
+
+Hoy el servidor ya lo sanea al escribir, así que en la base no hay ninguno malo.
+Pero eso es **una** puerta, y el día que se añada otra vía de escritura el fallo
+no sale en ninguna prueba: sale en la pantalla de un tercero.
+
+**La prueba de que el sitio era el renderizador:** `pelea.html` había tenido que
+escribirse su propio `lookSano` para poder dibujar peleas ajenas. Cuando dos
+páginas copian la misma defensa, la defensa estaba en el sitio equivocado. Ahora
+`sano()` vive dentro de `brute-render.js`, la copia de `pelea.html` se borró, y
+las siete entradas envenenadas —`undefined`, `null`, `{}`, índices enormes,
+negativos, texto, prototipo— dibujan en vez de lanzar. Un `look` bueno pasa
+intacto.
+
+### Lo que se coló en el repositorio público, y no era código
+
+`.claude/settings.local.json` iba **subido a GitHub**. No lleva claves: lleva los
+permisos que se van concediendo sesión a sesión. Y dentro había esto:
+
+```
+"WebFetch(domain:bartostore.es)"
+"Read(//Users/alvaroreyesgiraldez/Proyectos/bartostore/**)"
+"Bash(mv Desktop/cartera Proyectos/cartera)"
+```
+
+O sea el nombre de **otro proyecto**, su dominio y cómo está montado el disco de
+casa. Más `.DS_Store`, que es basura de macOS y también estaba subida.
+
+Los dos salen del seguimiento y entran en `.gitignore`. `launch.json` **se
+queda**: ese sí describe cómo se arranca este proyecto y le sirve a cualquiera
+que lo clone. La diferencia no es la carpeta en la que viven, es de quién son:
+uno es del proyecto y el otro es de tu máquina.
+
+**Siguen en el historial de commits.** No son credenciales, así que no hay nada
+que rotar, pero quien clone el repositorio puede leerlos en los commits
+anteriores. Reescribir el historial de un repositorio público ya publicado es
+una decisión aparte y no se hizo sin pedirlo.
 
 ### Dos cosas que se aprendieron atacando
 

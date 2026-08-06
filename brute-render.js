@@ -319,10 +319,43 @@
       </g>`;
   }
 
+  /* ═══════════ El aspecto se sanea AQUI, no en cada pagina ═══════════════
+     Un `look` con un indice fuera de rango —o sin la clave siquiera— hacia que
+     el renderizador LANZARA (`SKIN[L.skin]` da undefined y desestructurarlo
+     revienta). Y como esto no dibuja solo tu bruto sino el de los DEMAS —la
+     lista de rivales, la clasificacion, el tablon—, un solo aspecto torcido en
+     la base deja la pantalla en blanco a todo el mundo, no solo a su dueño.
+
+     Hoy el servidor ya lo sanea al escribir (`sanearLook`), asi que en la base
+     no hay ninguno malo. Pero eso es UNA puerta: el dia que se añada una via de
+     escritura y a alguien se le olvide, el fallo no sale en ninguna prueba —
+     sale en la pantalla de un tercero.
+
+     La prueba de que este era el sitio: `pelea.html` tuvo que escribirse su
+     propio `lookSano` para poder dibujar peleas de otros. Cuando dos paginas
+     copian la misma defensa, la defensa estaba en el sitio equivocado.
+
+     Es barato: son diez `Math.min`. Y no cambia nada de lo que ya funciona,
+     porque un look valido pasa por aqui intacto. */
+  function sano(l){
+    const n = (v, max) => Math.min(Math.max(Math.floor(Number(v)) || 0, 0), max);
+    l = l || {};
+    const sex = n(l.sex, 1);
+    return {
+      sex,
+      skin:  n(l.skin,  SKIN.length   - 1), hair:  n(l.hair, HAIRS[sex].length - 1),
+      hairC: n(l.hairC, HAIRC.length  - 1), cloth: n(l.cloth, CLOTHS.length    - 1),
+      clothC:n(l.clothC,CLOTHC.length - 1), face:  n(l.face,  FACES.length     - 1),
+      eyeC:  n(l.eyeC,  EYEC.length   - 1), tat:   n(l.tat,   TATS.length      - 1),
+      tatC:  n(l.tatC,  INK.length    - 1),
+    };
+  }
+
   /* retrato completo desde un look */
   function bust(look){
+    const l = sano(look);
     return `<svg viewBox="0 0 100 100" aria-hidden="true">
-      ${drawBody(look)}${drawTat(look)}${drawCloth(look)}${drawFace(look)}${drawHair(look)}
+      ${drawBody(l)}${drawTat(l)}${drawCloth(l)}${drawFace(l)}${drawHair(l)}
     </svg>`;
   }
 
@@ -550,7 +583,7 @@
   };
 
   function spriteProfile(b, facingRight){
-    const L = b.look, [s, sh] = SKIN[L.skin];
+    const L = sano(b && b.look), [s, sh] = SKIN[L.skin];
     const g = PB[L.sex];
     const cloth = CLOTHC[L.clothC], hair = HAIRC[L.hairC];
     const hDk = shade(hair,-.3), hLi = shade(hair,.26);
@@ -866,7 +899,7 @@
     OL, SKIN, HAIRC, CLOTHC, INK, EYEC, HAIRS, CLOTHS, FACES, TATS, HD, OUT, IN, PB,
     shade, torsoPath, HEADP,
     drawBody, drawTat, drawCloth, drawFace, drawHair,
-    bust, spriteProfile, iconoArma, iconoMascota, dibujoMascota,
+    sano, bust, spriteProfile, iconoArma, iconoMascota, dibujoMascota,
     ARENAS, ARENA_IDS, arenaDe
   };
 })();
