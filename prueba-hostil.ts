@@ -46,7 +46,7 @@ const look = {sex:0,skin:1,hair:0,hairC:0,cloth:1,clothC:0,face:0,eyeC:0,tat:0,t
 const hallazgos:string[]=[];
 const probar=(n:string,vulnerable:boolean,det:string)=>{ console.log((vulnerable?"  ⚠ ROTO   ":"  · aguanta")+"  "+n.padEnd(42)+det); if(vulnerable) hallazgos.push(n+" — "+det); };
 
-async function entrar(nombre:string){
+async function entrar(nombre:string, conLook?:any){
   const {publicKey,privateKey}=generateKeyPairSync("ed25519");
   const dir=base58(new Uint8Array(publicKey.export({type:"spki",format:"der"}).slice(-32)));
   const n=(await pedir({accion:"nonce",address:dir})).d.nonce;
@@ -55,7 +55,7 @@ async function entrar(nombre:string){
   const v=await pedir({accion:"verify",address:dir,message:m,signature:firma});
   const token=v.d.token;
   await pedir({accion:"tirar",token});
-  const f=await pedir({accion:"forjar",token,bruto:{name:nombre,lv:1,xp:0,hpMax:45,str:2,agi:2,spd:2,w:0,l:0,fights:3,rerolls:1,look}});
+  const f=await pedir({accion:"forjar",token,bruto:{name:nombre,lv:1,xp:0,hpMax:45,str:2,agi:2,spd:2,w:0,l:0,fights:3,rerolls:1,look:conLook||look}});
   return {dir,token,id:f.d.id};
 }
 const bruto=(id:number)=>T.brutes.find((x:any)=>x.id===id);
@@ -307,6 +307,29 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
            positivas.length ? positivas.join(" ") : `las ${COMPRAS.length} clases de compra van en negativo`);
   }
 
+  /* ── 11d · la forja no puede regalar los colores de pago ─────────────────
+     `sanearLook` se abrio a las opciones premium para que un bruto pueda
+     LLEVAR lo comprado, y eso abrio de paso la puerta de regalarlas: forjar es
+     gratis, asi que bastaba con mandar el indice premium en el aspecto del
+     bruto nuevo.
+
+     Se comprueba con el resultado, no leyendo el codigo: se forja pidiendo el
+     ultimo color de cada tabla y se mira que lo escrito NO sea premium. */
+  {
+    /* Va en el PRIMER bruto de una cuenta nueva: el segundo cuesta 50 monedas
+       y una cuenta recien hecha tiene cero, asi que la forja fallaba y esta
+       prueba decia «aguanta» sin haber medido nada. Se vio devolviendo el
+       fallo a mano. */
+    const caro = { ...look };
+    for (const campo of Object.keys(C.ASPECTO)) caro[campo] = C.LOOK_TOTAL[campo] - 1;
+    const B2 = await entrar("Caro"+Date.now().toString().slice(-5), caro);
+    const fila = T.brutes.find((x:any)=>x.id===B2.id);
+    const cuela = fila ? Object.keys(C.premiumDe(fila.look)) : [];
+    probar("forjar con colores de pago sin pagarlos", cuela.length>0,
+      cuela.length ? "se colaron: " + cuela.join(",")
+                   : "los " + Object.keys(C.ASPECTO).length + " cayeron a los de casa");
+  }
+
   /* ── 11c · el mantenimiento no puede cerrarse por dentro ─────────────────
      La puerta del mantenimiento dejaba pasar las rutas `admin_` pero NO
      `nonce` ni `verify`, que son con las que se entra. Y durante el login
@@ -523,7 +546,30 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
   {
     const fs = await import("node:fs/promises");
     const ts  = await fs.readFile("supabase-funcion-auth.ts","utf8");
-    const sql = await fs.readFile("supabase-27-perdidas.sql","utf8");
+    /* La lista blanca vive en la funcion `movimiento_apuntar`, y esa se ha
+       recreado varias veces —cada paso que añade un tipo la vuelve a escribir
+       entera—. Asi que vale la del fichero de numero MAS ALTO que la defina,
+       que es la que quedo en la base: `create or replace` sustituye.
+
+       Estaba clavado al paso 27, asi que al añadir un tipo en el 40 esta
+       prueba decia que el .sql lo rechazaba. Un numero de paso escrito a mano
+       envejece igual que una lista escrita a mano. */
+    /* La lista vale la del fichero de numero MAS ALTO que redefina
+       `movimiento_apuntar`: cada paso que añade un tipo la reescribe entera, y
+       `create or replace` sustituye. Estaba clavada al paso 27, asi que al
+       añadir un tipo en el 40 la prueba decia que el .sql lo rechazaba.
+
+       Y hay que buscar DENTRO de esa funcion, no cualquier `p_tipo not in`:
+       `perdida_apuntar` (paso 30) tiene su propia lista con el mismo nombre de
+       parametro, y buscar a lo bruto las mezclaba. Dos listas blancas
+       distintas que se parecen es peor que dos que no. */
+    const pasos = (await fs.readdir(".")).filter(f=>/^supabase-\d+.*\.sql$/.test(f)).sort();
+    let sql = "";
+    for (const f of pasos) {
+      const t = await fs.readFile(f, "utf8");
+      const i = t.indexOf("function movimiento_apuntar");
+      if (i >= 0) sql = t.slice(i);
+    }
     const web = await fs.readFile("app.html","utf8");
     const usados = [...new Set([...ts.matchAll(/apuntar\([^,]+,\s*"([a-z_]+)"/g)].map(m=>m[1]))];
     const lista  = (sql.match(/p_tipo not in \(([^)]*)\)/s)||["",""])[1];

@@ -442,13 +442,21 @@ function sanearNombre(v: unknown): string {
    guardando {skin:"<script>", hair:999} el renderizador LANZA, y como el
    aspecto se dibuja en la lista de rivales de otros, un solo bruto envenenado
    dejaba la pantalla en blanco a todos los de su nivel. Griefing barato. */
+/* Recorta un aspecto a lo que EXISTE, no a lo que es gratis. Recortaba a
+   `LOOK_N` —las opciones de casa— y con eso un color comprado se guardaba como
+   el 0 sin dar ningun error: el jugador pagaba y su bruto salia con el pelo
+   negro de siempre.
+
+   Lo que NO hace esta funcion es comprobar que sean TUYAS. Eso va aparte y a
+   proposito: aqui se sanea, alli se cobra. Mezclarlo haria que una funcion que
+   se llama «sanear» decidiera ademas quien puede llevar que. */
 function sanearLook(v: unknown): Record<string, number> {
   const l = (v && typeof v === "object") ? v as Record<string, unknown> : {};
-  const N = C.LOOK_N;
+  const TOTAL = C.LOOK_TOTAL;
   const limpio: Record<string, number> = {};
-  for (const k of Object.keys(N)) {
+  for (const k of Object.keys(TOTAL)) {
     const n = Math.floor(Number(l[k]));
-    limpio[k] = (Number.isFinite(n) && n >= 0 && n < N[k]) ? n : 0;
+    limpio[k] = (Number.isFinite(n) && n >= 0 && n < TOTAL[k]) ? n : 0;
   }
   return limpio;
 }
@@ -457,6 +465,21 @@ const entre = (v: unknown, min: number, max: number, pordefecto: number) => {
   const n = Math.round(Number(v));
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : pordefecto;
 };
+
+/* La FORJA solo deja lo que viene de casa. Al abrir `sanearLook` a las
+   opciones de pago —para que un bruto pueda LLEVAR lo comprado— se abrio de
+   paso la puerta de regalarlas: forjar es gratis, asi que bastaba con mandar
+   el indice premium en el aspecto del bruto nuevo.
+
+   No hace falta comprobar la bolsa aqui: se recorta y ya. Forjar sigue siendo
+   gratis y lo de pago se pone en la barberia, que es donde se cobra. Un
+   jugador que mande un color comprado al forjar lo vera caer al 0 — feo, pero
+   ni cobra de menos ni da un error raro, y en la barberia se lo pone. */
+function sanearLookBase(v: unknown): Record<string, number> {
+  const l = sanearLook(v);
+  for (const k of Object.keys(C.LOOK_N)) if (l[k] >= C.LOOK_N[k]) l[k] = 0;
+  return l;
+}
 
 function sanearBruto(b: Record<string, unknown>) {
   return {
@@ -472,7 +495,7 @@ function sanearBruto(b: Record<string, unknown>) {
     fights_left: entre(b.fights, 0, 3, 3),
     rerolls_left: entre(b.rerolls, 0, 1, 1),
     fights_day: String(b.dia ?? "").slice(0, 10) || new Date().toISOString().slice(0, 10),
-    look: sanearLook(b.look),
+    look: sanearLookBase(b.look),
     pool: b.pool ?? null,
   };
 }
@@ -922,6 +945,66 @@ async function manejar(req: Request): Promise<Response> {
        hubieran pagado por comprarla. */
     apuntar(dueno, "skin", familia + ":" + skin, -f.precio, { familia, skin });
     return responder({ familia, skin, balance: r.balance, skins: r.skins });
+  }
+
+  /* ══════════ la barberia ══════════
+     Cambiar el aspecto de un bruto que ya existe. Es lo que convierte los
+     cosmeticos en algo vendible: el aspecto se fijaba al forjar y no cambiaba,
+     asi que un color comprado despues no tenia donde ponerse.
+
+     Se paga CADA visita, tengas ya lo que te pongas o no. Un cosmetico se
+     compra una vez; cambiar de aspecto se hace muchas — y ese es el sumidero.
+
+     El precio lo pone el SERVIDOR desde `brute-combate.js`, como todo lo demas
+     que cuesta dinero. Si viniera del navegador, bastaria con editar el
+     JavaScript para hacerse la barberia gratis. */
+  if (accion === "barbero") {
+    const bid = idEntero(cuerpo.bruteId);
+    if (!bid) return responder({ error: "identificador no valido" }, 400);
+
+    /* Se sanea a lo que EXISTE. Lo que no exista cae a 0, que es un aspecto
+       legal y feo — nunca un 500. */
+    const look = sanearLook(cuerpo.look);
+
+    /* Lo que ya tiene, para no cobrarle dos veces por el mismo color. Sale de
+       la base, no del cuerpo: creerse al navegador aqui seria regalarlos. */
+    const fila = (await db("/players?address=eq." + encodeURIComponent(dueno) +
+                           "&select=aspectos"))?.[0];
+    const tengo = (fila && fila.aspectos) || {};
+
+    /* Lo premium que usa el aspecto nuevo y no tiene todavia: eso es lo que
+       compra en esta visita. */
+    const usa = C.premiumDe(look);
+    const compra: Record<string, number[]> = {};
+    for (const campo of Object.keys(usa)) {
+      const mios = tengo[campo] || [];
+      const nuevos = usa[campo].filter((i: number) => !mios.includes(i));
+      if (nuevos.length) compra[campo] = nuevos;
+    }
+    const precio = C.precioAspecto(look, tengo);
+
+    let r;
+    try {
+      r = await db("/rpc/aspecto_cambiar", {
+        method: "POST",
+        body: JSON.stringify({ p_owner: dueno, p_bruto: Number(bid),
+                               p_look: look, p_compra: compra, p_precio: precio }),
+      });
+    } catch (e) {
+      const m = (e as Error).message;
+      if (marca(m, "no_es_tuyo"))       return responder({ error: "ese bruto no es tuyo" }, 403);
+      if (marca(m, "sin_saldo"))        return responder({ error: "no te llegan las monedas", clase: "sin_saldo" }, 403);
+      if (marca(m, "ya_lo_tienes"))     return responder({ error: "vuelve a intentarlo", clase: "reintenta" }, 409);
+      if (marca(m, "aspecto_invalido")) return responder({ error: "ese aspecto no vale" }, 400);
+      if (marca(m, "precio_invalido"))  return responder({ error: "precio no valido" }, 400);
+      if (marca(m, "sin_jugador"))      return responder({ error: "sesion no valida" }, 401);
+      throw e;
+    }
+
+    reciclar(precio);
+    apuntar(dueno, "aspecto", "barbero", -precio,
+            { comprado: compra, bruto: Number(bid) });
+    return responder({ ...r, precio, comprado: compra });
   }
 
   if (accion === "poner_skin") {

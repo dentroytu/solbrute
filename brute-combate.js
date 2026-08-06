@@ -92,7 +92,68 @@
      brute-render.js, pero el SERVIDOR también necesita sortear aspectos para
      los brutos de la casa y no puede cargar el renderizador. Si añades una
      opción de arte, actualiza el número de aquí. */
+  /* ══════════ el aspecto ══════════
+     `LOOK_N` son las opciones QUE VIENEN DE CASA, no las que existen. Las
+     tablas de `brute-render.js` pueden ser mas largas, y todo lo que pase de
+     aqui se compra. Premium = indice >= LOOK_N[campo].
+
+     Se deriva en vez de llevar una lista de «cuales son de pago», que es lo
+     que se desincroniza el dia que se añade un color y a alguien se le olvida
+     apuntarlo — y eso no falla, solo regala. */
   const LOOK_N = { sex:2, skin:6, hair:6, hairC:8, cloth:5, clothC:6, face:4, eyeC:8, tat:5, tatC:4 };
+
+  /* Y cuantas hay EN TOTAL. Vive aqui y no en el renderizador porque el
+     servidor tiene que poder validar un aspecto sin cargar el arte: la Edge
+     Function solo trae este fichero. El arte es el que tiene que cuadrar con
+     esto, y hay una prueba que lo comprueba — una tabla paralela sin
+     comprobacion es una tabla que miente en cuanto alguien toque la otra. */
+  const LOOK_TOTAL = { sex:2, skin:6, hair:6, hairC:12, cloth:5, clothC:9, face:4, eyeC:12, tat:5, tatC:7 };
+
+  /* Lo que se puede comprar, y a cuanto. Los campos que NO estan aqui no
+     tienen nada premium: `skin` a proposito —vender el color de piel de tu
+     personaje es un sitio al que no hay que ir— y `sex`, `hair`, `cloth`,
+     `face` y `tat` porque una opcion nueva ahi es dibujar SVG, no añadir una
+     entrada a una lista. Eso vendra, pero es otro trabajo. */
+  const ASPECTO = {
+    hairC:  { precio: 40 },
+    eyeC:   { precio: 40 },
+    tatC:   { precio: 35 },
+    clothC: { precio: 45 },
+  };
+
+  /* La visita al barbero. Se paga CADA cambio, y ese es el sumidero de verdad:
+     un cosmetico se compra una vez, pero cambiar de aspecto se hace muchas.
+
+     Y sin barbero los cosmeticos no valen nada: el aspecto se fija al forjar,
+     asi que un peinado comprado despues no tendria donde ponerse. */
+  const PRECIO_BARBERO = 20;
+
+  /* Que opciones de pago usa un aspecto. Devuelve {} si es todo de casa.
+     El formato es el mismo que la bolsa del jugador —{campo:[indices]}— para
+     que comprobar si las tiene sea comparar dos cosas de la misma forma. */
+  function premiumDe(look){
+    const usa = {};
+    if(!look || typeof look !== "object") return usa;
+    for(const campo of Object.keys(ASPECTO)){
+      const i = Math.floor(Number(look[campo]));
+      if(Number.isInteger(i) && i >= LOOK_N[campo] && i < LOOK_TOTAL[campo]){
+        usa[campo] = [i];
+      }
+    }
+    return usa;
+  }
+
+  /* Lo que cuesta un aspecto entero: la visita mas lo que no tenga todavia.
+     `tiene` es la bolsa del jugador; lo ya comprado no se vuelve a cobrar. */
+  function precioAspecto(look, tiene){
+    let total = PRECIO_BARBERO;
+    const usa = premiumDe(look);
+    for(const campo of Object.keys(usa)){
+      const mios = (tiene && tiene[campo]) || [];
+      for(const i of usa[campo]) if(!mios.includes(i)) total += ASPECTO[campo].precio;
+    }
+    return total;
+  }
 
   const ri = n => Math.floor(Math.random() * n);
 
@@ -810,6 +871,7 @@
     SKINS, SKIN_N, iconoDe, FAMILIAS, FAMILIA_DE, armasDe, RESCATE_PCT, precioRescate,
     MASCOTAS, MASCOTAS_REALES, mascota,
     randomLook, barajar, nuevoBot,
+    LOOK_N, LOOK_TOTAL, ASPECTO, PRECIO_BARBERO, premiumDe, precioAspecto,
     ri, xpNeed, rollStats, subirAtributo, botStats,
     mulberry32, simulate, recompensa, aplicar
   };

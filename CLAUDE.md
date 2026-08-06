@@ -33,6 +33,7 @@ experiencia y sube de nivel.
 | `supabase-37-botes.sql` | El bote de un torneo también está en circulación | Aplicado |
 | `supabase-38-torneo-atascado.sql` | Rescatar un torneo a medio resolver. **Con la Edge Function** | Escrito |
 | `supabase-39-reglas.sql` | `fights.reglas`: con qué versión se jugó. **Antes de la función** | Escrito |
+| `supabase-40-aspecto.sql` | La barbería y los colores de pago. **Antes de la función** | Escrito |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -1713,6 +1714,64 @@ por no romper la función desplegada en el hueco entre aplicar el SQL y
 redesplegar.
 
 ---
+
+## La barbería, y por qué va antes que los cosméticos
+
+El aspecto se fijaba al forjar y **no se podía cambiar nunca**. Con eso, vender
+un peinado no tiene sentido: el jugador forja tres veces en la vida de su
+cuenta, y encima compraría a ciegas, antes de ver cómo le queda.
+
+Así que el sumidero no son los cosméticos: **es poder cambiar**. Un cosmético
+se compra una vez; cambiar de aspecto se hace muchas. Cada visita se paga,
+tengas ya lo que te pongas o no.
+
+### Se vende el color, no el dibujo
+
+Solo colores —pelo, ojos, tinta y ropa— porque **añadir un color es añadir una
+entrada a una lista y añadir un peinado es dibujar SVG**. Lo segundo vendrá; es
+otro trabajo.
+
+**El color de piel no se vende**, y no por falta de sitio.
+
+### `LOOK_N` cambia de significado, y eso evita una lista paralela
+
+Pasa a ser *cuántas opciones vienen de casa*, y las tablas del arte son más
+largas: **premium = índice ≥ `LOOK_N`**. No hay lista de «cuáles son de pago»,
+que es lo que se desincroniza el día que se añade un color y a alguien se le
+olvida apuntarlo — y eso no falla, solo lo regala.
+
+`LOOK_TOTAL` sí es una tabla paralela, y vive en `brute-combate.js` a
+propósito: **el servidor tiene que poder validar un aspecto sin cargar el
+arte**, porque la Edge Function solo trae ese fichero. Hay una comprobación que
+exige que cuadre con las tablas del renderizador.
+
+### Los dos sitios que iban a regalarlo
+
+- **La forja sorteaba con `.length`.** Funcionaba mientras todo era gratis; con
+  el primer color de pago habría empezado a regalarlo al que le tocara. Ahora
+  sortea con `LOOK_N`.
+- **Y `sanearLook` recortaba a `LOOK_N`**, así que un color comprado se
+  guardaba como el 0 sin dar error: pagabas y tu bruto salía con el pelo negro
+  de siempre. Al abrirlo a `LOOK_TOTAL` se abrió de paso la puerta de **forjar
+  con premium gratis** — forjar no cuesta. Por eso la forja usa
+  `sanearLookBase`, que recorta a lo de casa.
+
+Ninguna de las dos da error. Las dos se comprueban ahora en el banco.
+
+### Recrear una función desde una copia vieja borra lo de en medio
+
+`aspecto` tiene que estar en la lista blanca de `movimiento_apuntar`, y esa
+función se recrea entera cada vez que se añade un tipo. Al escribir el paso 40
+se copió el cuerpo del **paso 13** y se perdieron `arma_rota` y
+`mascota_muerta`, que había añadido el 27.
+
+No habría fallado nada: solo habrían dejado de apuntarse las armas rotas.
+
+Lo cazó el banco, y de paso salió que **su propia comprobación estaba clavada
+al paso 27**. Ahora busca el fichero de número más alto que redefina esa
+función — y busca **dentro** de ella, porque `perdida_apuntar` (paso 30) tiene
+su propia lista blanca con el mismo nombre de parámetro y buscarlas a lo bruto
+las mezclaba.
 
 ## Mascotas (el vivarium)
 

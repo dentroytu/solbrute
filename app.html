@@ -854,6 +854,7 @@
           ARMAS, ARMAS_REALES, duracion, SKINS, SKIN_N, iconoDe,
           FAMILIAS, FAMILIA_DE, armasDe,
           MASCOTAS, MASCOTAS_REALES,
+          LOOK_N, LOOK_TOTAL, ASPECTO, PRECIO_BARBERO, premiumDe, precioAspecto,
           simulate, aplicar } = window.BruteCombate;
 
   /* ═══════════ versión del juego ═══════════
@@ -946,7 +947,7 @@
       hist_load:"Cargando…", hist_err:"No he podido cargar el historial.",
       hist_compra_arma:"Arma comprada", hist_compra_plaza:"Plaza de bruto",
       hist_retirada:"Retirada", hist_skin:"Aspecto", hist_torneo:"Torneo",
-      hist_mascota:"Mascota", hist_ajuste:"Ajuste",
+      hist_mascota:"Mascota", hist_aspecto:"Barbería", hist_ajuste:"Ajuste",
       hist_arma_rota:"Arma rota", hist_mascota_muerta:"Mascota perdida",
       hist_pendiente:"pendiente", hist_enviada:"enviada", hist_fallida:"fallida",
       tor_open:"🏛️ Torneos", tor_h1:"Torneos",
@@ -1101,7 +1102,7 @@
       hist_load:"Loading…", hist_err:"I couldn't load your history.",
       hist_compra_arma:"Weapon bought", hist_compra_plaza:"Brute slot",
       hist_retirada:"Withdrawal", hist_skin:"Skin", hist_torneo:"Tournament",
-      hist_mascota:"Pet", hist_ajuste:"Adjustment",
+      hist_mascota:"Pet", hist_aspecto:"Barber", hist_ajuste:"Adjustment",
       hist_arma_rota:"Weapon broken", hist_mascota_muerta:"Pet lost",
       hist_pendiente:"pending", hist_enviada:"sent", hist_fallida:"failed",
       tor_open:"🏛️ Tournaments", tor_h1:"Tournaments",
@@ -1257,7 +1258,7 @@
       hist_compra_arma:"Arme achetée", hist_compra_plaza:"Place de brute",
       hist_retirada:"Retrait", hist_skin:"Apparence", hist_torneo:"Tournoi",
       hist_arma_rota:"Arme cassee", hist_mascota_muerta:"Familier perdu",
-      hist_mascota:"Familier", hist_ajuste:"Ajustement",
+      hist_mascota:"Familier", hist_aspecto:"Barbier", hist_ajuste:"Ajustement",
       hist_pendiente:"en attente", hist_enviada:"envoyé", hist_fallida:"échoué",
       tor_open:"🏛️ Tournois", tor_h1:"Tournois",
       tor_sub:"Élimination directe. Le tableau se résout d'un coup, et chaque combat peut être rejoué.",
@@ -1521,11 +1522,17 @@
     e.className = "persist " + (nube || STORE.live ? "ok" : "warn");
   }
 
+  /* Sortea SOLO entre lo que viene de casa. Sorteaba con `.length` de cada
+     tabla, y eso funcionaba mientras todo fuera gratis: en cuanto entro el
+     primer color de pago, la forja lo habria regalado a quien le tocara.
+
+     No falla, no avisa: solo deja de venderse algo. Por eso el limite sale de
+     `LOOK_N` —«cuantas son gratis»— y no del tamaño de la tabla. */
   function randomLook(){
-    const sex = ri(2);
-    return { sex, skin:ri(SKIN.length), hair:ri(HAIRS[sex].length), hairC:ri(HAIRC.length),
-             cloth:ri(CLOTHS.length), clothC:ri(CLOTHC.length), face:ri(FACES.length),
-             eyeC:ri(EYEC.length), tat:ri(TATS.length), tatC:ri(INK.length) };
+    const N = LOOK_N, sex = ri(N.sex);
+    return { sex, skin:ri(N.skin), hair:ri(N.hair), hairC:ri(N.hairC),
+             cloth:ri(N.cloth), clothC:ri(N.clothC), face:ri(N.face),
+             eyeC:ri(N.eyeC), tat:ri(N.tat), tatC:ri(N.tatC) };
   }
 
 

@@ -96,10 +96,32 @@
   const OL = "#241505";            // color de contorno, común a todas las capas
   const SKIN = [["#f0cfa8","#d4a97c"],["#e0ad7e","#c08a55"],["#c69267","#a3743f"],
                 ["#a3714a","#82552f"],["#7d5334","#5e3c22"],["#5a3a22","#412714"]];
-  const HAIRC  = ["#201509","#4a3614","#8f3d0c","#c25a16","#6b4f1e","#e8dcc4","#3f3470","#8a2f2a"];
-  const CLOTHC = ["#8a6535","#7d5a30","#6b4c27","#b3312c","#3f3470","#ddd0b6"];
-  const INK    = ["#b3312c","#c98a3a","#241505","#3f3470"];
-  const EYEC   = ["#1f9c86","#2f6fb8","#b8791f","#7a4bb0","#a8322c","#4a8a3a","#5c6670","#b03a6e"];
+  /* Los OCHO primeros son los de casa. Lo que venga despues se compra, y de
+     eso se entera `LOOK_N` en brute-combate.js: premium = indice >= LOOK_N.
+     No hay lista paralela de «cuales son de pago» — se deriva, que es lo que
+     impide que se desincronice el dia que se añada uno. */
+  const HAIRC  = ["#201509","#4a3614","#8f3d0c","#c25a16","#6b4f1e","#e8dcc4","#3f3470","#8a2f2a",
+                  /* ── premium ── */
+                  "#c9a227",   // oro viejo
+                  "#b9c4cc",   // plata
+                  "#1f9c86",   // verdin
+                  "#8e2f6e"];  // purpura
+  const CLOTHC = ["#8a6535","#7d5a30","#6b4c27","#b3312c","#3f3470","#ddd0b6",
+                  /* ── premium ── */
+                  "#c9a227",   // oro
+                  "#4a1f52",   // purpura imperial: en Roma era ilegal para un plebeyo
+                  "#1a1a1e"];  // negro obsidiana
+  const INK    = ["#b3312c","#c98a3a","#241505","#3f3470",
+                  /* ── premium ── */
+                  "#c9a227",   // oro
+                  "#b9c4cc",   // plata
+                  "#14f195"];  // teal
+  const EYEC   = ["#1f9c86","#2f6fb8","#b8791f","#7a4bb0","#a8322c","#4a8a3a","#5c6670","#b03a6e",
+                  /* ── premium ── */
+                  "#d9b310",   // ambar encendido
+                  "#14f195",   // el verde de Solana, y solo aqui
+                  "#e8e2ff",   // hielo
+                  "#ff5a2e"];  // brasa
   const HAIRS  = { 0:["calvo","rapado","cresta","melena","mono","rizos"],
                    1:["coleta","trenza","suelta","recogido","rapado","rizos"] };
   const CLOTHS = ["desnudo","tunica","malla","coraza","capa"];
