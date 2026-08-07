@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolBrute — News from the ludus</title>
+<meta name="description" content="What changed in SolBrute, what was added and what was fixed. Balance measurements, new rooms and the reasoning behind each decision.">
+<meta name="theme-color" content="#0c0a07">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SolBrute">
+<meta property="og:title" content="SolBrute — News from the ludus">
+<meta property="og:description" content="What changed, what was added and what was fixed. With the reasoning behind it.">
+<meta property="og:url" content="https://solbrute.io/blog.html">
+<meta property="og:image" content="https://solbrute.io/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SolBrute — News from the ludus">
+<meta name="twitter:description" content="What changed, what was added and what was fixed. With the reasoning behind it.">
+<meta name="twitter:image" content="https://solbrute.io/og-image.png">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0a07'/%3E%3Cpath d='M8 23 L16 6 L24 23 Z' fill='%23c98a3a'/%3E%3Cpath d='M16 6 L24 23 L16 23 Z' fill='%23b3312c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep: #0c0a07;
+    --bg: #14110d;
+    --surface: #1c1710;
+    --surface-hi: #251e14;
+    --line: #3a2e1c;
+    --blood: #b3312c;
+    --blood-bright: #e0453f;
+    --bronze: #c98a3a;
+    --bronze-light: #e5ab5c;
+    --torch: #ff9d42;
+    --text: #efe7d8;
+    --muted: #a8998a;
+    --sol-teal: #14f195;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(ellipse 1000px 500px at 50% -10%, #2c2013 0%, transparent 55%),
+      var(--bg-deep);
+    color:var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    line-height:1.6;
+    overflow-x:hidden;
+    min-height:100vh;
+  }
+  a{ color:inherit; text-decoration:none; }
+  h1,h2,h3,h4{ font-family:'Cinzel', serif; }
+  ::selection{ background:var(--blood); color:#fff; }
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:sticky; top:0; z-index:50;
+    background:rgba(12,10,7,0.85); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 24px; max-width:1080px; margin:0 auto; gap:16px;
+  }
+  .logo{
+    font-family:'Cinzel', serif; font-weight:800; font-size:19px;
+    letter-spacing:1.5px; color:var(--bronze-light); flex-shrink:0;
+  }
+  .logo span{ color:var(--blood-bright); }
+  .nav-right{ display:flex; align-items:center; gap:14px; }
+  .nav-back{ font-size:13px; color:var(--muted); }
+  .nav-back:hover{ color:var(--torch); }
+  .lang-switch{
+    display:flex; background:var(--surface); border:1px solid var(--line);
+    border-radius:8px; padding:3px; gap:2px; flex-shrink:0;
+  }
+  .lang-btn{
+    background:transparent; border:none; color:var(--muted);
+    font-family:'Space Grotesk', sans-serif; font-size:11.5px; font-weight:700;
+    padding:6px 10px; border-radius:6px; cursor:pointer; letter-spacing:.03em;
+    transition: background .15s ease, color .15s ease;
+  }
+  .lang-btn:hover{ color:var(--text); }
+  .lang-btn.active{ background:var(--bronze); color:#241a06; }
+
+  /* ---------- ESTRUCTURA ---------- */
+  .wrap{ max-width:1080px; margin:0 auto; padding:56px 24px 90px; }
+  .head{ text-align:center; max-width:620px; margin:0 auto 52px; }
+  .eyebrow{
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--bronze); margin-bottom:10px;
+  }
+  .head h1{ font-size:clamp(28px,4vw,40px); }
+  .head p{ color:var(--muted); margin-top:12px; font-size:14.5px; }
+
+  /* ---------- LISTA ---------- */
+  .lista{ display:grid; gap:22px; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); }
+  .post-card{
+    display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    overflow:hidden; transition:border-color .16s ease, transform .16s ease;
+  }
+  .post-card:hover{ border-color:var(--bronze); transform:translateY(-3px); }
+  .post-art{
+    height:150px; display:flex; align-items:flex-end; justify-content:center;
+    position:relative; overflow:hidden; border-bottom:1px solid var(--line);
+  }
+  .post-art svg{ width:132px; height:132px; margin-bottom:-16px; }
+  .post-body{ padding:18px 20px 22px; display:flex; flex-direction:column; flex:1; gap:9px; }
+  .post-meta{ display:flex; align-items:center; gap:9px; font-size:11px; color:var(--muted); }
+  .tag{
+    font-size:10px; letter-spacing:.09em; text-transform:uppercase; font-weight:700;
+    padding:3px 8px; border-radius:5px; border:1px solid;
+  }
+  .tag-equilibrio{ color:var(--bronze-light); border-color:#5a4526; background:#2a2013; }
+  .tag-transparencia{ color:var(--sol-teal); border-color:#14503a; background:#0f2a20; }
+  .tag-contenido{ color:var(--torch); border-color:#5c3a1a; background:#2c1d0e; }
+  .tag-mantenimiento{ color:#d9a0a0; border-color:#54282a; background:#2a1616; }
+  .post-card h3{ font-size:18.5px; line-height:1.35; }
+  .post-card p{ font-size:13.5px; color:var(--muted); flex:1; }
+  .leer{ font-size:12.5px; color:var(--bronze-light); font-weight:600; margin-top:2px; }
+
+  /* ---------- ENTRADA ---------- */
+  .entrada{ max-width:720px; margin:0 auto; }
+  .entrada-art{
+    height:190px; border-radius:14px; border:1px solid var(--line);
+    display:flex; align-items:flex-end; justify-content:center;
+    overflow:hidden; margin-bottom:26px;
+  }
+  .entrada-art svg{ width:168px; height:168px; margin-bottom:-18px; }
+  .entrada h1{ font-size:clamp(25px,3.6vw,35px); line-height:1.25; margin:12px 0 14px; }
+  .entrada-meta{ display:flex; align-items:center; gap:10px; font-size:11.5px; color:var(--muted); }
+  .entrada-sumario{
+    font-size:16px; color:var(--bronze-light); margin:0 0 30px;
+    padding-bottom:24px; border-bottom:1px solid var(--line);
+  }
+  .entrada p{ margin:0 0 17px; font-size:15px; }
+  .entrada h4{
+    font-size:18px; margin:32px 0 13px; color:var(--bronze-light);
+  }
+  .entrada ul{ margin:0 0 17px 20px; }
+  .entrada li{ margin-bottom:7px; font-size:15px; }
+  .cita{
+    border-left:3px solid var(--bronze); background:var(--surface);
+    padding:15px 20px; margin:0 0 20px; border-radius:0 9px 9px 0;
+    font-family:'Cinzel',serif; font-size:16px; color:var(--bronze-light);
+  }
+  .kv{
+    width:100%; border-collapse:collapse; margin:0 0 22px;
+    border:1px solid var(--line); border-radius:9px; overflow:hidden;
+  }
+  .kv td{ padding:11px 15px; border-bottom:1px solid var(--line); font-size:14px; }
+  .kv tr:last-child td{ border-bottom:none; }
+  .kv td:first-child{ color:var(--muted); }
+  .kv td:last-child{ text-align:right; font-weight:700; color:var(--bronze-light); }
+
+  .volver{
+    display:inline-block; margin-bottom:26px; font-size:13px; color:var(--muted);
+  }
+  .volver:hover{ color:var(--torch); }
+  .siguiente{
+    margin-top:48px; padding-top:26px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  }
+  .siguiente a{ font-size:13.5px; color:var(--bronze-light); font-weight:600; }
+  .siguiente a:hover{ color:var(--torch); }
+  .vacio{ text-align:center; color:var(--muted); padding:60px 0; }
+
+  footer{ border-top:1px solid var(--line); padding:30px 24px; }
+  .footer-inner{
+    max-width:1080px; margin:0 auto; display:flex; justify-content:space-between;
+    align-items:center; flex-wrap:wrap; gap:14px;
+  }
+  .footer-note{ font-size:11.5px; color:var(--muted); max-width:520px; line-height:1.6; }
+  .footer-logo{ font-family:'Cinzel',serif; font-weight:700; color:var(--bronze); font-size:14px; }
+
+  /* Medido a 375px: el nav entra entero —logo, enlace de vuelta y los tres
+     idiomas— y las tarjetas van de 18 a 357 sin desbordar. Esto solo aprieta
+     los margenes para ganar ancho de lectura, no esconde nada.
+
+     Aviso para quien lo compruebe: Chrome headless con `--window-size=390`
+     NO renderiza como un movil. Aplica un ancho de maquetacion de escritorio
+     y recorta la imagen, asi que la captura sale cortada y parece un fallo de
+     CSS que no existe. Lo que vale es medir `scrollWidth` contra
+     `clientWidth` en un navegador de verdad. */
+  @media (max-width:560px){
+    .wrap{ padding:38px 18px 64px; }
+    .lista{ grid-template-columns:1fr; }
+    .nav-inner{ padding:13px 16px; gap:10px; }
+    .logo{ font-size:16px; letter-spacing:1px; }
+    .nav-back{ font-size:12px; }
+    .lang-btn{ padding:5px 7px; font-size:11px; }
+    .entrada-art{ height:150px; }
+    .entrada-art svg{ width:136px; height:136px; }
+    .kv td{ padding:9px 11px; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="logo">SOL<span>BRUTE</span></a>
+    <div class="nav-right">
+      <a href="index.html" class="nav-back" data-i18n="nav_home">Back to the site</a>
+      <div class="lang-switch">
+        <button class="lang-btn active" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="es">ES</button>
+        <button class="lang-btn" data-lang="fr">FR</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap" id="wrap"></div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">SOLBRUTE</div>
+    <p class="footer-note" data-i18n="footer_note">Prototype in development. There is no token, no mainnet contract and no reward with real-world value yet.</p>
+  </div>
+</footer>
+
+<script src="brute-render.js"></script>
+<script src="blog-entradas.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  const { bust } = window.BruteRender;
+  const ENTRADAS = (window.BlogEntradas || []).slice()
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+
+  /* Lo que entra en innerHTML pasa por aqui SIEMPRE. Las entradas las escribimos
+     nosotros, pero `?post=` lo escribe quien comparte el enlace, y el dia que
+     alguien pegue algo con una etiqueta dentro esto es lo unico que lo para. */
+  const esc = s => String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+  /* ══════════ idiomas ══════════
+     Solo la interfaz. El texto de cada entrada viaja dentro de la entrada, con
+     sus tres versiones. Igual que en el resto del proyecto: arranca en INGLES
+     y no se mira `navigator.language`, para que todo el mundo vea lo mismo al
+     abrir un enlace compartido. */
+  const T = {
+    en: {
+      nav_home:"Back to the site", eyebrow:"Devlog", h1:"News from the ludus",
+      intro:"What changed, what was added and what was fixed — with the reasoning behind it. No announcements without substance.",
+      leer:"Read →", volver:"← All posts", vacio:"No posts yet.",
+      no_existe:"That post does not exist.", anterior:"← Newer", siguiente:"Older →",
+      footer_note:"Prototype in development. There is no token, no mainnet contract and no reward with real-world value yet.",
+      tag_equilibrio:"Balance", tag_transparencia:"Transparency",
+      tag_contenido:"Content", tag_mantenimiento:"Maintenance"
+    },
+    es: {
+      nav_home:"Volver al sitio", eyebrow:"Diario", h1:"Novedades del ludus",
+      intro:"Qué cambió, qué se añadió y qué se arregló — con el porqué de cada cosa. Sin anuncios sin fondo.",
+      leer:"Leer →", volver:"← Todas las entradas", vacio:"Todavía no hay entradas.",
+      no_existe:"Esa entrada no existe.", anterior:"← Más reciente", siguiente:"Más antigua →",
+      footer_note:"Prototipo en desarrollo. Todavía no hay token, ni contrato en mainnet, ni recompensa con valor real.",
+      tag_equilibrio:"Equilibrio", tag_transparencia:"Transparencia",
+      tag_contenido:"Contenido", tag_mantenimiento:"Mantenimiento"
+    },
+    fr: {
+      nav_home:"Retour au site", eyebrow:"Journal", h1:"Nouvelles du ludus",
+      intro:"Ce qui a changé, ce qui a été ajouté et ce qui a été corrigé — avec le pourquoi. Pas d'annonces creuses.",
+      leer:"Lire →", volver:"← Tous les articles", vacio:"Pas encore d'articles.",
+      no_existe:"Cet article n'existe pas.", anterior:"← Plus récent", siguiente:"Plus ancien →",
+      footer_note:"Prototype en développement. Il n'y a pas encore de jeton, ni de contrat sur mainnet, ni de récompense de valeur réelle.",
+      tag_equilibrio:"Équilibre", tag_transparencia:"Transparence",
+      tag_contenido:"Contenu", tag_mantenimiento:"Maintenance"
+    }
+  };
+
+  let lang = "en";
+  const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
+  /* Una entrada sin su idioma cae a ingles en vez de dejar el hueco vacio. */
+  const tr = e => e[lang] || e.en;
+
+  const FECHA = { en:"en-GB", es:"es-ES", fr:"fr-FR" };
+  function fecha(iso){
+    const p = String(iso).split("-");
+    const d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    if (isNaN(d)) return esc(iso);
+    return d.toLocaleDateString(FECHA[lang] || "en-GB",
+      { year:"numeric", month:"long", day:"numeric", timeZone:"UTC" });
+  }
+
+  /* El degradado de la ilustracion sale del tag, para que las entradas del
+     mismo tipo se reconozcan de un vistazo sin leer la etiqueta. */
+  const FONDO = {
+    equilibrio:    "radial-gradient(ellipse at 50% 120%, #4a3418 0%, #1c1710 70%)",
+    transparencia: "radial-gradient(ellipse at 50% 120%, #10402f 0%, #1c1710 70%)",
+    contenido:     "radial-gradient(ellipse at 50% 120%, #4d3115 0%, #1c1710 70%)",
+    mantenimiento: "radial-gradient(ellipse at 50% 120%, #45201f 0%, #1c1710 70%)"
+  };
+  const fondo = tag => FONDO[tag] || FONDO.equilibrio;
+
+  /* `bust()` ya sanea el look, asi que una entrada con el aspecto mal escrito
+     dibuja un bruto por defecto en vez de dejar la tarjeta rota. */
+  const arte = e => bust(e.look);
+
+  function tagHtml(tag){
+    const clase = FONDO[tag] ? tag : "equilibrio";
+    return `<span class="tag tag-${esc(clase)}">${esc(t("tag_" + clase))}</span>`;
+  }
+
+  /* ══════════ la lista ══════════ */
+  function pintarLista(){
+    document.title = t("h1") + " — SolBrute";
+    if (!ENTRADAS.length){
+      return `<div class="head"><div class="eyebrow">${esc(t("eyebrow"))}</div>
+        <h1>${esc(t("h1"))}</h1></div>
+        <p class="vacio">${esc(t("vacio"))}</p>`;
+    }
+    const tarjetas = ENTRADAS.map(e => {
+      const c = tr(e);
+      return `<a class="post-card" href="blog.html?post=${encodeURIComponent(e.id)}">
+        <div class="post-art" style="background:${esc(fondo(e.tag))}">${arte(e)}</div>
+        <div class="post-body">
+          <div class="post-meta">${tagHtml(e.tag)}<span>${fecha(e.fecha)}</span></div>
+          <h3>${esc(c.titulo)}</h3>
+          <p>${esc(c.resumen)}</p>
+          <div class="leer">${esc(t("leer"))}</div>
+        </div>
+      </a>`;
+    }).join("");
+    return `<div class="head">
+        <div class="eyebrow">${esc(t("eyebrow"))}</div>
+        <h1>${esc(t("h1"))}</h1>
+        <p>${esc(t("intro"))}</p>
+      </div>
+      <div class="lista">${tarjetas}</div>`;
+  }
+
+  /* ══════════ una entrada ══════════ */
+  function bloque(b){
+    if (!b || !b.t) return "";
+    if (b.t === "p") return `<p>${esc(b.x)}</p>`;
+    if (b.t === "h") return `<h4>${esc(b.x)}</h4>`;
+    if (b.t === "q") return `<div class="cita">${esc(b.x)}</div>`;
+    if (b.t === "ul" && Array.isArray(b.x))
+      return `<ul>${b.x.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`;
+    if (b.t === "kv" && Array.isArray(b.x))
+      return `<table class="kv">${b.x.map(f =>
+        `<tr><td>${esc(f[0])}</td><td>${esc(f[1])}</td></tr>`).join("")}</table>`;
+    /* Un tipo que no se conoce NO se pinta. Es la misma regla que la arena:
+       un bloque sin dibujar es un hueco; uno dibujado como otra cosa es una
+       mentira. */
+    return "";
+  }
+
+  function pintarEntrada(id){
+    const i = ENTRADAS.findIndex(e => e.id === id);
+    if (i < 0){
+      document.title = t("h1") + " — SolBrute";
+      return `<div class="entrada">
+        <a class="volver" href="blog.html">${esc(t("volver"))}</a>
+        <p class="vacio">${esc(t("no_existe"))}</p></div>`;
+    }
+    const e = ENTRADAS[i], c = tr(e);
+    document.title = c.titulo + " — SolBrute";
+
+    const nuevo = ENTRADAS[i - 1], viejo = ENTRADAS[i + 1];
+    const nav =
+      (nuevo ? `<a href="blog.html?post=${encodeURIComponent(nuevo.id)}">${esc(t("anterior"))}</a>` : "<span></span>") +
+      (viejo ? `<a href="blog.html?post=${encodeURIComponent(viejo.id)}">${esc(t("siguiente"))}</a>` : "<span></span>");
+
+    return `<div class="entrada">
+      <a class="volver" href="blog.html">${esc(t("volver"))}</a>
+      <div class="entrada-art" style="background:${esc(fondo(e.tag))}">${arte(e)}</div>
+      <div class="entrada-meta">${tagHtml(e.tag)}<span>${fecha(e.fecha)}</span></div>
+      <h1>${esc(c.titulo)}</h1>
+      <p class="entrada-sumario">${esc(c.resumen)}</p>
+      ${(c.cuerpo || []).map(bloque).join("")}
+      <div class="siguiente">${nav}</div>
+    </div>`;
+  }
+
+  function pintar(){
+    const id = new URLSearchParams(location.search).get("post");
+    document.getElementById("wrap").innerHTML = id ? pintarEntrada(id) : pintarLista();
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      el.textContent = t(el.getAttribute("data-i18n"));
+    });
+    document.documentElement.lang = lang;
+  }
+
+  document.querySelectorAll(".lang-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      lang = b.getAttribute("data-lang");
+      document.querySelectorAll(".lang-btn").forEach(o =>
+        o.classList.toggle("active", o === b));
+      pintar();
+    });
+  });
+
+  pintar();
+})();
+</script>
+</body>
+</html>

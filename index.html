@@ -412,6 +412,33 @@
   .cta-note.show{ display:block; }
 
   /* ---------- FOOTER ---------- */
+  /* ---------- BLOG ---------- */
+  .blog-grid{
+    display:grid; gap:20px; max-width:1080px; margin:0 auto;
+    grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+  }
+  .blog-card{
+    display:flex; flex-direction:column; background:var(--surface);
+    border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    transition:border-color .16s ease, transform .16s ease;
+  }
+  .blog-card:hover{ border-color:var(--bronze); transform:translateY(-3px); }
+  .blog-art{
+    height:132px; display:flex; align-items:flex-end; justify-content:center;
+    overflow:hidden; border-bottom:1px solid var(--line);
+  }
+  .blog-art svg{ width:118px; height:118px; margin-bottom:-14px; }
+  .blog-body{ padding:16px 18px 20px; display:flex; flex-direction:column; flex:1; gap:8px; }
+  .blog-meta{ display:flex; align-items:center; gap:9px; font-size:10.5px; color:var(--muted); }
+  .blog-tag{
+    font-size:9.5px; letter-spacing:.09em; text-transform:uppercase; font-weight:700;
+    padding:3px 7px; border-radius:5px; border:1px solid;
+    color:var(--bronze-light); border-color:#5a4526; background:#2a2013;
+  }
+  .blog-card h4{ font-family:'Cinzel',serif; font-size:16.5px; line-height:1.35; }
+  .blog-card p{ font-size:13px; color:var(--muted); flex:1; }
+  .blog-mas{ text-align:center; margin-top:34px; }
+
   footer{ border-top:1px solid var(--line); padding:30px 24px; }
   .footer-inner{
     max-width:1080px; margin:0 auto; display:flex; justify-content:space-between;
@@ -432,6 +459,7 @@
       <a href="#features" data-i18n="nav_features">Features</a>
       <a href="#preventa" class="js-pv-nav" data-i18n="nav_presale" hidden>Presale</a>
       <a href="#roadmap" data-i18n="nav_roadmap">Roadmap</a>
+      <a href="#blog" data-i18n="nav_blog">Devlog</a>
     </div>
     <div class="nav-right">
       <div class="lang-switch">
@@ -697,6 +725,21 @@
   </div>
 </section>
 
+<!-- Las ultimas entradas del blog. El contenido vive en `blog-entradas.js`, el
+     mismo fichero que lee `blog.html`: una sola lista, para que la home no
+     pueda enseñar una entrada que ya no existe. -->
+<section class="section" id="blog">
+  <div class="section-head">
+    <div class="section-eyebrow" data-i18n="blog_eyebrow">Devlog</div>
+    <h2 data-i18n="blog_h2">News from the ludus</h2>
+    <p data-i18n="blog_p">What changed, what was added and what was fixed — with the reasoning behind it.</p>
+  </div>
+  <div class="blog-grid" id="blogGrid"></div>
+  <div class="blog-mas">
+    <a class="btn btn-ghost" href="blog.html" data-i18n="blog_all">All posts →</a>
+  </div>
+</section>
+
 <section class="final-cta" id="jugar">
   <h2 data-i18n="finalcta_h2">The arena is already open</h2>
   <p data-i18n="finalcta_p">Try the current prototype, create your brute, and fight other players while we keep building the on-chain version.</p>
@@ -715,12 +758,18 @@
 </footer>
 
 <script src="brute-render.js"></script>
+<script src="blog-entradas.js"></script>
 <script src="wallet-solana.js"></script>
 <script>
 (function(){
   const translations = {
     en: {
-      nav_how:"How it works", nav_why:"Why Solana", nav_features:"Features", nav_presale:"Presale", nav_roadmap:"Roadmap", nav_cta:"Enter the arena",
+      nav_how:"How it works", nav_why:"Why Solana", nav_features:"Features", nav_presale:"Presale", nav_roadmap:"Roadmap", nav_blog:"Devlog", nav_cta:"Enter the arena",
+      blog_eyebrow:"Devlog", blog_h2:"News from the ludus",
+      blog_p:"What changed, what was added and what was fixed — with the reasoning behind it.",
+      blog_all:"All posts →", blog_leer:"Read →",
+      blog_tag_equilibrio:"Balance", blog_tag_transparencia:"Transparency",
+      blog_tag_contenido:"Content", blog_tag_mantenimiento:"Maintenance",
       hero_eyebrow:"Prototype in development · Solana",
       hero_h1:`Forge your <span class="hl">brute</span>.<br>Fight <span class="hl2">on-chain</span>. Rule the arena.`,
       hero_p:"SolBrute brings turn-based auto-battles to Solana: characters that level up, verifiable fights between real players, and an economy that runs on near-zero fees.",
@@ -790,7 +839,12 @@
       footer_note:"SolBrute is currently a prototype-stage project. There is no token yet, no contract deployed on mainnet, and no reward with real-world value. This site is for demonstration and development purposes only."
     },
     es: {
-      nav_how:"Cómo funciona", nav_why:"Por qué Solana", nav_features:"Características", nav_presale:"Preventa", nav_roadmap:"Roadmap", nav_cta:"Entrar a la arena",
+      nav_how:"Cómo funciona", nav_why:"Por qué Solana", nav_features:"Características", nav_presale:"Preventa", nav_roadmap:"Roadmap", nav_blog:"Diario", nav_cta:"Entrar a la arena",
+      blog_eyebrow:"Diario", blog_h2:"Novedades del ludus",
+      blog_p:"Qué cambió, qué se añadió y qué se arregló — con el porqué de cada cosa.",
+      blog_all:"Todas las entradas →", blog_leer:"Leer →",
+      blog_tag_equilibrio:"Equilibrio", blog_tag_transparencia:"Transparencia",
+      blog_tag_contenido:"Contenido", blog_tag_mantenimiento:"Mantenimiento",
       hero_eyebrow:"Prototipo en desarrollo · Solana",
       hero_h1:`Crea tu <span class="hl">bruto</span>.<br>Pelea <span class="hl2">on-chain</span>. Domina la arena.`,
       hero_p:"SolBrute lleva el combate automático por turnos a Solana: personajes que suben de nivel, peleas verificables entre jugadores reales y una economía que corre con comisiones casi nulas.",
@@ -860,7 +914,12 @@
       footer_note:"SolBrute es un proyecto en fase de prototipo. No existe todavía ningún token, contrato desplegado en mainnet, ni recompensa con valor real. Este sitio es solo para fines de demostración y desarrollo."
     },
     fr: {
-      nav_how:"Comment ça marche", nav_why:"Pourquoi Solana", nav_features:"Fonctionnalités", nav_presale:"Prévente", nav_roadmap:"Feuille de route", nav_cta:"Entrer dans l'arène",
+      nav_how:"Comment ça marche", nav_why:"Pourquoi Solana", nav_features:"Fonctionnalités", nav_presale:"Prévente", nav_roadmap:"Feuille de route", nav_blog:"Journal", nav_cta:"Entrer dans l'arène",
+      blog_eyebrow:"Journal", blog_h2:"Nouvelles du ludus",
+      blog_p:"Ce qui a changé, ce qui a été ajouté et ce qui a été corrigé — avec le pourquoi.",
+      blog_all:"Tous les articles →", blog_leer:"Lire →",
+      blog_tag_equilibrio:"Équilibre", blog_tag_transparencia:"Transparence",
+      blog_tag_contenido:"Contenu", blog_tag_mantenimiento:"Maintenance",
       hero_eyebrow:"Prototype en développement · Solana",
       hero_h1:`Forge ta <span class="hl">brute</span>.<br>Combats <span class="hl2">on-chain</span>. Domine l'arène.`,
       hero_p:"SolBrute apporte le combat automatique au tour par tour sur Solana : des personnages qui progressent, des combats vérifiables entre vrais joueurs, et une économie aux frais quasi nuls.",
@@ -975,6 +1034,69 @@
     return n === undefined ? s : s.replace('{n}', n);
   };
 
+  /* ══════════ las ultimas entradas del blog ══════════
+     El contenido sale de `blog-entradas.js`, el mismo fichero que lee
+     `blog.html`. Una sola lista: asi la home no puede enseñar una entrada que
+     ya no existe, ni quedarse con una version vieja del titulo.
+
+     Hasta ahora esta pagina no metia texto en `innerHTML` en ningun sitio, y
+     por eso `prueba-escape.mjs` sacaba cero. Se mantiene: todo lo que se
+     inserta pasa por `escBlog()`. El texto lo escribimos nosotros, pero la
+     regla del proyecto no distingue de quien es — distingue por donde entra. */
+  const escBlog = s => String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+
+  const BLOG_LOCALE = { en:"en-GB", es:"es-ES", fr:"fr-FR" };
+
+  /* El mismo degradado por tipo que usa `blog.html`. Repetido a proposito: son
+     dos paginas sueltas sin CSS compartido, y la alternativa —un tercer
+     fichero -- es justo lo que este proyecto evita mientras sean cuatro lineas.
+     Si algun dia cambia, cambia en los dos sitios. */
+  const BLOG_FONDO = {
+    equilibrio:    "radial-gradient(ellipse at 50% 120%, #4a3418 0%, #1c1710 70%)",
+    transparencia: "radial-gradient(ellipse at 50% 120%, #10402f 0%, #1c1710 70%)",
+    contenido:     "radial-gradient(ellipse at 50% 120%, #4d3115 0%, #1c1710 70%)",
+    mantenimiento: "radial-gradient(ellipse at 50% 120%, #45201f 0%, #1c1710 70%)"
+  };
+
+  function pintarBlog(){
+    const caja = document.getElementById('blogGrid');
+    if(!caja || !window.BlogEntradas || !window.BruteRender) return;
+
+    const ultimas = window.BlogEntradas.slice()
+      .sort((a,b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0))
+      .slice(0, 3);
+
+    /* Sin entradas no se deja un recuadro vacio: ocupa lo mismo que uno lleno
+       y no dice nada. Es la misma decision que el tablon del ludus. */
+    const seccion = document.getElementById('blog');
+    if(!ultimas.length){ if(seccion) seccion.hidden = true; return; }
+    if(seccion) seccion.hidden = false;
+
+    caja.innerHTML = ultimas.map(e => {
+      /* Una entrada sin su idioma cae a ingles, igual que en `blog.html`. */
+      const c = e[idioma] || e.en;
+      const p = String(e.fecha).split('-');
+      const d = new Date(Date.UTC(+p[0], +p[1]-1, +p[2]));
+      const fecha = isNaN(d) ? e.fecha
+        : d.toLocaleDateString(BLOG_LOCALE[idioma] || 'en-GB',
+            { year:'numeric', month:'long', day:'numeric', timeZone:'UTC' });
+      const etiqueta = translations[idioma]['blog_tag_' + e.tag]
+                    || translations.en['blog_tag_' + e.tag] || e.tag;
+      const fondo = BLOG_FONDO[e.tag] || BLOG_FONDO.equilibrio;
+      return '<a class="blog-card" href="blog.html?post=' + encodeURIComponent(e.id) + '">'
+        + '<div class="blog-art" style="background:' + escBlog(fondo) + '">'
+        +   window.BruteRender.bust(e.look) + '</div>'
+        + '<div class="blog-body">'
+        +   '<div class="blog-meta"><span class="blog-tag">' + escBlog(etiqueta) + '</span>'
+        +   '<span>' + escBlog(fecha) + '</span></div>'
+        +   '<h4>' + escBlog(c.titulo) + '</h4>'
+        +   '<p>' + escBlog(c.resumen) + '</p>'
+        + '</div></a>';
+    }).join('');
+  }
+
   function applyLang(lang){
     idioma = lang;
     document.documentElement.lang = lang;
@@ -996,6 +1118,9 @@
     /* El panel de preventa lleva cifras y etiquetas que no son data-i18n
        (precios, cantidades, avisos), asi que hay que repintarlo a mano. */
     if(PV.estado) pvPintar();
+    /* Las tarjetas del blog tampoco son data-i18n: el titulo y el resumen
+       viven dentro de cada entrada, con sus tres versiones. */
+    pintarBlog();
   }
 
   document.querySelectorAll('.lang-btn').forEach(btn => {
