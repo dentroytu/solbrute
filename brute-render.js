@@ -122,11 +122,18 @@
                   "#14f195",   // el verde de Solana, y solo aqui
                   "#e8e2ff",   // hielo
                   "#ff5a2e"];  // brasa
-  const HAIRS  = { 0:["calvo","rapado","cresta","melena","mono","rizos"],
-                   1:["coleta","trenza","suelta","recogido","rapado","rizos"] };
+  /* Los SEIS primeros de cada sexo vienen de casa; lo que sigue se compra.
+     Las dos listas tienen que medir lo mismo: `LOOK_TOTAL.hair` es un solo
+     numero para los dos sexos, y con listas desiguales un indice legal para
+     ella seria ilegal para el. */
+  const HAIRS  = { 0:["calvo","rapado","cresta","melena","mono","rizos", "laurel","media"],
+                   1:["coleta","trenza","suelta","recogido","rapado","rizos", "laurel","media"] };
   const CLOTHS = ["desnudo","tunica","malla","coraza","capa"];
   const FACES  = ["fiero","sereno","burlon","marcado"];
-  const TATS   = ["ninguno","franjas","cicatriz","brazal","sol"];
+  /* Los CINCO primeros de casa. Los dos de pago son FACIALES a proposito: un
+     tatuaje en el brazo lo tapa la ropa la mitad de las veces, y lo que se
+     vende es que se vea. */
+  const TATS   = ["ninguno","franjas","cicatriz","brazal","sol", "lagrimas","garras"];
   /* cabeza grande, ojos bajos y amplios: proporción de registro anime */
   /* hombre: ojo más estrecho y alto, ceja gruesa y pegada, cuello grueso, mandíbula larga
      mujer:  ojo grande y redondo, ceja fina y alta, cuello fino, mentón corto           */
@@ -187,6 +194,31 @@
       const x = c.sex === 0 ? 8 : 18;
       return `<path d="M${x} 95 Q${x+10} 87 ${x+20} 90 L${x+18} 96 Q${x+10} 93 ${x+3} 100 Z" fill="${ink}" opacity=".85"/>`;
     }
+    /* ── lagrimas ──
+       Bajo el ojo, que es donde se ven siempre. Tres, porque una sola se lee
+       como un borron a este tamaño. */
+    if(k === "lagrimas") return `
+      <g fill="${ink}" opacity=".9">
+        <path d="M${50-d.eyeX-1} 44 q2.4 3.4 0 4.6 q-2.4-1.2 0-4.6 Z"/>
+        <path d="M${50-d.eyeX-1} 51 q2.4 3.4 0 4.6 q-2.4-1.2 0-4.6 Z"/>
+        <path d="M${50-d.eyeX-1} 58 q2.4 3.4 0 4.6 q-2.4-1.2 0-4.6 Z"/>
+      </g>`;
+    /* ── garras ──
+       Tres zarpazos en la mejilla. El primer intento fue una espiral y a 84
+       pixeles salia un borron rojo que parecia una herida: una curva cerrada
+       necesita mas sitio del que hay en una cara de cien pixeles. Tres lineas
+       paralelas se leen a cualquier tamaño.
+
+       Y va en la MEJILLA, no en la frente: el pelo se dibuja DESPUES que los
+       tatuajes —cuerpo, tatuajes, ropa, cara, pelo— asi que cualquier cosa
+       arriba la tapa el peinado. Un tatuaje de pago que desaparece segun el
+       pelo que lleves no vale nada. */
+    if(k === "garras") return `
+      <g stroke="${ink}" stroke-width="2.2" stroke-linecap="round" opacity=".9" fill="none">
+        <path d="M${50+d.eyeX-1} 44 L${50+d.eyeX+7} 62"/>
+        <path d="M${50+d.eyeX+4} 43 L${50+d.eyeX+11} 60"/>
+        <path d="M${50+d.eyeX+9} 44 L${50+d.eyeX+14} 57"/>
+      </g>`;
     return `<circle cx="50" cy="92" r="5.5" fill="none" stroke="${ink}" stroke-width="2.1" opacity=".9"/>
       <g stroke="${ink}" stroke-width="1.7" stroke-linecap="round" opacity=".8">
         <path d="M50 83 L50 85"/><path d="M41 92 L43 92"/><path d="M57 92 L59 92"/>
@@ -327,6 +359,39 @@
       <path d="M${50-hw+2} 36 Q${50-hw-3} 48 ${50-hw+2} 56 L${50-hw+7} 38 Z" fill="${dk}" stroke="${OL}" stroke-width="${IN+.3}" stroke-linejoin="round"/>
       <path d="M${50+hw-2} 36 Q${50+hw+3} 48 ${50+hw-2} 56 L${50+hw-7} 38 Z" fill="${dk}" stroke="${OL}" stroke-width="${IN+.3}" stroke-linejoin="round"/>
       ${gloss}`;
+    /* ── laurel ──
+       Corona de laurel sobre la cabeza rapada. El bronce va FIJO y no sigue al
+       color del pelo: es un objeto que llevas puesto, no pelo teñido, y si
+       cambiara de color con el pelo dejaria de leerse como la misma corona. */
+    if(k === "laurel"){
+      const oro = "#c98a3a", oroL = "#e5ab5c", oroD = "#8f5f22";
+      const hoja = (x, y, r) =>
+        `<ellipse cx="${x}" cy="${y}" rx="5.4" ry="2.9" fill="${oro}" stroke="${OL}" stroke-width="${IN+.3}" transform="rotate(${r} ${x} ${y})"/>`;
+      return cap + gloss + `
+        <path d="M${50-hw+1} 30 Q50 8 ${50+hw-1} 30" fill="none" stroke="${oroD}" stroke-width="2.6" stroke-linecap="round"/>
+        ${hoja(50-hw+3, 27, -62)}${hoja(50-hw+9, 18, -40)}${hoja(50-hw+17, 12, -20)}
+        ${hoja(50+hw-3, 27,  62)}${hoja(50+hw-9, 18,  40)}${hoja(50+hw-17, 12,  20)}
+        <circle cx="50" cy="9" r="3.1" fill="${oroL}" stroke="${OL}" stroke-width="${IN+.3}"/>`;
+    }
+    /* ── media ──
+       Media cabeza rapada y la otra media larga. El primer intento fue un moño
+       alto con los laterales afeitados y se veia CASI IGUAL que `mono`: los
+       dos son un bulto encima de la cabeza, y a cien pixeles eso es el mismo
+       peinado con otro nombre. Es el criterio de las armas — si solo cambia el
+       nombre, es un reskin.
+
+       Asimetrico a proposito: no hay ningun otro en el juego, asi que se
+       distingue por la SILUETA antes de mirar el detalle. */
+    if(k === "media") return `
+      <path d="M${50-hw} 34 Q${50-hw+1} 4 50 4 L50 16 Q${50-hw+6} 18 ${50-hw} 34 Z"
+            fill="${dk}" stroke="${OL}" stroke-width="${OUT-.6}" stroke-linejoin="round"/>
+      <path d="M50 4 Q${50+hw-1} 4 ${50+hw} 34 Q${50+hw+7} 56 ${50+hw+2} 76
+               L${50+hw-8} 52 Q${50+hw-4} 22 50 16 Z"
+            fill="${h}" stroke="${OL}" stroke-width="${OUT-.4}" stroke-linejoin="round"/>
+      <path d="M50 8 Q${50+hw-5} 12 ${50+hw-2} 30 Q${50+hw-9} 16 50 13 Z" fill="${li}" opacity=".9"/>
+      <path d="M${50-hw+3} 12 L${50-hw+3} 30 M${50-hw+8} 9 L${50-hw+8} 28"
+            stroke="${shade(h,.2)}" stroke-width="1.2" opacity=".5" stroke-linecap="round"/>`;
+
     /* rizos: planos redondeados, no bolitas sueltas */
     return `
       <path d="M${50-hw-1} 40 Q${50-hw-4} 10 50 2 Q${50+hw+4} 10 ${50+hw+1} 40
@@ -831,6 +896,25 @@
     if(hairKind === "melena" || hairKind === "suelta")
       hairTop = `<path d="M41 24 Q40 8 55 8 Q67 9 68 20 L62 13 L56 19 L50 12 L45 18 Z" fill="${hair}" stroke="${OL}" stroke-width="2.3" stroke-linejoin="round"/>
         <path d="M46 12 Q55 6 63 13 Q55 10 46 12 Z" fill="${hLi}" opacity=".85"/>`;
+    /* Los dos de pago, tambien de perfil. Si solo se dibujaran en el retrato,
+       el peinado comprado desapareceria en la arena — que es justo donde lo ve
+       el rival, o sea donde vale algo. */
+    if(hairKind === "laurel"){
+      const oro = "#c98a3a", oroL = "#e5ab5c";
+      hairTop = `<path d="M42 22 Q42 9 55 9.5 Q65 10 67 19 Q60 13 50 15 Q44 17 42 22 Z" fill="${hair}" stroke="${OL}" stroke-width="2.3" stroke-linejoin="round"/>
+        <path d="M40 24 Q52 6 68 18" fill="none" stroke="${oro}" stroke-width="2.6" stroke-linecap="round"/>
+        <ellipse cx="43" cy="21" rx="4.4" ry="2.4" fill="${oro}" stroke="${OL}" stroke-width="1.6" transform="rotate(-52 43 21)"/>
+        <ellipse cx="50" cy="12" rx="4.4" ry="2.4" fill="${oro}" stroke="${OL}" stroke-width="1.6" transform="rotate(-24 50 12)"/>
+        <ellipse cx="59" cy="10" rx="4.4" ry="2.4" fill="${oroL}" stroke="${OL}" stroke-width="1.6" transform="rotate(6 59 10)"/>`;
+    }
+    if(hairKind === "media"){
+      /* De perfil se ve el lado LARGO: es el que da la silueta. El rapado
+         queda al otro lado y no se ve, que es como funciona un perfil. */
+      hairTop = `<path d="M42 22 Q42 9 55 9.5 Q65 10 67 19 Q60 13 50 15 Q44 17 42 22 Z" fill="${hair}" stroke="${OL}" stroke-width="2.3" stroke-linejoin="round"/>
+        <path d="M64 14 Q72 26 70 44 L62 30 Z" fill="${hair}" stroke="${OL}" stroke-width="2.1" stroke-linejoin="round"/>
+        <path d="M46 12 Q55 6 63 13 Q55 10 46 12 Z" fill="${hLi}" opacity=".85"/>
+        <path d="M45 18 L45 24 M49 16 L49 23" stroke="${hDk}" stroke-width="1.1" opacity=".6" stroke-linecap="round"/>`;
+    }
     if(hairKind === "rizos"){
       hairTop = "";
       [[42,22],[47,13],[55,10],[63,14],[67,22],[40,32]].forEach(([x,y],i) => {

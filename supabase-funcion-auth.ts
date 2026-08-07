@@ -65,6 +65,27 @@
 import "./brute-combate.js";
 const C = (globalThis as any).BruteCombate;
 
+/* ══════════ ¿esta el SEGUNDO fichero al dia? ══════════
+   Esta funcion son DOS ficheros en el editor de Supabase: este y
+   `brute-combate.js`. Y se pueden desplegar por separado, asi que es facil
+   pegar solo uno — pasa cada vez que se toca el equilibrio o las tablas.
+
+   Cuando eso ocurre, lo que se ve es un 500 mudo: aqui se usa algo que en la
+   copia vieja no existe (`C.LOOK_TOTAL`, `C.premiumDe`…), revienta al primer
+   `Object.keys(undefined)` y el jugador lee «algo ha fallado en el servidor».
+   Costo una tarde: forjar dejo de funcionar y el fallo parecia de la barberia,
+   que era lo ultimo que se habia tocado.
+
+   Con esto, arranca fallando y el log dice EXACTAMENTE que falta. Un error al
+   desplegar tiene que doler en el despliegue, no tres pantallas mas alla. */
+for (const pieza of ["VERSION", "LOOK_N", "LOOK_TOTAL", "ASPECTO", "premiumDe",
+                     "precioAspecto", "ARMAS", "MASCOTAS", "simulate"]) {
+  if ((C as Record<string, unknown>)?.[pieza] === undefined) {
+    console.error("brute-combate.js DESACTUALIZADO en esta funcion: falta `" + pieza +
+      "`. Son DOS ficheros en el editor de Supabase y hay que pegar los dos.");
+  }
+}
+
 /* Dominios desde los que se acepta un login. El mensaje firmado lleva dentro
    el dominio; si no se comprobara, una web fraudulenta podría hacerte firmar
    "malaweb.com quiere que inicies sesión" y reutilizar esa firma aquí.

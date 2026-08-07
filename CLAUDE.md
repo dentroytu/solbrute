@@ -71,6 +71,7 @@ experiencia y sube de nivel.
 | `prueba-ascii.mjs` | Acentos donde el editor de Supabase los destroza | Herramienta |
 | `prueba-escape.mjs` | Texto de un jugador en la pantalla de otro sin `esc()` | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
+| `ver-aspectos.html` | Todas las opciones de aspecto en fila, para MIRARLAS | Herramienta |
 | `supabase-funcion-retirar.ts` | **Edge Function aparte: el envío on-chain y la preventa** | Desplegada |
 | `supabase-funcion-prueba-solana.ts` | Función desechable: ¿puede la Edge Function firmar? | Cumplida, borrar |
 | `DESPLIEGUE.md` | En qué orden se aplica todo lo de arriba | Guía |
@@ -1742,6 +1743,37 @@ Y hubo que cambiar el botón de aspecto aleatorio: hacía `look = randomLook()`,
 o sea **sustituía el objeto**, y el creador guarda una referencia — habría
 seguido pintando sobre el de antes sin dar ningún error. Ahora copia los
 campos.
+
+### Los peinados y tatuajes de pago, y las dos versiones que se tiraron
+
+Cuatro colores por campo salieron a la primera porque son entradas en una
+lista. Los dibujados costaron dos intentos cada uno, y **ninguno de los dos
+fallos daba error**:
+
+- El primer peinado era un **moño alto con los laterales rapados**, y se veía
+  casi igual que `mono`. Un cosmético que se confunde con uno gratis no vale
+  nada — es el criterio de las armas: si solo cambia el nombre, es un reskin.
+  Se cambió por **media cabeza rapada**: asimétrico, y no hay ningún otro así,
+  así que se distingue por la silueta antes de mirar el detalle.
+- El primer tatuaje era una **espiral** en la mejilla y a 84 píxeles salía un
+  borrón rojo que parecía una herida: una curva cerrada necesita más sitio del
+  que hay en una cara de cien píxeles. Se cambió por **tres zarpazos**, que son
+  líneas rectas y se leen a cualquier tamaño.
+
+Los dos se vieron poniendo todas las opciones en fila y mirándolas, que es para
+lo que existe `ver-aspectos.html`.
+
+**Y los dos de pago van en la mejilla, no en la frente.** El orden de dibujo es
+`cuerpo → tatuajes → ropa → cara → pelo`, así que el pelo va **encima**: un
+tatuaje arriba lo tapa el peinado. Uno de pago que desaparece según lo que
+lleves puesto no vale nada.
+
+**El pelo se dibuja en DOS sitios** —retrato y perfil— y los dos peinados
+nuevos están en los dos. Si solo se hiciera el retrato, el peinado comprado
+desaparecería en la arena, que es justo donde lo ve el rival.
+
+Valen más que los colores (90 y 75 frente a 35-45) y no es codicia: hay diez
+veces menos, y no salen de añadir una línea a una lista.
 
 ### Un color de pago se marca SIEMPRE, tengas o no
 

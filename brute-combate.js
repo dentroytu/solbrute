@@ -107,7 +107,7 @@
      Function solo trae este fichero. El arte es el que tiene que cuadrar con
      esto, y hay una prueba que lo comprueba — una tabla paralela sin
      comprobacion es una tabla que miente en cuanto alguien toque la otra. */
-  const LOOK_TOTAL = { sex:2, skin:6, hair:6, hairC:12, cloth:5, clothC:9, face:4, eyeC:12, tat:5, tatC:7 };
+  const LOOK_TOTAL = { sex:2, skin:6, hair:8, hairC:12, cloth:5, clothC:9, face:4, eyeC:12, tat:7, tatC:7 };
 
   /* Lo que se puede comprar, y a cuanto. Los campos que NO estan aqui no
      tienen nada premium: `skin` a proposito —vender el color de piel de tu
@@ -115,6 +115,11 @@
      `face` y `tat` porque una opcion nueva ahi es dibujar SVG, no añadir una
      entrada a una lista. Eso vendra, pero es otro trabajo. */
   const ASPECTO = {
+    /* Los colores son entradas en una lista; un peinado o un tatuaje es SVG
+       dibujado a mano, y por eso valen mas. No es codicia: es que hay diez
+       veces menos de ellos y no salen solos. */
+    hair:   { precio: 90 },
+    tat:    { precio: 75 },
     hairC:  { precio: 40 },
     eyeC:   { precio: 40 },
     tatC:   { precio: 35 },

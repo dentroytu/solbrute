@@ -1,0 +1,72 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SolBrute · todos los aspectos</title>
+<!--
+  ══════════════════════════════════════════════════════════════════════════
+  Todas las opciones de aspecto, en fila y a la vez
+  ══════════════════════════════════════════════════════════════════════════
+  No es parte del juego: se abre a mano para MIRAR el arte. Se guarda por el
+  mismo motivo que `og-image.html` — el trabajo de dibujo no se comprueba
+  ejecutando nada, se comprueba poniendo las cosas en fila y mirandolas.
+
+  Ya ha valido la pena dos veces el dia que se escribio:
+
+    · el primer peinado de pago era un moño alto y se veia CASI IGUAL que
+      `mono`. Un cosmetico que se confunde con uno gratis no vale nada.
+    · el primer tatuaje de pago era una espiral y a 84 pixeles salia un
+      borron rojo que parecia una herida.
+
+  Ninguna de las dos da error. Solo se ven mirando.
+
+  Los de pago van con borde de bronce y una estrella, que es como se ven en la
+  barberia — asi se comprueba de paso que se DISTINGUEN de los de casa.
+  ══════════════════════════════════════════════════════════════════════════
+-->
+<style>
+:root{--bg-deep:#0c0a07;--surface:#1c1710;--line:#3a2e1c;--bronze:#c98a3a;--bronze-light:#e5ab5c;
+      --blood:#b3312c;--blood-bright:#e0453f;--torch:#ff9d42;--text:#efe7d8;--muted:#a8998a;--sol-teal:#14f195;}
+body{background:var(--bg-deep);color:var(--text);font-family:system-ui;margin:0;padding:16px}
+h2{font-size:13px;color:var(--bronze);margin:16px 0 8px;letter-spacing:.08em;text-transform:uppercase}
+.fila{display:flex;gap:8px;flex-wrap:wrap}
+.c{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:6px;text-align:center;width:100px}
+.c.pre{border-color:var(--bronze)}
+.c svg{width:88px;height:88px;display:block}
+.c .p svg{width:70px;height:auto;overflow:visible}
+.n{font-size:10px;color:var(--muted);margin-top:3px}
+.c.pre .n{color:var(--bronze-light)}
+</style>
+<div id="o"></div>
+<script src="brute-render.js"></script>
+<script src="brute-combate.js"></script>
+<script>
+const R = window.BruteRender, C = window.BruteCombate;
+const base = { sex:0, skin:1, hair:1, hairC:1, cloth:1, clothC:0, face:0, eyeC:1, tat:0, tatC:0 };
+/* Premium se deriva de LOOK_N, igual que en el juego: si algun dia se añade
+   una opcion de casa, esta pagina se entera sola. */
+const pre = (k, i) => i >= C.LOOK_N[k];
+const carta = (svg, nombre, esPre, perfil) =>
+  `<div class="c${esPre ? " pre" : ""}">${svg}${perfil ? `<div class="p">${perfil}</div>` : ""}` +
+  `<div class="n">${esPre ? "★ " : ""}${nombre}</div></div>`;
+
+let h = "";
+for (const sex of [0, 1]) {
+  h += `<h2>peinados · ${sex ? "mujer" : "hombre"}</h2><div class="fila">`;
+  R.HAIRS[sex].forEach((k, i) => {
+    const l = { ...base, sex, hair:i };
+    h += carta(R.bust(l), k, pre("hair", i),
+               R.spriteProfile({ look:l, arma:"ninguna", mascota:"ninguna" }, true));
+  });
+  h += `</div>`;
+}
+h += `<h2>tatuajes</h2><div class="fila">`;
+R.TATS.forEach((k, i) => h += carta(R.bust({ ...base, tat:i }), k, pre("tat", i)));
+h += `</div><h2>colores</h2><div class="fila">`;
+/* Cada color se enseña sobre algo que lo luzca: la tinta sobre un tatuaje
+   grande, no sobre las lagrimas, que son tres puntos y no dicen el color. */
+[["hairC","pelo",{hair:3}], ["eyeC","ojos",{hair:1}],
+ ["tatC","tinta",{tat:1}],  ["clothC","ropa",{cloth:3}]].forEach(([k, nm, extra]) => {
+  const tabla = { hairC:R.HAIRC, eyeC:R.EYEC, tatC:R.INK, clothC:R.CLOTHC }[k];
+  tabla.forEach((_, i) => h += carta(R.bust({ ...base, ...extra, [k]:i }), nm + " " + i, pre(k, i)));
+});
+document.getElementById("o").innerHTML = h + `</div>`;
+</script>
