@@ -24,7 +24,7 @@ experiencia y sube de nivel.
 | `supabase-09-armas.sql` | `brutes.arma` y `brutes.armas` | Aplicado (`armas` **ya no se usa**, ver paso 14) |
 | `404.html` | La página de ruta no encontrada, con el arte del juego | Funcionando |
 | `blog.html` | **El blog**: lista y entrada, leídas de la base. Sin sesión | Funcionando |
-| `supabase-43-blog.sql` | `blog_posts` y su edición desde el panel. **Antes de la función** | Escrito |
+| `supabase-43-blog.sql` | `blog_posts` y su edición desde el panel. **Antes de la función** | Aplicado |
 | `pelea.html` | **Una pelea, con su enlace, y se verifica sola** | Funcionando |
 | `prueba-verificable.mjs` | Comprueba que la verificación detecta una pelea manipulada | Herramienta |
 | `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Aplicado |
