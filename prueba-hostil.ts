@@ -507,25 +507,66 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
      saca todo del .sql, funcion por funcion, para no tener aqui una lista
      copiada a mano — que es justo la tercera version que causo el problema. */
   {
-    const sql = await (await import("node:fs/promises")).readFile("supabase-25-niveles.sql","utf8");
+    /* Estaba clavado a `supabase-25-niveles.sql`, y por eso las marcas del
+       paso 43 —`sin_titulo`, `sin_id`, `sin_admin`— pasaron sin traducir sin
+       que nadie se enterara: el numero de marcas no se movio de 20 y esto
+       siguio en verde sobre una superficie que no miraba.
+
+       El comentario de arriba ya decia que se saca todo del .sql «para no
+       tener aqui una lista copiada a mano». Y la lista de FICHEROS estaba
+       copiada a mano. Ahora se leen todos los pasos, que es lo que hacia falta
+       para que el fichero de mañana entre solo. */
+    const fs2 = await import("node:fs/promises");
+    const pasosSql = (await fs2.readdir("."))
+      .filter(f=>/^supabase-\d+.*\.sql$/.test(f))
+      .sort((a,b)=>parseInt(a.slice(9))-parseInt(b.slice(9)));
+    const fuentes: string[] = [];
+    for (const f of pasosSql) fuentes.push(await fs2.readFile(f, "utf8"));
+
+    /* La ULTIMA definicion de cada funcion, no la primera. Concatenarlo todo y
+       buscar con `indexOf` encuentra la version mas vieja —`arma_comprar` la
+       define el paso 14 y la reescribe el 25— y entonces se prueban marcas que
+       ya no existen y se dejan fuera las que si. Se noto porque el numero de
+       marcas BAJO de 20 a 7: por eso el detalle lleva la cuenta y no un «ok».
+       Es la misma correccion que ya hubo que hacerle al ataque 15. */
+    const cuerpoDe = (fn: string) => {
+      let ultimo = "";
+      for (const t of fuentes) {
+        const i = t.indexOf("function " + fn + "(");
+        if (i >= 0) ultimo = t.slice(i, t.indexOf("$$;", i));
+      }
+      return ultimo;
+    };
+
+    /* Cada funcion, con la ruta que puede lanzarla y con QUE sesion. El blog
+       solo lo tocan las rutas de admin, asi que con el token de un jugador
+       normal ni llegarian a Postgres — y esto diria «aguanta» sin haber
+       probado nada. */
+    const AD2 = (globalThis as any).__ADMIN_DIR as string;
+    const TOKAD = "tok-marcas-de-prueba-largo-32-bytes-ab";
+    T.sessions.push({ token: TOKAD, address: AD2,
+                      expires_at: new Date(Date.now() + 3600e3).toISOString() });
+    const campoBlog = { id:"marca", fecha:"2026-01-01", tag:"contenido", es:{ titulo:"t" } };
+
     const RUTA:Record<string,any> = {
       arma_comprar:     {accion:"comprar",          arma:"daga"},
       arma_equipar:     {accion:"equipar",          arma:"daga",  bruteId:A.id},
       mascota_comprar:  {accion:"comprar_mascota",  mascota:"perro"},
       mascota_equipar:  {accion:"equipar_mascota",  mascota:"perro", bruteId:A.id},
+      blog_guardar:     {accion:"admin_blog_guardar", campos:campoBlog, __tok:TOKAD},
+      blog_borrar:      {accion:"admin_blog_borrar",  id:"marca",      __tok:TOKAD},
     };
     const ejemplo=(m:string)=> m==="nivel_insuficiente" ? m+":7"
                              : m==="sin_copias" ? m+":daga"
                              : m==="desconocido" ? m+":x" : m;
     const mudos:string[]=[]; let total=0;
     for(const [fn, extra] of Object.entries(RUTA)){
-      const ini = sql.indexOf("function "+fn+"(");
-      const fin = sql.indexOf("$$;", ini);
-      const marcas=[...new Set([...sql.slice(ini,fin).matchAll(/raise exception '([a-z_]+)(?::%)?'/g)].map(x=>x[1]))];
+      const marcas=[...new Set([...cuerpoDe(fn).matchAll(/raise exception '([a-z_]+)(?::%)?'/g)].map(x=>x[1]))];
       for(const marca of marcas){
         total++;
         (globalThis as any).__RPC_LANZA = ejemplo(marca);
-        const r = await pedir({token:A.token, ...extra});
+        const { __tok, ...cuerpo } = extra;
+        const r = await pedir({token: __tok || A.token, ...cuerpo});
         if(r.s>=500) mudos.push(`${fn}/${marca}→${r.s}`);
       }
     }

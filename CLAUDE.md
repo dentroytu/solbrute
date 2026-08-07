@@ -68,6 +68,7 @@ experiencia y sube de nivel.
 | `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Aplicado · venta cerrada y cupo limpio |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-preventa.mjs` | Ataca la preventa **contra el servidor desplegado**. 33 ataques | Herramienta |
+| `prueba-blog.mjs` | Ataca el blog **contra el servidor desplegado**. 13 ataques | Herramienta |
 | `prueba-pago-devnet.mjs` | Compra de verdad contra devnet: paga, cobra y no cobra dos veces | Herramienta |
 | `respaldo.mjs` | Copia de seguridad propia de la base, y la comprueba | Herramienta |
 | `LEGAL.md` | Expediente de hechos para el abogado | Guía |
@@ -3074,8 +3075,31 @@ node prueba-escape.mjs app.html pelea.html index.html admin.html \
 ```
 
 Ninguna necesita internet ni claves: leen los ficheros y simulan. Las que SÍ
-hablan con el servidor —`prueba-hostil.ts`, `prueba-preventa.mjs`,
+hablan con el servidor —`prueba-preventa.mjs`, `prueba-blog.mjs`,
 `respaldo.mjs`— van aparte, porque tardan y porque tocan cosas de verdad.
+`prueba-hostil.ts` no necesita red, pero sí generar antes su fichero derivado.
+
+### El ataque 14 estuvo clavado a un fichero, y por eso no vio el paso 43
+
+Lee las marcas que lanza Postgres y exige que la Edge Function las traduzca en
+vez de caer en un 500 mudo. Pero leía **solo `supabase-25-niveles.sql`**, así
+que al añadir el blog sus cuatro marcas nuevas entraron sin traducir y esto
+siguió en verde: el número no se movió de 20.
+
+Su propio comentario decía que todo sale del `.sql` «para no tener aquí una
+lista copiada a mano» — y la lista de FICHEROS estaba copiada a mano. El mismo
+patrón de siempre: el comentario describe la defensa entera y el código hace
+una parte.
+
+**Y arreglarlo mal es fácil.** Al leer todos los pasos y buscar con `indexOf`,
+las marcas bajaron de 20 a **7**: encontraba la primera definición de cada
+función, que suele ser la vieja —`arma_comprar` la define el paso 14 y la
+reescribe el 25— así que probaba marcas que ya no existen. Ahora se queda con
+la **última** definición, como ya hacía el ataque 15.
+
+Se vio porque el detalle lleva la cuenta de marcas en vez de un «ok». **Un
+número que se mueve es lo que delata que la cobertura cambió**; con un «ok»
+verde, pasar de 20 a 7 no lo habría notado nadie.
 
 Si tocas el equilibrio (`ARMAS`, `MASCOTAS`, las constantes de la curva), además:
 

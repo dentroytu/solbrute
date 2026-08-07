@@ -2125,14 +2125,34 @@ async function manejar(req: Request): Promise<Response> {
       const es = saneaIdiomaBlog(c.es);
       if (!es) return responder({ error: "hace falta al menos el titulo en castellano", clase: "sin_es" }, 400);
 
-      const r = await db("/rpc/blog_guardar", {
-        method: "POST",
-        body: JSON.stringify({
-          p_admin: dueno, p_id: id, p_fecha: fecha, p_tag: tag,
-          p_look: sanearLook(c.look), p_es: es,
-          p_en: saneaIdiomaBlog(c.en), p_fr: saneaIdiomaBlog(c.fr),
-        }),
-      });
+      /* Las marcas que lanza `blog_guardar` se traducen aqui aunque hoy no se
+         puedan alcanzar —arriba ya se rechaza el id vacio, la fecha mala y el
+         titulo que falta—. «No se puede alcanzar» es una suposicion que
+         caduca en cuanto alguien mueva una validacion de sitio, y lo que queda
+         entonces es un 500 mudo en la pantalla que publica el blog. */
+      let r;
+      try {
+        r = await db("/rpc/blog_guardar", {
+          method: "POST",
+          body: JSON.stringify({
+            p_admin: dueno, p_id: id, p_fecha: fecha, p_tag: tag,
+            p_look: sanearLook(c.look), p_es: es,
+            p_en: saneaIdiomaBlog(c.en), p_fr: saneaIdiomaBlog(c.fr),
+          }),
+        });
+      } catch (e) {
+        const m = (e as Error).message || "";
+        if (m.includes("sin_titulo")) {
+          return responder({ error: "hace falta el titulo", clase: "sin_titulo" }, 400);
+        }
+        if (m.includes("sin_id")) {
+          return responder({ error: "hace falta un identificador", clase: "sin_id" }, 400);
+        }
+        if (m.includes("sin_admin")) {
+          return responder({ error: "sesion no valida o caducada" }, 401);
+        }
+        throw e;
+      }
       return responder({ guardado: r });
     }
 
@@ -2146,6 +2166,7 @@ async function manejar(req: Request): Promise<Response> {
       } catch (e) {
         const m = (e as Error).message || "";
         if (m.includes("no_existe")) return responder({ error: "esa entrada no existe" }, 404);
+        if (m.includes("sin_admin")) return responder({ error: "sesion no valida o caducada" }, 401);
         throw e;
       }
       return responder({ borrado: true });

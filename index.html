@@ -1059,6 +1059,10 @@
     contenido:     "radial-gradient(ellipse at 50% 120%, #4d3115 0%, #1c1710 70%)",
     mantenimiento: "radial-gradient(ellipse at 50% 120%, #45201f 0%, #1c1710 70%)"
   };
+  /* Sin prototipo: se indexa con `tag`, que viene de la base, y
+     `BLOG_FONDO["constructor"]` devolveria una funcion que pasa el `||` y
+     acaba dentro de un `style`. El mismo agujero que tuvo `ARMAS`. */
+  Object.setPrototypeOf(BLOG_FONDO, null);
 
   /* Las entradas salen de `blog_posts`, leida con la clave publica sin pasar
      por la Edge Function — igual que `fights`. La MISMA tabla que lee

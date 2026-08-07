@@ -311,6 +311,16 @@
     contenido:     "radial-gradient(ellipse at 50% 120%, #4d3115 0%, #1c1710 70%)",
     mantenimiento: "radial-gradient(ellipse at 50% 120%, #45201f 0%, #1c1710 70%)"
   };
+  /* Sin prototipo, y no es adorno: esta tabla se indexa con `tag`, que viene
+     de la BASE. Un objeto normal hereda de Object.prototype, asi que
+     `FONDO["constructor"]` devuelve una funcion — es verdadera, pasa el `||`,
+     y acaba metida en un `style`. Es el mismo agujero que tuvo `ARMAS` con las
+     armas, y se tapa igual: en la raiz, no acordandose de filtrar arriba.
+
+     La Edge Function ya valida el tag contra su lista, pero el `tag` de
+     Postgres NO lleva `check` (a proposito, para no repetir lo del paso 33),
+     asi que la unica garantia esta aqui. */
+  Object.setPrototypeOf(FONDO, null);
   const fondo = tag => FONDO[tag] || FONDO.equilibrio;
 
   /* `bust()` ya sanea el look, asi que una entrada con el aspecto mal escrito
@@ -336,7 +346,7 @@
         <div class="post-art" style="background:${esc(fondo(e.tag))}">${arte(e)}</div>
         <div class="post-body">
           <div class="post-meta">${tagHtml(e.tag)}<span>${fecha(e.fecha)}</span></div>
-          <h3>${esc(c.titulo)}</h3>
+          <h3>${esc(c.titulo || e.id)}</h3>
           <p>${esc(c.resumen)}</p>
           <div class="leer">${esc(t("leer"))}</div>
         </div>
@@ -417,12 +427,32 @@
      las entradas. Si la peticion falla no se enseña un error tecnico: se
      enseña «todavia no hay entradas», porque para quien mira son lo mismo y un
      fallo de fetch no le dice nada. */
-  pintar();
-  fetch(API + "/blog_posts?select=*&order=fecha.desc",
+  const traer = q => fetch(API + "/blog_posts?" + q,
         { headers: { apikey: ANON, Authorization: "Bearer " + ANON } })
     .then(r => r.ok ? r.json() : [])
-    .then(filas => { ENTRADAS = Array.isArray(filas) ? filas : []; pintar(); })
-    .catch(() => pintar());
+    .then(f => Array.isArray(f) ? f : []);
+
+  pintar();
+  /* El `limit` evita que el dia que haya doscientas entradas esta pagina se
+     traiga las doscientas —con su cuerpo entero en los TRES idiomas— solo
+     para pintar una lista de titulares.
+
+     Pero un limite en la lista rompe los enlaces por su cuenta: `pintarEntrada`
+     busca el id DENTRO de lo cargado, asi que la entrada 61 diria «no existe»
+     aunque exista, y un enlace compartido se quedaria muerto — que es justo lo
+     que el identificador fijo existe para evitar. Por eso, si venias a una
+     entrada y no ha entrado en la lista, se pide aparte. */
+  traer("select=*&order=fecha.desc&limit=60").then(filas => {
+    ENTRADAS = filas;
+    const id = new URLSearchParams(location.search).get("post");
+    if (id && !ENTRADAS.some(e => e.id === id)) {
+      return traer("select=*&id=eq." + encodeURIComponent(id)).then(uno => {
+        if (uno.length) ENTRADAS = ENTRADAS.concat(uno);
+        pintar();
+      });
+    }
+    pintar();
+  }).catch(() => pintar());
 })();
 </script>
 </body>

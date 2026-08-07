@@ -370,17 +370,24 @@ Lo cerrado, para no volver sobre ello:
    y la compra pagada con SOL de devnet (paso 42). La base vuelve a tener solo
    jugadores de verdad y el cupo de la preventa entero.
 
-Y lo que queda, en el orden en que lo haría:
+Y lo que queda, en el orden que decidió el dueño el 07/08/2026:
 
-1. **Que entre gente.** El blog y compartir peleas, del apartado 5. Es lo único
-   de esta lista que cambia el juego de verdad: hoy hay **cuatro jugadores**, y
-   con cuatro no hay emparejamiento que valga, ni torneo que se llene, ni
-   economía que medir.
-2. **Torneos**, cuando el punto 1 haya dado fruto. Están construidos y
+1. **Que esté todo correcto: sin errores y sin agujeros.** Va primero, y es una
+   decisión deliberada — antes estaba «que entre gente». El motivo: un fallo
+   con veinte jugadores se arregla y ya; con dos mil, y con dinero de por
+   medio, no. **Traer gente multiplica el coste de cada agujero que quede.**
+2. **Que entre gente.** El blog y compartir peleas, del apartado 5. Hoy hay
+   **cuatro jugadores**, y con cuatro no hay emparejamiento que valga, ni
+   torneo que se llene, ni economía que medir. Con esto vienen las campañas.
+3. **Torneos**, cuando el punto 2 haya dado fruto. Están construidos y
    esperando; un cuadro de 8 con cuatro personas se ve vacío.
-3. **Token en mainnet**, con la lista del apartado 2 — y las tres cosas del
+4. **Token en mainnet**, con la lista del apartado 2 — y las tres cosas del
    apartado 1 que no son código y siguen sin empezar.
-4. El resto.
+5. El resto.
+
+**El juego está parado desde el 07/08/2026**, a propósito, mientras dura el
+punto 1. Eso lo hace más barato: no hay nadie jugando contra un esquema que se
+está tocando.
 
 Lo pongo así porque **la economía no se rompe por falta de contenido, se rompe
 por falta de sumideros** —y de esos ya hay siete, cuatro recurrentes— y porque
