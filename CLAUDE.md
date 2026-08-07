@@ -32,8 +32,8 @@ experiencia y sube de nivel.
 | `supabase-36-mantenimiento.sql` | Parar el juego desde el panel. **Antes de la función** | Aplicado |
 | `supabase-37-botes.sql` | El bote de un torneo también está en circulación | Aplicado |
 | `supabase-38-torneo-atascado.sql` | Rescatar un torneo a medio resolver. **Con la Edge Function** | Escrito |
-| `supabase-39-reglas.sql` | `fights.reglas`: con qué versión se jugó. **Antes de la función** | Escrito |
-| `supabase-40-aspecto.sql` | La barbería y los colores de pago. **Antes de la función** | Escrito |
+| `supabase-39-reglas.sql` | `fights.reglas`: con qué versión se jugó. **Antes de la función** | Aplicado |
+| `supabase-40-aspecto.sql` | La barbería y los colores de pago. **Antes de la función** | Aplicado |
 | `supabase-41-limpiar-brutos-prueba.sql` | Saca de producción los brutos de scripts, por lista blanca | Aplicado · repetible |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
