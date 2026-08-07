@@ -62,7 +62,7 @@ experiencia y sube de nivel.
 | `supabase-28-cuadrar.sql` | Cuadra los libros tras el descuadre del panel. **Tras la Edge Function** | Una vez |
 | `supabase-29-valvula.sql` | La válvula: solo se paga lo que hay. **Con el token en mainnet** | Escrito |
 | `supabase-30-rescatar.sql` | Rescatar el arma rota y revivir la mascota | Repetible |
-| `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Aplicado · **la venta está VIVA** |
+| `supabase-31-preventa.sql` | La preventa. **Nace apagada** | Aplicado · venta cerrada; queda dentro **una compra de prueba de devnet** |
 | `supabase-26-cerrar-firmas-viejas.sql` | Borra las firmas de 3 parametros. **DESPUES de la Edge Function** | Una vez |
 | `prueba-preventa.mjs` | Ataca la preventa **contra el servidor desplegado**. 33 ataques | Herramienta |
 | `prueba-pago-devnet.mjs` | Compra de verdad contra devnet: paga, cobra y no cobra dos veces | Herramienta |
@@ -2248,10 +2248,21 @@ dos lados.
       PNG suelto no se puede rehacer cuando cambie la paleta.
 - [x] ~~Mascotas (el vivarium)~~ — hechas. Ver «Mascotas». La duda que las
       frenaba —«dos contra dos alarga las peleas»— se midió: no se alarga.
-- [ ] **La preventa** — escrita entera y sin aplicar. Falta: aplicar
-      `supabase-31-preventa.sql`, redesplegar las dos Edge Functions, poner
-      los secretos y configurarla desde el panel. Ver `DESPLIEGUE.md`.
-      Los ataques de `prueba-hostil.ts` (12b y 12c) hay que pasarlos antes.
+- [x] ~~**La preventa**~~ — aplicada, desplegada y atacada contra el servidor
+      real (`prueba-preventa.mjs`, 37 ataques). Estuvo abierta del 03/08 al
+      07/08/2026 y **el dueño la cerró desde el panel**.
+- [ ] **Sacar la compra de PRUEBA de `preventa_compras` antes de abrir los
+      reclamos.** Los 1.000 tokens «vendidos» son de
+      `6jadMcpWW9uWYEmFxBU9gZCVAz5njnBMzYCFUfqCb4LE`, o sea la wallet de
+      `.comprador-devnet.json` que usa `prueba-pago-devnet.mjs`. Se pagaron el
+      04/08/2026 con SOL de **devnet**, que no vale nada.
+      La fila sigue en estado `pagada`, así que **el día que se abran los
+      reclamos entregaría 1.000 tokens de verdad contra un pago de devnet** —
+      y de paso descuadraría el cupo, porque esos 1.000 cuentan como vendidos.
+      Es el mismo caso que los brutos de scripts del paso 41 y que los pasos 19
+      y 20, con la diferencia de que aquí lo que se entrega son tokens.
+      **No basta con borrar la fila**: hay que decidir si el cupo vendido
+      vuelve a 0, y dejarlo en `admin_log`.
 - [x] ~~Copia de seguridad de la base~~ — hecha. `respaldo.mjs`, con su
       comprobación. Ver «La copia de seguridad».
 - [ ] **Torneos semanales** — anotado, sin construir. Lo que hay que decidir:
