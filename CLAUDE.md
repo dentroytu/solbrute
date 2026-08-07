@@ -34,6 +34,7 @@ experiencia y sube de nivel.
 | `supabase-38-torneo-atascado.sql` | Rescatar un torneo a medio resolver. **Con la Edge Function** | Escrito |
 | `supabase-39-reglas.sql` | `fights.reglas`: con qué versión se jugó. **Antes de la función** | Escrito |
 | `supabase-40-aspecto.sql` | La barbería y los colores de pago. **Antes de la función** | Escrito |
+| `supabase-41-limpiar-brutos-prueba.sql` | Saca de producción los brutos de scripts, por lista blanca | Aplicado · repetible |
 | `admin.html` | Panel de administración | Funcionando |
 | `brute-combate.js` | Reglas del combate y del equilibrio, compartidas | Estable |
 | `supabase-01-tablas.sql` | Crea las tablas. Se pega en el SQL Editor | Aplicado |
@@ -53,6 +54,7 @@ experiencia y sube de nivel.
 | `supabase-19-cerrar-simulacro.sql` | Cierra el simulacro y limpia lo que dejó | Aplicado una vez |
 | `supabase-20-cerrar-devnet.sql` | Cierra las pruebas de devnet, por lista blanca | Aplicado una vez |
 | `supabase-21-torneos.sql` | Torneos: cuadro, inscripción y reparto del bote | Aplicado |
+| `supabase-22-limpiar-torneos.sql` | Borra las cuentas que probaron los torneos, por lista blanca. **Borra `tournaments` ENTERA** | Aplicado una vez · no repetir |
 | `supabase-23-mascotas.sql` | Mascotas: bolsa del jugador y muerte permanente | Aplicado |
 | `supabase-24-limpiar-pruebas-mascotas.sql` | Borra las cuentas de las pruebas de la v0.2.0 | Repetible |
 | `supabase-25-niveles.sql` | Armas y mascotas con nivel minimo. **Antes de la Edge Function** | Repetible |
@@ -69,6 +71,7 @@ experiencia y sube de nivel.
 | `prueba-mascotas.mjs` | Mide las mascotas llamando al `simulate()` real | Herramienta |
 | `prueba-mascotas-emparejada.mjs` | Las mide **emparejado**: mismo bruto y semilla, con y sin | Herramienta |
 | `prueba-ascii.mjs` | Acentos donde el editor de Supabase los destroza | Herramienta |
+| `ev.mjs` | Juega una cuenta entera contra el servidor y mira qué quedó en `fights` | Herramienta · **caducada**, manda `version: 6` |
 | `prueba-escape.mjs` | Texto de un jugador en la pantalla de otro sin `esc()` | Herramienta |
 | `og-image.html` | Genera `og-image.png` (tarjeta al compartir) con Chrome | Herramienta |
 | `ver-aspectos.html` | Todas las opciones de aspecto en fila, para MIRARLAS | Herramienta |
