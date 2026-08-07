@@ -114,16 +114,30 @@
      personaje es un sitio al que no hay que ir— y `sex`, `hair`, `cloth`,
      `face` y `tat` porque una opcion nueva ahi es dibujar SVG, no añadir una
      entrada a una lista. Eso vendra, pero es otro trabajo. */
+  /* ── Los precios, y por que estos ──────────────────────────────────────
+     Con el token a ~0,04 $, un bruto gana 42 monedas al dia = 1,67 $. Y las
+     armas y las mascotas ya se llevan el 69% de eso — el optimo que pide el
+     TOKEN.md, asi que subirlas mas haria que jugar con equipo costara mas de
+     lo que se gana y lo racional pasara a ser pelear a puño limpio.
+
+     Lo que queda libre es el 31%: unas 39 monedas al dia. Ahi entran estos.
+
+     Se multiplicaron por ~4,7 el 07/08. Antes un peinado costaba 90 = 3,60 $,
+     o sea dos dias de juego, y esto no participaba en la economia: era calderilla
+     al lado de lo que un jugador acumula. Ahora un peinado son diez dias.
+
+     Y se pueden mover sin medir nada, que es lo que los hace el mejor sumidero
+     del proyecto: no tocan el daño, ni la esquiva, ni la rotura. */
   const ASPECTO = {
-    /* Los colores son entradas en una lista; un peinado o un tatuaje es SVG
-       dibujado a mano, y por eso valen mas. No es codicia: es que hay diez
-       veces menos de ellos y no salen solos. */
-    hair:   { precio: 90 },
-    tat:    { precio: 75 },
-    hairC:  { precio: 40 },
-    eyeC:   { precio: 40 },
-    tatC:   { precio: 35 },
-    clothC: { precio: 45 },
+    /* Un peinado o un tatuaje es SVG dibujado a mano; un color es una entrada
+       en una lista. Por eso valen el doble: hay diez veces menos y no salen
+       solos. */
+    hair:   { precio: 400 },
+    tat:    { precio: 350 },
+    hairC:  { precio: 200 },
+    eyeC:   { precio: 200 },
+    tatC:   { precio: 180 },
+    clothC: { precio: 220 },
   };
 
   /* La visita al barbero. Se paga CADA cambio, y ese es el sumidero de verdad:
@@ -131,7 +145,11 @@
 
      Y sin barbero los cosmeticos no valen nada: el aspecto se fija al forjar,
      asi que un peinado comprado despues no tendria donde ponerse. */
-  const PRECIO_BARBERO = 20;
+  /* La visita se queda BARATA a proposito, aunque todo lo demas suba: es lo
+     unico que se paga muchas veces, y un sumidero recurrente solo funciona si
+     se usa. A diez dias de juego por visita nadie cambiaria de aspecto nunca, y
+     entonces tampoco compraria los colores. */
+  const PRECIO_BARBERO = 60;
 
   /* Que opciones de pago usa un aspecto. Devuelve {} si es todo de casa.
      El formato es el mismo que la bolsa del jugador —{campo:[indices]}— para
@@ -437,23 +455,6 @@
      Es un primer número, no una verdad. Cuando haya jugadores, el panel dirá
      si sobra o falta: si nadie compra, están caras; si todo el mundo lleva
      siempre la misma, están baratas. */
-  ARMAS.ninguna.precio  =   0;
-  ARMAS.daga.precio     = 130;   // ~33 combates  →  4,0 monedas por pelea
-  ARMAS.baston.precio   = 150;   // ~50           →  3,0
-  ARMAS.maza.precio     = 110;   // ~25           →  4,4
-  ARMAS.escudo.precio   = 100;   // ~20           →  5,0
-  ARMAS.lanza.precio    = 110;   // ~17           →  6,5
-  ARMAS.hacha.precio    =  75;   // ~10           →  7,5
-  ARMAS.mandoble.precio =  90;   // ~11           →  8,0
-  ARMAS.guadana.precio  =  65;   // ~9            →  7,2
-  ARMAS.hachadoble.precio =  68; // ~9            →  7,6
-  ARMAS.tridente.precio =  90;   // ~14           →  6,4
-  ARMAS.guerra.precio   = 120;   // ~17           →  7,1
-  ARMAS.paves.precio    = 100;   // ~20           →  5,0
-  ARMAS.caballero.precio= 110;   // ~20           →  5,5
-  ARMAS.estoque.precio  = 120;   // ~20           →  6,0
-  ARMAS.martillo.precio = 120;   // ~20           →  6,0
-  ARMAS.herrado.precio  = 125;   // ~25           →  5,0
 
   /* ── Lo que cuesta recuperar algo perdido ─────────────────────────────────
      El 60% del precio. Y sube el sumidero en vez de bajarlo, aunque parezca lo
@@ -477,6 +478,27 @@
      se añada un arma: el premio por subir de nivel seguiria sorteando entre
      las de antes y las nuevas no saldrian nunca sin que nada fallara. */
   const ARMAS_REALES = Object.keys(ARMAS).filter(x => x !== "ninguna");
+
+  /* ── El precio se DERIVA de la duracion, no se escribe ────────────────
+     Estaban los diecisiete a mano, cada uno con su coste por combate apuntado
+     en un comentario al lado. Y los comentarios mentian: el de la guadaña de
+     guerra decia 7,1 y era 9,2, porque al recalibrar las armas cambiaron las
+     duraciones y los precios no se tocaron.
+
+     Con el coste yendo de 3,0 a 9,2, las armas dejaban de ser alternativas:
+     la barata por combate era estrictamente mejor, que es justo lo contrario
+     de lo que dice el diseño. Y no fallaba nada — solo se descuadraba.
+
+     Ahora sale de una multiplicacion, asi que un arma nueva nace con su precio
+     puesto y ninguna puede volver a irse. Es lo mismo que ya se hizo con
+     `ARMAS_REALES`, que se derivaba en vez de escribirse. */
+  const COSTE_COMBATE = 6;
+  ARMAS.ninguna.precio = 0;
+  for (const id of ARMAS_REALES) {
+    /* A multiplos de cinco: un precio de 137 se lee como calculado por una
+       maquina, y 135 como puesto por alguien. */
+    ARMAS[id].precio = Math.round(COSTE_COMBATE * duracion(id) / 5) * 5;
+  }
 
   /* ═══════════ skins de arma ═══════════
      ── Lo unico que hay que tener claro: NO tocan el equilibrio ──────────────
@@ -509,15 +531,19 @@
      Y las skins se compran por FAMILIA. Comprar la espada en llamas y que solo
      valga para una de tus tres espadas seria cobrar tres veces por el mismo
      dibujo. */
+  /* La skin de un arma vale lo mismo en todas las familias: el dibujo cuesta
+     lo mismo y cobrar distinto por el mismo trabajo no tiene defensa. Antes
+     iban de 45 a 60 copiando los precios de las armas, que si son distintas
+     porque duran distinto — pero una skin no se rompe. */
   const FAMILIAS = {
-    espadas:  { base:  1, precio: 60 },
-    dagas:    { base: 11, precio: 45 },
-    lanzas:   { base: 41, precio: 50 },
-    mazas:    { base: 51, precio: 50 },
-    escudos:  { base: 61, precio: 45 },
-    guadanas: { base: 71, precio: 55 },
-    hachas:   { base: 81, precio: 55 },
-    bastones: { base: 91, precio: 45 },
+    espadas:  { base:  1, precio: 250 },
+    dagas:    { base: 11, precio: 250 },
+    lanzas:   { base: 41, precio: 250 },
+    mazas:    { base: 51, precio: 250 },
+    escudos:  { base: 61, precio: 250 },
+    guadanas: { base: 71, precio: 250 },
+    hachas:   { base: 81, precio: 250 },
+    bastones: { base: 91, precio: 250 },
   };
   /* A que familia pertenece cada arma, y cual es su aspecto de casa. */
   const FAMILIA_DE = {

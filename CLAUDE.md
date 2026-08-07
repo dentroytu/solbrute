@@ -1594,15 +1594,27 @@ bruto con mandoble gana más peleas y cobra **menos** al día que el mismo bruto
 puño limpio (38,8 frente a 41,2). Lo que sí sube los ingresos es el nivel, y eso
 se juega.
 
-### Precios
+### Precios: se DERIVAN, no se escriben
 
-Puestos para que el **coste por combate** sea parecido en todas (~3 monedas,
-sobre las ~40 que se ganan al día): como están equilibradas, lo único que cambia
-entre ellas es cuánto duran. Son un primer número — el panel dirá si sobran o
-faltan. Si nadie compra, están caras; si todos llevan la misma, baratas.
+```js
+ARMAS[id].precio = COSTE_COMBATE × duracion(id)
+```
 
-**Si tocas estos números, vuelve a medir.** La simulación son cincuenta líneas y
-está en el historial del repositorio.
+Como están equilibradas entre sí, lo único que cambia es cuánto duran — así que
+lo que tiene que ser igual es el **coste por combate**, y el precio sale de una
+multiplicación.
+
+**Estaban los diecisiete a mano, cada uno con su coste apuntado en un comentario
+al lado. Y los comentarios mentían:** el de la guadaña de guerra decía 7,1 y era
+9,2, porque al recalibrar las armas cambiaron las duraciones y los precios no se
+tocaron. Iban de **3,0 a 9,2** — tres veces de diferencia.
+
+Y eso no es desorden, es equilibrio roto: **con el coste tan desigual, el arma
+barata por combate era estrictamente mejor**, que es lo contrario de «son
+alternativas, no mejoras». No fallaba nada; solo se descuadraba.
+
+Ahora van de 5,88 a 6,15, y un arma nueva nace con su precio puesto. Es lo mismo
+que ya se hizo con `ARMAS_REALES`: derivarlo en vez de escribirlo.
 
 ### Familias, y por qué la armería tiene menús
 
@@ -1672,6 +1684,41 @@ dibujo antes que como un arma humilde. Por eso `SKINS` lleva `gratis` aparte de
 de Postgres cada vez que entraba una nueva (paso 33); con `0..9` eso no vuelve a
 pasar. Y un número fuera de rango no rompe nada: `iconoDe` cae a la gratis, que
 es lo que impide que un `<image>` roto deje al bruto desarmado.
+
+### Los precios, con el token a 0,04 $
+
+El día que el token vale algo, los precios dejan de ser «monedas» y pasan a ser
+dinero. Con esa referencia:
+
+```
+un bruto gana 42 monedas al día  =  1,67 $
+las tres plazas                  =  5,01 $/día
+```
+
+Y ahí aparece el número que manda:
+
+```
+arma (media)     6,03 monedas/combate  =  43% de lo que ganas
+mascota (media)  3,60                  =  26%
+                                          ───
+                                          69%
+```
+
+**El equipo ya se lleva el 69%**, que es justo el óptimo que pide `TOKEN.md`
+(«del 30% al 70% de gasto, la reserva pasa de 6 a 15 años»). Subirlo más haría
+que jugar con equipo costara más de lo que se gana, y entonces lo racional
+pasaría a ser pelear a puño limpio y sin mascota. **El equipo se convertiría en
+un castigo.**
+
+Así que cuando haya que subir precios, **no se sube lo que se rompe**: se sube
+lo que no toca el equilibrio. Los cosméticos se multiplicaron por ~4,7 el 07/08
+por eso — antes un peinado costaba dos días de juego y era calderilla al lado de
+lo que un jugador acumula; ahora son diez días.
+
+**La visita del barbero se queda barata a propósito** (60, 2,40 $) aunque todo
+lo demás suba: es lo único que se paga muchas veces, y un sumidero recurrente
+solo funciona si se usa. A diez días por visita nadie cambiaría de aspecto
+nunca — y entonces tampoco compraría los colores.
 
 ### El inventario es del JUGADOR, no del bruto
 
