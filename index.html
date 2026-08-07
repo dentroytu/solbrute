@@ -725,9 +725,10 @@
   </div>
 </section>
 
-<!-- Las ultimas entradas del blog. El contenido vive en `blog-entradas.js`, el
-     mismo fichero que lee `blog.html`: una sola lista, para que la home no
-     pueda enseñar una entrada que ya no existe. -->
+<!-- Las ultimas entradas del blog. Salen de la tabla `blog_posts`, la misma
+     que lee `blog.html` y que se edita desde el panel: una sola fuente, para
+     que la home no pueda enseñar una entrada que ya no existe.
+     Si no hay ninguna, esta seccion se esconde entera. -->
 <section class="section" id="blog">
   <div class="section-head">
     <div class="section-eyebrow" data-i18n="blog_eyebrow">Devlog</div>
@@ -758,7 +759,6 @@
 </footer>
 
 <script src="brute-render.js"></script>
-<script src="blog-entradas.js"></script>
 <script src="wallet-solana.js"></script>
 <script>
 (function(){
@@ -1035,9 +1035,9 @@
   };
 
   /* ══════════ las ultimas entradas del blog ══════════
-     El contenido sale de `blog-entradas.js`, el mismo fichero que lee
-     `blog.html`. Una sola lista: asi la home no puede enseñar una entrada que
-     ya no existe, ni quedarse con una version vieja del titulo.
+     El contenido sale de `blog_posts`, la misma tabla que lee `blog.html`.
+     Una sola fuente: asi la home no puede enseñar una entrada que ya no
+     existe, ni quedarse con una version vieja del titulo.
 
      Hasta ahora esta pagina no metia texto en `innerHTML` en ningun sitio, y
      por eso `prueba-escape.mjs` sacaba cero. Se mantiene: todo lo que se
@@ -1060,11 +1060,17 @@
     mantenimiento: "radial-gradient(ellipse at 50% 120%, #45201f 0%, #1c1710 70%)"
   };
 
+  /* Las entradas salen de `blog_posts`, leida con la clave publica sin pasar
+     por la Edge Function — igual que `fights`. La MISMA tabla que lee
+     `blog.html`: una sola fuente, para que la home no pueda enseñar una
+     entrada que ya no existe ni un titulo viejo. */
+  let BLOG = [];
+
   function pintarBlog(){
     const caja = document.getElementById('blogGrid');
-    if(!caja || !window.BlogEntradas || !window.BruteRender) return;
+    if(!caja || !window.BruteRender) return;
 
-    const ultimas = window.BlogEntradas.slice()
+    const ultimas = BLOG.slice()
       .sort((a,b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0))
       .slice(0, 3);
 
@@ -1075,8 +1081,10 @@
     if(seccion) seccion.hidden = false;
 
     caja.innerHTML = ultimas.map(e => {
-      /* Una entrada sin su idioma cae a ingles, igual que en `blog.html`. */
-      const c = e[idioma] || e.en;
+      /* El CONTENIDO cae a castellano, no a ingles como la interfaz: las
+         entradas se escriben en castellano y las otras dos versiones pueden
+         estar vacias mientras nadie las traduzca. Igual que en `blog.html`. */
+      const c = e[idioma] || e.es || e.en;
       const p = String(e.fecha).split('-');
       const d = new Date(Date.UTC(+p[0], +p[1]-1, +p[2]));
       const fecha = isNaN(d) ? e.fecha
@@ -1498,9 +1506,24 @@
     }
   }
 
+  /* Trae las entradas y repinta. Va aparte de `applyLang` porque depende de la
+     red: la pagina tiene que verse entera aunque esto tarde o falle.
+
+     Si no hay entradas —o si la peticion se cae— la seccion se ESCONDE en vez
+     de dejar un recuadro vacio. Es la misma decision que el tablon del ludus:
+     ocupa lo mismo que uno lleno y no dice nada. */
+  function blogArrancar(){
+    fetch("https://ihrcvartuuyvftxdxztt.supabase.co/rest/v1/blog_posts?select=*&order=fecha.desc&limit=12",
+          { headers: { apikey: PV.anon, Authorization: "Bearer " + PV.anon } })
+      .then(r => r.ok ? r.json() : [])
+      .then(filas => { BLOG = Array.isArray(filas) ? filas : []; pintarBlog(); })
+      .catch(() => { BLOG = []; pintarBlog(); });
+  }
+
   wirePlayLinks();
   applyLang('en');
   pvArrancar();
+  blogArrancar();
 })();
 </script>
 

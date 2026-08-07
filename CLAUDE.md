@@ -23,6 +23,8 @@ experiencia y sube de nivel.
 | `supabase-08-admin.sql` | Tabla `admin_log` (auditoría) | Aplicado |
 | `supabase-09-armas.sql` | `brutes.arma` y `brutes.armas` | Aplicado (`armas` **ya no se usa**, ver paso 14) |
 | `404.html` | La página de ruta no encontrada, con el arte del juego | Funcionando |
+| `blog.html` | **El blog**: lista y entrada, leídas de la base. Sin sesión | Funcionando |
+| `supabase-43-blog.sql` | `blog_posts` y su edición desde el panel. **Antes de la función** | Escrito |
 | `pelea.html` | **Una pelea, con su enlace, y se verifica sola** | Funcionando |
 | `prueba-verificable.mjs` | Comprueba que la verificación detecta una pelea manipulada | Herramienta |
 | `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Aplicado |
@@ -2113,6 +2115,69 @@ de verdad — quien decide sigue siendo `simulate()`.
 
 Y al caer **se redibuja el sprite sin ella**. Si solo cambiara una barra, el
 jugador seguiría viendo a su lobo peleando después de haberlo perdido.
+
+---
+
+## El blog, y por qué se edita desde el panel
+
+`blog.html`, más una sección con las tres últimas entradas en la home. Sin
+cuenta y sin wallet: `blog_posts` tiene lectura pública, igual que `fights`.
+
+Nació como un fichero del repositorio (`blog-entradas.js`), que era lo barato
+y lo que pedía `IDEAS.md`. Duró poco: publicar exigía editar el fichero y hacer
+un commit, o sea que **solo podía escribir quien tuviera el repositorio
+delante**. Ahora vive en la base y se edita desde el panel.
+
+**El fichero desapareció, no se quedó de respaldo.** Dos sitios con las mismas
+entradas es el fallo que este proyecto ya ha pagado dos veces —`brute-render.js`
+duplicado a mano y la arena copiada— y las copias siempre acaban
+desincronizándose. Si la base no responde, la sección de la home no se pinta:
+es peor que un respaldo desactualizado, pero es honesto.
+
+### El cuerpo va en bloques, no en HTML
+
+Cada entrada es una lista de `{t, x}` con cinco tipos: `p`, `h`, `q`, `ul` y
+`kv`. **Un tipo desconocido no se pinta** — la misma regla que la arena: un
+bloque sin dibujar es un hueco; uno dibujado como otra cosa es una mentira.
+
+Y se filtra **en el servidor**, no solo al pintar. Si solo lo hiciera el
+navegador, el día que otra página lea esa tabla se lo comería entero.
+
+En el panel se escribe como texto con cuatro marcas (`##`, `>`, `-`, `|`) y se
+convierte a esos bloques. Es más cómodo que un editor de cajitas y, sobre todo,
+**lo que sale no es HTML**: son tipos conocidos, así que no hay forma de colar
+una etiqueta ni queriendo.
+
+### El identificador es la URL, y no se cambia
+
+`blog.html?post=ese-id`. Por eso el editor lo deja escribir al crear y lo
+bloquea después: un enlace compartido que deja de funcionar es peor que no
+haberlo dado. Se sanea a `[a-z0-9-]`, así que un titular con acentos o barras
+no puede fabricar una dirección rara.
+
+### Se escribe en castellano y los otros dos idiomas pueden esperar
+
+**La interfaz cae a inglés; el contenido cae a castellano.** No es una
+incoherencia: las entradas se escriben en castellano desde el panel, y las
+versiones en inglés y francés pueden estar vacías mientras nadie las traduzca.
+Caer a inglés ahí dejaría el titular en blanco.
+
+El panel marca con un punto verde los idiomas que ya tienen texto y avisa en la
+lista de los que faltan.
+
+### Guardar es publicar
+
+No hay borradores, y es una decisión del dueño: lo que se guarda se ve, y si
+hay que cambiar algo se edita y se vuelve a guardar. Todo queda en `admin_log`
+con el antes y el después, así que una entrada borrada se puede recuperar de
+ahí.
+
+### El retrato no es una foto
+
+Es un `look` de diez enteros que dibuja `brute-render.js`, igual que un bruto.
+Sin ficheros que subir, sin nada que se pueda perder, y **funciona sobre
+`file://`** — una imagen externa no cargaría y dejaría el hueco en blanco. Se
+sortea al crear la entrada y se conserva al editarla.
 
 ---
 

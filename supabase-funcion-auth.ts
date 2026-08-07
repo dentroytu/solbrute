@@ -2050,6 +2050,107 @@ async function manejar(req: Request): Promise<Response> {
       return responder({ borrado: true });
     }
 
+    /* ══════════ el blog ══════════
+       El contenido lo escribe un administrador, pero se pinta en la pantalla
+       de CUALQUIERA que entre en la web. O sea que aqui vale la misma pregunta
+       que con el nombre de un bruto: que pasa si viene envenenado.
+
+       Dos defensas, y las dos hacen falta:
+       - El cuerpo va en BLOQUES tipados, no en HTML. Un tipo desconocido se
+         rechaza aqui, no solo al pintar: si solo lo filtrara el navegador, el
+         dia que otra pagina lea esta tabla se lo comeria entero.
+       - Todo lo que se pinta pasa por `esc()` en el cliente. */
+    const TAGS_BLOG = ["equilibrio", "transparencia", "contenido", "mantenimiento"];
+    const BLOQUES_BLOG = ["p", "h", "q", "ul", "kv"];
+
+    const saneaTextoBlog = (v: unknown, max: number) =>
+      typeof v === "string" ? v.trim().slice(0, max) : "";
+
+    /* Devuelve null si el idioma viene vacio: en la tabla eso es `null`, y el
+       blog enseña entonces el español. Un idioma a medias es peor que uno que
+       no esta, porque parece traducido y no lo esta. */
+    function saneaIdiomaBlog(v: unknown): Record<string, unknown> | null {
+      if (!v || typeof v !== "object") return null;
+      const o = v as Record<string, unknown>;
+      const titulo = saneaTextoBlog(o.titulo, 200);
+      if (!titulo) return null;
+      const cuerpo: Array<{ t: string; x: unknown }> = [];
+      if (Array.isArray(o.cuerpo)) {
+        for (const b of (o.cuerpo as Array<Record<string, unknown>>).slice(0, 120)) {
+          if (!b || typeof b !== "object") continue;
+          const t = typeof b.t === "string" ? b.t : "";
+          if (!BLOQUES_BLOG.includes(t)) continue;   // lo desconocido no entra
+          if (t === "ul") {
+            const items = Array.isArray(b.x)
+              ? (b.x as unknown[]).slice(0, 40).map((i) => saneaTextoBlog(i, 400)).filter(Boolean)
+              : [];
+            if (items.length) cuerpo.push({ t, x: items });
+          } else if (t === "kv") {
+            const filas = Array.isArray(b.x)
+              ? (b.x as unknown[]).slice(0, 40)
+                  .map((f) => Array.isArray(f) ? [saneaTextoBlog(f[0], 120), saneaTextoBlog(f[1], 120)] : null)
+                  .filter((f): f is string[] => !!f && !!f[0])
+              : [];
+            if (filas.length) cuerpo.push({ t, x: filas });
+          } else {
+            const x = saneaTextoBlog(b.x, 4000);
+            if (x) cuerpo.push({ t, x });
+          }
+        }
+      }
+      return { titulo, resumen: saneaTextoBlog(o.resumen, 500), cuerpo };
+    }
+
+    if (accion === "admin_blog_listar") {
+      const entradas = await db("/blog_posts?select=*&order=fecha.desc");
+      return responder({ entradas });
+    }
+
+    if (accion === "admin_blog_guardar") {
+      const c = cuerpo.campos || {};
+      /* El slug ES la URL, asi que se limita a lo que puede ir en una: sin
+         acentos, sin espacios y sin barras. Y no se genera solo del titulo a
+         proposito — cambiar el titulo cambiaria la URL, y un enlace ya
+         compartido dejaria de funcionar. */
+      const id = String(c.id || "").trim().toLowerCase()
+        .replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+      if (!id) return responder({ error: "hace falta un identificador", clase: "sin_id" }, 400);
+
+      const fecha = String(c.fecha || "").slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || isNaN(Date.parse(fecha))) {
+        return responder({ error: "esa fecha no vale", clase: "fecha" }, 400);
+      }
+      const tag = TAGS_BLOG.includes(String(c.tag)) ? String(c.tag) : TAGS_BLOG[0];
+
+      const es = saneaIdiomaBlog(c.es);
+      if (!es) return responder({ error: "hace falta al menos el titulo en castellano", clase: "sin_es" }, 400);
+
+      const r = await db("/rpc/blog_guardar", {
+        method: "POST",
+        body: JSON.stringify({
+          p_admin: dueno, p_id: id, p_fecha: fecha, p_tag: tag,
+          p_look: sanearLook(c.look), p_es: es,
+          p_en: saneaIdiomaBlog(c.en), p_fr: saneaIdiomaBlog(c.fr),
+        }),
+      });
+      return responder({ guardado: r });
+    }
+
+    if (accion === "admin_blog_borrar") {
+      const id = String(cuerpo.id || "").trim().slice(0, 80);
+      if (!id) return responder({ error: "identificador no valido" }, 400);
+      try {
+        await db("/rpc/blog_borrar", {
+          method: "POST", body: JSON.stringify({ p_admin: dueno, p_id: id }),
+        });
+      } catch (e) {
+        const m = (e as Error).message || "";
+        if (m.includes("no_existe")) return responder({ error: "esa entrada no existe" }, 404);
+        throw e;
+      }
+      return responder({ borrado: true });
+    }
+
     if (accion === "admin_jugadores") {
       const jugadores = await db("/players?select=address,coins,slots,created_at,last_seen&order=last_seen.desc&limit=200");
       const brutos = await db("/brutes?select=id,owner,name,level,xp,hp_max,str,agi,spd,wins,losses,fights_left,created_at&order=level.desc&limit=500");

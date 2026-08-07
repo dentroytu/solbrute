@@ -344,6 +344,22 @@
     async adminTorneoResolver(id){
       return await pedirAuth({ accion: "admin_torneo_resolver", token: token(), id });
     },
+    /* ── el blog ──
+       Leer las entradas para la WEB no pasa por aquí: `blog_posts` tiene
+       lectura pública y `blog.html` la consulta directamente, igual que
+       `fights`. Esto es solo para el panel, que necesita la sesión para poder
+       escribir — y `admin_blog_listar` existe aparte porque el panel quiere
+       verlas todas con sus tres idiomas, no lo que se enseña. */
+    async adminBlog(){
+      return await pedirAuth({ accion: "admin_blog_listar", token: token() });
+    },
+    async adminBlogGuardar(campos){
+      return await pedirAuth({ accion: "admin_blog_guardar", token: token(), campos });
+    },
+    async adminBlogBorrar(id){
+      return await pedirAuth({ accion: "admin_blog_borrar", token: token(), id });
+    },
+
     async adminTorneoBorrar(id){
       return await pedirAuth({ accion: "admin_torneo_borrar", token: token(), id });
     },

@@ -220,3 +220,32 @@ Antes de abrirlos, la wallet de `SOLANA_PREVENTA` tiene que tener:
 
 Quedarse sin ese SOL es lo que en devnet falló diciendo otra cosa. Ahora se
 comprueba antes, pero es dinero que hay que presupuestar.
+
+---
+
+## Paso 43 · el blog en la base
+
+**El orden importa, y si se invierte no rompe nada pero se ve vacío.**
+
+```
+1. supabase-43-blog.sql   en el SQL Editor, pestaña NUEVA
+2. redesplegar `auth`     lleva las rutas admin_blog_*
+3. el sitio               ya está subido; no hace falta hacer nada
+```
+
+El SQL crea `blog_posts`, sus dos funciones y **mete las cuatro entradas que
+vivían en `blog-entradas.js`**, que se borró en el mismo commit. Va con
+`on conflict do nothing`, así que repetirlo no pisa lo que hayas editado desde
+el panel.
+
+Si se sube el sitio antes de aplicar el SQL, la tabla no existe: PostgREST
+responde 404, el blog enseña «todavía no hay entradas» y la sección de la home
+se esconde. No da error ni rompe la página — pero tampoco hay blog hasta que
+pases el paso 43.
+
+**Después del SQL hay que redesplegar `auth`**, o el panel podrá listar las
+entradas y no guardarlas: las rutas `admin_blog_*` viven en esa función.
+
+Comprobación rápida cuando termines: entra al panel, pestaña **Blog**, y tienen
+que salir las cuatro. Si sale «Todavía no hay ninguna entrada», es que el SQL
+no llegó a correr — mira el resultado en la base, no el mensaje de éxito.

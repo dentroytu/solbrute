@@ -584,6 +584,68 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
                               : `${permitidos.length} tipos, todos con etiqueta es/en/fr`);
   }
 
+  /* ── 19 · el blog: lo que se publica se pinta en la pantalla de CUALQUIERA ──
+     Es la unica superficie donde un administrador escribe texto que acaba en
+     el navegador de gente que no ha iniciado sesion. El cuerpo va en bloques
+     tipados justamente para eso, y lo que hay que comprobar aqui es que el
+     filtro esta en el SERVIDOR y no solo al pintar: si solo lo filtrara el
+     navegador, el dia que otra pagina lea `blog_posts` se lo comeria entero. */
+  {
+    const AD = (globalThis as any).__ADMIN_DIR as string;
+    const TOK = "tok-blog-de-prueba-largo-32-bytes-abc";
+    T.sessions.push({ token: TOK, address: AD,
+                      expires_at: new Date(Date.now() + 3600e3).toISOString() });
+    const RPC = (globalThis as any).__RPC as {fn:string;args:any}[];
+
+    RPC.length = 0;
+    await pedir({ accion:"admin_blog_guardar", token:TOK, campos:{
+      id:"  Hola Mundo!! /../ ", fecha:"2026-08-07", tag:"inventado",
+      es:{ titulo:"t", resumen:"r", cuerpo:[
+        { t:"script", x:"<img src=x onerror=alert(1)>" },   // tipo inventado
+        { t:"p", x:"esto si vale" },
+        { t:"raw",    x:"<b>hola</b>" },                    // otro inventado
+      ]},
+    }});
+    const g = RPC.find(r => r.fn === "blog_guardar");
+    const tipos = g ? (g.args.p_es.cuerpo || []).map((b: any) => b.t) : [];
+    probar("colar un bloque de tipo inventado en el blog",
+           !g || tipos.some((t: string) => !["p","h","q","ul","kv"].includes(t)),
+           g ? `llegaron a Postgres: [${tipos.join(", ")}]` : "no llamo a Postgres");
+
+    /* El slug ES la URL. Si dejara pasar barras o espacios, la entrada
+       quedaria en una direccion que no se puede compartir — o peor, en una
+       que se parece a otra ruta del sitio. */
+    probar("colar barras y espacios en la URL de una entrada",
+           !g || !/^[a-z0-9-]+$/.test(g.args.p_id),
+           g ? `el slug quedo en "${g.args.p_id}"` : "no llamo a Postgres");
+
+    /* Un tag desconocido no puede reventar ni colarse: cae al primero. La
+       leccion del paso 33 — el `check` de Postgres se quedo fuera a proposito
+       para no tener que abrirlo cada vez que se añada un tipo. */
+    probar("colar un tag que no existe",
+           !g || !["equilibrio","transparencia","contenido","mantenimiento"].includes(g.args.p_tag),
+           g ? `el tag quedo en "${g.args.p_tag}"` : "no llamo a Postgres");
+
+    /* Sin español no hay entrada: es el idioma en el que se escribe y al que
+       caen los otros dos. Una fila con los tres vacios se veria como un hueco
+       en la home sin que nadie sepa por que. */
+    RPC.length = 0;
+    const sinEs = await pedir({ accion:"admin_blog_guardar", token:TOK,
+      campos:{ id:"vacia", fecha:"2026-08-07", tag:"contenido", es:{ titulo:"  " } }});
+    probar("publicar una entrada sin titulo en castellano",
+           sinEs.s === 200 || RPC.some(r => r.fn === "blog_guardar"),
+           `respondio ${sinEs.s}`);
+
+    /* Una fecha inventada tiene que dar 400, no un 500 mudo: `date` en
+       Postgres la rechazaria y el jugador leeria "algo ha fallado". */
+    RPC.length = 0;
+    const mala = await pedir({ accion:"admin_blog_guardar", token:TOK,
+      campos:{ id:"fecha-mala", fecha:"32 de marzo", tag:"contenido", es:{ titulo:"t" } }});
+    probar("colar una fecha inventada", mala.s >= 500 || RPC.some(r => r.fn === "blog_guardar"),
+           `respondio ${mala.s}`);
+
+  }
+
   console.log("\n══════ RESULTADO ══════");
   if(!hallazgos.length) console.log("Ningún ataque económico funciona.");
   else hallazgos.forEach((h,i)=>console.log(`${i+1}. ${h}`));

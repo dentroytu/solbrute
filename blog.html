@@ -224,14 +224,25 @@
 </footer>
 
 <script src="brute-render.js"></script>
-<script src="blog-entradas.js"></script>
 <script>
 (function(){
   "use strict";
 
   const { bust } = window.BruteRender;
-  const ENTRADAS = (window.BlogEntradas || []).slice()
-    .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+
+  /* ══════════ de donde salen las entradas ══════════
+     De `blog_posts`, leida DIRECTAMENTE con la clave publica, sin pasar por la
+     Edge Function. Es la misma decision que `fights`: la tabla tiene lectura
+     publica y aqui no hay nada que decidir. Escribir es otra cosa y solo puede
+     hacerlo el panel.
+
+     Esta clave es la `anon` y es publica por diseño: va en el JavaScript de
+     cualquier sitio con Supabase. Lo que protege las tablas es RLS, no
+     esconderla. */
+  const API = "https://ihrcvartuuyvftxdxztt.supabase.co/rest/v1";
+  const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlocmN2YXJ0dXV5dmZ0eGR4enR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MjYyMzcsImV4cCI6MjEwMTAwMjIzN30.rhX_iI5qZROciWSBP3m0RhkMQXTSz6ttQz2zpXj_uxk";
+
+  let ENTRADAS = [];
 
   /* Lo que entra en innerHTML pasa por aqui SIEMPRE. Las entradas las escribimos
      nosotros, pero `?post=` lo escribe quien comparte el enlace, y el dia que
@@ -277,8 +288,11 @@
 
   let lang = "en";
   const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
-  /* Una entrada sin su idioma cae a ingles en vez de dejar el hueco vacio. */
-  const tr = e => e[lang] || e.en;
+  /* La INTERFAZ cae a ingles; el CONTENIDO cae a CASTELLANO, y no es una
+     incoherencia. Las entradas se escriben en castellano desde el panel y las
+     otras dos versiones pueden estar vacias mientras nadie las traduzca. Caer
+     a ingles ahi dejaria el titular en blanco. */
+  const tr = e => e[lang] || e.es || e.en;
 
   const FECHA = { en:"en-GB", es:"es-ES", fr:"fr-FR" };
   function fecha(iso){
@@ -398,7 +412,17 @@
     });
   });
 
+  /* Se pinta DOS veces a proposito: una en cuanto carga la pagina —para que se
+     vean la cabecera y los idiomas sin esperar a la red— y otra cuando llegan
+     las entradas. Si la peticion falla no se enseña un error tecnico: se
+     enseña «todavia no hay entradas», porque para quien mira son lo mismo y un
+     fallo de fetch no le dice nada. */
   pintar();
+  fetch(API + "/blog_posts?select=*&order=fecha.desc",
+        { headers: { apikey: ANON, Authorization: "Bearer " + ANON } })
+    .then(r => r.ok ? r.json() : [])
+    .then(filas => { ENTRADAS = Array.isArray(filas) ? filas : []; pintar(); })
+    .catch(() => pintar());
 })();
 </script>
 </body>
