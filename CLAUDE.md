@@ -28,10 +28,10 @@ experiencia y sube de nivel.
 | `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Aplicado |
 | `supabase-33-armas-nuevas.sql` | Abre el `check` de `brutes.arma` a las nueve. **Antes de la función** | Aplicado |
 | `supabase-34-skins.sql` | Skins de arma: `players.skins` y `brutes.arma_skin` | Aplicado |
-| `supabase-35-armas-17.sql` | Abre el `check` a las diecisiete. **Antes de la función** | Escrito |
+| `supabase-35-armas-17.sql` | Abre el `check` a las diecisiete. **Antes de la función** | Aplicado |
 | `supabase-36-mantenimiento.sql` | Parar el juego desde el panel. **Antes de la función** | Aplicado |
 | `supabase-37-botes.sql` | El bote de un torneo también está en circulación | Aplicado |
-| `supabase-38-torneo-atascado.sql` | Rescatar un torneo a medio resolver. **Con la Edge Function** | Escrito |
+| `supabase-38-torneo-atascado.sql` | Rescatar un torneo a medio resolver. **Con la Edge Function** | Aplicado |
 | `supabase-39-reglas.sql` | `fights.reglas`: con qué versión se jugó. **Antes de la función** | Aplicado |
 | `supabase-40-aspecto.sql` | La barbería y los colores de pago. **Antes de la función** | Aplicado |
 | `supabase-41-limpiar-brutos-prueba.sql` | Saca de producción los brutos de scripts, por lista blanca | Aplicado · repetible |
