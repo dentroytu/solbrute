@@ -69,9 +69,10 @@ por `postBalances`— y se cerró desde el panel. Así que lo que queda de esta
 lista no es código sin probar: es el mismo camino con el mint de mainnet
 puesto.
 
-**Con una deuda del ensayo:** esa compra de prueba sigue en `preventa_compras`
-como `pagada`. Antes del paso 3 hay que sacarla, o el paso 7 entrega tokens
-reales por SOL de devnet. Ver el apartado 8.
+**La deuda que dejó el ensayo ya está saldada:** esa compra de prueba se
+canceló con `supabase-42-limpiar-compra-prueba.sql` y el cupo volvió a
+5.000.000 enteros. Sin eso, el paso 7 habría entregado tokens reales por SOL
+de devnet.
 
 ---
 
@@ -365,23 +366,21 @@ Lo cerrado, para no volver sobre ello:
 4. ~~**Skins y aspectos.**~~ Hechos: skins de arma (34) y barbería (40).
 5. ~~**La preventa.**~~ Escrita, aplicada, atacada con 37 comprobaciones contra
    el servidor real, abierta el 03/08 y cerrada el 07/08.
+6. ~~**Limpiar lo que dejaron las pruebas.**~~ Los brutos de scripts (paso 41)
+   y la compra pagada con SOL de devnet (paso 42). La base vuelve a tener solo
+   jugadores de verdad y el cupo de la preventa entero.
 
 Y lo que queda, en el orden en que lo haría:
 
-1. **Sacar la compra de prueba de `preventa_compras`.** Los 1.000 tokens
-   «vendidos» son de la wallet de `prueba-pago-devnet.mjs`, pagados con SOL de
-   devnet. Si se abren los reclamos con esa fila dentro, se entregan 1.000
-   tokens **de verdad** contra un pago que no vale nada. Va primero porque es
-   corto y porque bloquea todo lo demás de la preventa.
-2. **Que entre gente.** El blog y compartir peleas, del apartado 5. Es lo único
+1. **Que entre gente.** El blog y compartir peleas, del apartado 5. Es lo único
    de esta lista que cambia el juego de verdad: hoy hay **cuatro jugadores**, y
    con cuatro no hay emparejamiento que valga, ni torneo que se llene, ni
    economía que medir.
-3. **Torneos**, cuando el punto 2 haya dado fruto. Están construidos y
+2. **Torneos**, cuando el punto 1 haya dado fruto. Están construidos y
    esperando; un cuadro de 8 con cuatro personas se ve vacío.
-4. **Token en mainnet**, con la lista del apartado 2 — y las tres cosas del
+3. **Token en mainnet**, con la lista del apartado 2 — y las tres cosas del
    apartado 1 que no son código y siguen sin empezar.
-5. El resto.
+4. El resto.
 
 Lo pongo así porque **la economía no se rompe por falta de contenido, se rompe
 por falta de sumideros** —y de esos ya hay siete, cuatro recurrentes— y porque
