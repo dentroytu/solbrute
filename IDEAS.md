@@ -3,7 +3,7 @@
 Este fichero es la lista larga. `CLAUDE.md` explica **por qué** está hecho cada
 cosa; esto es **qué queda**, ordenado por lo que de verdad importa.
 
-Fecha de corte: **4 de agosto de 2026**.
+Fecha de corte: **7 de agosto de 2026**.
 
 ---
 
@@ -63,6 +63,16 @@ recibe, su dinero está en tu wallet y él no tiene nada.** Eso es custodia y no
 hay forma de que no lo sea. Lo único que se puede hacer —y está hecho— es que
 sea verificable en cada paso.
 
+**Los pasos 3 y 4 ya se ensayaron enteros en devnet.** La venta estuvo abierta
+del 03/08 al 07/08/2026, cobró un pago de verdad —contra la cadena, verificado
+por `postBalances`— y se cerró desde el panel. Así que lo que queda de esta
+lista no es código sin probar: es el mismo camino con el mint de mainnet
+puesto.
+
+**Con una deuda del ensayo:** esa compra de prueba sigue en `preventa_compras`
+como `pagada`. Antes del paso 3 hay que sacarla, o el paso 7 entrega tokens
+reales por SOL de devnet. Ver el apartado 8.
+
 ---
 
 ## 3 · Los sumideros, que son la mitad de la economía
@@ -71,20 +81,40 @@ Del `TOKEN.md`: **que la gente gaste importa el doble que la comisión.** Del 30
 al 70% de gasto, la reserva pasa de 6 a 15 años; del 5% al 20% de comisión, solo
 gana uno.
 
-Hoy existen tres y medio: armas que se rompen, mascotas que mueren, el rescate
-al 60%, y las plazas de ludus (que se compran una vez).
+Hoy existen **siete**, y se pueden enumerar sin discutir: son los tipos que
+acepta la lista blanca de `movimiento_apuntar`.
+
+| sumidero | recurrente | qué lo hace volver |
+|---|---|---|
+| armas | **sí** | se rompen (el mandoble dura ~11 combates) |
+| mascotas | **sí** | mueren cada 20-30 |
+| la visita al barbero | **sí** | se paga cada vez, tengas ya el color o no |
+| el rescate al 60% | **sí** | solo si perdiste algo y dentro de 24 h |
+| skins de arma | no | 8 familias × 10 aspectos = 80 compras |
+| colores y peinados de pago | no | se compran una vez |
+| plazas de ludus | no | dos, y caras a propósito |
 
 **Los buenos sumideros son RECURRENTES.** Comprar una vez saca monedas una vez.
+De los siete, **cuatro lo son**, y el que más va a rendir es el más barato de
+todos: la visita al barbero, a 60 monedas. Está barata a propósito — un sumidero
+recurrente solo funciona si se usa, y a diez días de juego por visita nadie
+cambiaría de aspecto nunca.
 
-### Ya decidido, sin construir
+### Skins y aspectos — HECHO
 
-**Skins y aspectos.** El mejor que hay y el más barato de hacer aquí: el aspecto
-ya son diez enteros pequeños, así que añadir un peinado o un tatuaje es añadir
-una entrada a una lista. **No tocan el equilibrio**, y por eso se les puede
-poner el precio que se quiera sin convertir el juego en pay-to-win.
+Era «lo ya decidido sin construir» y se construyó: `supabase-34-skins.sql` para
+las skins de arma y `supabase-40-aspecto.sql` para la barbería. Las dos
+aplicadas y funcionando.
 
-Los tatuajes faciales son los que mejor funcionan comercialmente, porque siempre
-se ven — los del cuerpo van debajo de la ropa.
+Lo que sigue siendo cierto y hay que respetar al añadir más: **no tocan el
+equilibrio**, y por eso se les puede poner el precio que se quiera sin
+convertir el juego en pay-to-win. Y los tatuajes faciales son los que mejor
+funcionan comercialmente porque siempre se ven — con un matiz que costó
+descubrir: **van en la mejilla, no en la frente**, porque el pelo se dibuja
+encima y un tatuaje que desaparece según el peinado no lo compra nadie.
+
+Sigue siendo el sitio más barato donde añadir contenido de pago: cada color
+nuevo es una entrada en una lista.
 
 ### Ideas nuevas, ordenadas por lo que aportan menos esfuerzo
 
@@ -131,9 +161,15 @@ tiene que ser **sublineal** o la plaza se paga a sí misma.
 
 ## 4 · Contenido y retención
 
-### Torneos semanales — decidido a medias
+### Torneos semanales — construidos y sin estrenar
 
-Está anotado y sin construir. Lo que hay que decidir sigue igual:
+**Ya no están «sin construir».** `supabase-21-torneos.sql` tiene el cuadro, la
+inscripción y el reparto del bote; el paso 38 añade el rescate de un torneo que
+se quede a medio resolver; la app tiene su pantalla y el panel su calculador.
+Todo aplicado.
+
+Lo que falta es **crear uno de verdad**, y con ello siguen sin decidirse las
+cuatro cosas de siempre:
 
 - **¿Te apuntas o entran todos?** Apuntarse da menos gente y más intención.
 - **Cuadro de 8 o 16**, eliminatorias. El servidor las resuelve de golpe, y como
@@ -146,7 +182,12 @@ Está anotado y sin construir. Lo que hay que decidir sigue igual:
 
 Hay un calculador de precios en el panel que ya mide todo esto en **días de
 juego**, que es la unidad que sigue significando lo mismo valga lo que valga el
-token.
+token. Trae cuatro configuraciones que ya cumplen las reglas, así que la
+decisión del premio se puede tomar mirando números en vez de a ojo.
+
+**Y hay un motivo para no estrenarlos todavía:** un torneo necesita gente. Con
+los cuatro jugadores que hay hoy, un cuadro de 8 se rellena con la mitad vacía
+y se ve. Esto va después de que entre gente, no antes.
 
 ### El entrenamiento / modo inactivo — en pausa
 
@@ -175,36 +216,41 @@ tener jugadores; con 20 personas un clan está vacío y se ve.
 
 ## 5 · Crecimiento
 
-### La idea que creo que más rinde por lo poco que cuesta
+### El enlace por combate — HECHO, y la promesa está cumplida
 
-**Que cada combate tenga su enlace.** `fights` ya guarda semilla, registro
-completo, ganador y una copia congelada del rival. **La pelea ya se puede
-reproducir entera; lo único que falta es una URL.**
+Era «la idea que más rinde por lo poco que cuesta» y ya existe: `pelea.html?id=`.
+Sin cuenta, sin wallet y sin sesión, porque `fights` tiene lectura pública.
 
 ```
-solbrute.io/pelea/1284
+solbrute.io/pelea.html?id=154
 ```
 
-Quien la abra ve el combate reproducirse, con su tarjeta al compartir generada
-con el arte del propio juego —el generador ya existe, `og-image.html`—. Y no
-hace falta cuenta para verlo.
+**Y no solo la enseña: la RECALCULA** en el navegador de quien mira, con
+`brute-combate.js` —el mismo fichero que carga el servidor— comparando evento
+por evento. Comprobado el 07/08/2026 sobre peleas reales de producción:
+«✓ Comprobado, los 9 turnos y los 34 eventos, uno por uno».
 
-Tres cosas a la vez, y ninguna cuesta apenas:
+Así que el verificador público y el enlace por combate **no eran dos cosas**:
+salieron siendo la misma página, que es mejor de lo que estaba planeado. Quien
+llega a mirar quién ganó se encuentra la comprobación hecha sin pedirla.
 
-- **Marketing que se hace solo.** La gente comparte las victorias raras. Un
-  enlace que se ve bien en Twitter vale más que cualquier anuncio.
-- **Cumple la promesa de la landing.** Dice «combate verificable» y hoy nadie
-  puede verificar nada, porque no hay dónde. Un enlace público es la prueba.
-- **Es la puerta de entrada más barata que existe:** se llega mirando una pelea,
-  no leyendo qué es el juego.
+Tres detalles que costaron y conviene no deshacer:
 
-**Y su hermano: un verificador público.** Una página donde pegas semilla y
-brutos y recalcula el combate con `brute-combate.js` —el mismo fichero que usa
-el servidor— y te dice si cuadra. Es media tarde de trabajo y convierte
-«confía en nosotros» en «compruébalo».
+- **La página distingue «no cuadra» de «no lo puedo comprobar».** Una pelea de
+  antes del paso 39 no guarda con qué reglas se jugó, y recalcularla con las de
+  hoy daría otro combate. Decir «no cuadra» ahí sería mentir al revés, en la
+  única página que existe para demostrar que no engañas.
+- **Un verificador que aprueba todo es peor que ninguno**, y por eso existe
+  `prueba-verificable.mjs`: fabrica peleas manipuladas y exige que salten,
+  incluido un solo golpe retocado en 1 de daño.
+- La animación vive en `brute-arena.js`, compartida con el juego. Ya está
+  enlazado desde el tablón del ludus y desde el cartel del final.
 
-Lo digo claro: **hoy la promesa de combate verificable no está cumplida.** La
-arquitectura la permite desde el principio, pero no existe la herramienta.
+Lo que **sí** queda de esta idea: la URL es fea. `solbrute.io/pelea/154` se
+comparte mejor que `pelea.html?id=154`, y eso es configuración del alojamiento,
+no código.
+
+### Lo que ahora más rinde por lo poco que cuesta
 
 **Un blog de noticias.** Una página con las novedades del juego: qué cambió, qué
 se añadió, qué se arregló. Tres cosas a la vez, y ninguna cuesta casi nada:
@@ -310,18 +356,37 @@ tokens reales, eso deja de ser una molestia y pasa a ser dinero de otros.
 
 ## 8 · Si tuviera que ordenar
 
-Mi orden, y el porqué:
+Lo cerrado, para no volver sobre ello:
 
 1. ~~**Lo legal.**~~ Cerrado.
-2. ~~**Copia de seguridad.**~~ Hecha.
-3. ~~**El enlace por combate + el verificador.**~~ Hecho: `pelea.html`. Falta
-   enlazarlo desde el juego y animar el combate (hoy es registro en texto).
-4. **Skins.** El sumidero más barato y el único que no toca el equilibrio.
-5. **Token en mainnet y preventa de verdad**, con la lista del apartado 2.
-6. **Torneos**, ya con jugadores dentro.
-7. El resto.
+2. ~~**Copia de seguridad.**~~ `respaldo.mjs`, y ya se ha usado de verdad.
+3. ~~**El enlace por combate + el verificador.**~~ Hecho **entero**: `pelea.html`
+   recalcula, está enlazado desde el juego y el combate se anima.
+4. ~~**Skins y aspectos.**~~ Hechos: skins de arma (34) y barbería (40).
+5. ~~**La preventa.**~~ Escrita, aplicada, atacada con 37 comprobaciones contra
+   el servidor real, abierta el 03/08 y cerrada el 07/08.
+
+Y lo que queda, en el orden en que lo haría:
+
+1. **Sacar la compra de prueba de `preventa_compras`.** Los 1.000 tokens
+   «vendidos» son de la wallet de `prueba-pago-devnet.mjs`, pagados con SOL de
+   devnet. Si se abren los reclamos con esa fila dentro, se entregan 1.000
+   tokens **de verdad** contra un pago que no vale nada. Va primero porque es
+   corto y porque bloquea todo lo demás de la preventa.
+2. **Que entre gente.** El blog y compartir peleas, del apartado 5. Es lo único
+   de esta lista que cambia el juego de verdad: hoy hay **cuatro jugadores**, y
+   con cuatro no hay emparejamiento que valga, ni torneo que se llene, ni
+   economía que medir.
+3. **Torneos**, cuando el punto 2 haya dado fruto. Están construidos y
+   esperando; un cuadro de 8 con cuatro personas se ve vacío.
+4. **Token en mainnet**, con la lista del apartado 2 — y las tres cosas del
+   apartado 1 que no son código y siguen sin empezar.
+5. El resto.
 
 Lo pongo así porque **la economía no se rompe por falta de contenido, se rompe
-por falta de sumideros**, y porque un juego con token que nadie ve no tiene
-economía que romper. Primero que exista gente y que puedan comprobar que no les
-engañas; después el dinero.
+por falta de sumideros** —y de esos ya hay siete, cuatro recurrentes— y porque
+un juego con token que nadie ve no tiene economía que romper. Primero que exista
+gente y que puedan comprobar que no les engañas; después el dinero.
+
+**Lo que ha cambiado desde el 4 de agosto** es que la parte de «que puedan
+comprobar que no les engañas» está terminada. Falta la otra mitad: la gente.
