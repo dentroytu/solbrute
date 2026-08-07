@@ -401,7 +401,12 @@
        guadaña   dos tajos amplios, la mas fragil de todas
        baston    defensivo y velocisimo, pega poquisimo, dura 50 combates */
   const ARMAS = {
-    ninguna:  { id:"ninguna",  nombre:"Puños",    nivel:1, golpes:1, dmg:1.000, crit:0.00, esq: 0.00, ini: 0, def:1.00, perder:0,     fragil:0    },
+    /* El `nombre` viaja DENTRO del registro del combate —el evento de desarme
+       lo enseña tal cual— y este fichero pasa por el editor de Supabase, que
+       mangla el UTF-8. Asi que en ASCII, como los mensajes de la funcion.
+       Decia "Puños". Hoy no se puede llegar ahi (sin arma no te desarman) pero
+       una mina sin explotar en un fichero que se pega a mano acaba explotando. */
+    ninguna:  { id:"ninguna",  nombre:"Sin arma",    nivel:1, golpes:1, dmg:1.000, crit:0.00, esq: 0.00, ini: 0, def:1.00, perder:0,     fragil:0    },
     daga:     { id:"daga",     nombre:"Daga",     nivel:1, golpes:2, dmg:0.468, crit:0.05, esq: 0.02, ini: 2, def:1.00, perder:0.015, fragil:0.03 },
     escudo:   { id:"escudo",   nombre:"Escudo",   nivel:2, golpes:1, dmg:0.759, crit:0.00, esq: 0.01, ini:-1, def:0.72, perder:0.025, fragil:0.05 },
     maza:     { id:"maza",     nombre:"Maza",     nivel:3, golpes:1, dmg:1.021, crit:0.00, esq:-0.02, ini:-3, def:0.92, perder:0.020, fragil:0.04 },
