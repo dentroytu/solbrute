@@ -68,6 +68,13 @@ const casa = (fila: any, f: [string, string, string][]) => f.every(([k, op, v]) 
        mudo. Ver el ataque 14. */
     const lanzar = (globalThis as any).__RPC_LANZA;
     if (lanzar) return resp({ message: String(lanzar) }, 400);
+    /* El limite por IP. Por defecto deja pasar, que es lo que hace en la vida
+       real casi siempre; con `__LIMITE` se le puede hacer decir que no, para
+       comprobar que la funcion responde 429 y no se lo traga. */
+    if (fn === "limite_pedir") {
+      const l = (globalThis as any).__LIMITE;
+      return resp(l || { permitido: true, usado: 1, tope: 120, faltan: 60 });
+    }
     if (fn === "arma_comprar" || fn === "mascota_comprar")
       return resp({ bolsa: {}, balance: 0 });
     if (fn === "arma_equipar")    return resp({ arma: cuerpo?.p_arma, bolsa: {}, cambio: true });

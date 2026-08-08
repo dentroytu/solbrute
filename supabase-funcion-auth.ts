@@ -578,6 +578,70 @@ async function manejar(req: Request): Promise<Response> {
      juego, solo demuestran de quien es una wallet. Quien no sea admin entrara
      y se encontrara el 503 en la siguiente peticion — que es lo que se quiere,
      porque asi ve el cartel de mantenimiento en vez de un login que falla. */
+  /* ══════════ limite de peticiones por IP ══════════
+     Nada de esto impide robar —para eso estan los permisos— sino AGOTAR: mil
+     `nonce` por segundo llenan `auth_nonces`, mil `pelear` queman el
+     presupuesto de la funcion, y mil `pv_reservar` bloquean cupo de la
+     preventa cada quince minutos.
+
+     ── De donde sale la IP, que es lo unico que importa aqui ─────────────
+     De `x-forwarded-for`, y SOLO del primer valor. Esa cabecera la puede
+     escribir cualquiera —`curl -H "x-forwarded-for: loquesea"`— pero delante
+     de Supabase hay un proxy que la REESCRIBE anteponiendo la IP real. El
+     primer valor es el que pone el proxy; los de detras son los que mando el
+     cliente y no valen nada.
+
+     Si algun dia esto deja de estar detras de un proxy que la reescriba, este
+     limite pasa a ser decorativo: bastaria con cambiar la cabecera en cada
+     peticion. No hay forma de detectarlo desde aqui, asi que queda escrito.
+
+     ── Nunca dice que no por las malas ──────────────────────────────────
+     Si la consulta falla, se deja pasar. Es la misma decision que el
+     mantenimiento: un limite que tumba el juego cuando la base tiene un mal
+     momento es un interruptor de apagado que se activa solo. */
+  const PESO: Record<string, number> = {
+    /* Las caras: simulan un combate, escriben en la cadena o crean filas. */
+    pelear: 4, forjar: 4, arena: 2, nonce: 2, verify: 2,
+    pv_reservar: 4, pv_pagado: 4, pv_reclamar: 4, retirar: 4,
+  };
+  const TOPE_MIN = 120;   // por IP y minuto, en unidades de peso
+
+  const ipCliente = (req.headers.get("x-forwarded-for") || "")
+    .split(",")[0].trim().slice(0, 64);
+
+  if (ipCliente) {
+    let permiso: any = null;
+    try {
+      permiso = await db("/rpc/limite_pedir", {
+        method: "POST",
+        body: JSON.stringify({ p_ip: ipCliente, p_peso: PESO[accion] || 1,
+                               p_tope: TOPE_MIN, p_seg: 60 }),
+      });
+    } catch (e) {
+      /* Ni se bloquea ni se calla: sin el aviso, el dia que la tabla no exista
+         el limite estaria apagado y nadie se enteraria. */
+      console.warn("limite_pedir no responde, se deja pasar: " + (e as Error).message);
+    }
+
+    if (permiso && permiso.permitido === false) {
+      /* El administrador pasa, y la comprobacion va AQUI y no antes a
+         proposito: saber quien eres cuesta otra consulta, y pagarla en cada
+         peticion para un caso que casi nunca ocurre es al reves. Asi el coste
+         extra solo lo paga quien se ha pasado.
+
+         Y pasa por la misma razon que en el mantenimiento: si el panel se
+         bloqueara solo, te quedarias fuera justo cuando hace falta entrar. */
+      const quien = await duenoDe(cuerpo.token).catch(() => null);
+      if (!quien || !ADMINS.includes(quien)) {
+        return new Response(
+          JSON.stringify({ error: "demasiadas peticiones, espera un momento",
+                           clase: "limite", faltan: permiso.faltan }),
+          { status: 429, headers: { ...CORS, "Content-Type": "application/json",
+                                    "Retry-After": String(permiso.faltan || 60) } });
+      }
+    }
+  }
+
   const SIN_PUERTA = ["nonce", "verify"];
   if (accion === "estado") {
     const m = await mantenimiento();

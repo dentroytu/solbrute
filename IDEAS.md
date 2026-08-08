@@ -342,7 +342,7 @@ hacer es esperar.
 |---|---|---|
 | ✅ | ~~Copia de seguridad de la base~~ | `respaldo.mjs`, con comprobación. Se creyó una copia vacía la primera vez: la clave `anon` da `[]` en todo lo que tiene RLS |
 | ⬜ | **Página de estado pública** | reserva restante, emisión del día, tokens en circulación. Encaja con el tono del proyecto: se dice lo que hay |
-| ⬜ | Límite de peticiones por IP en la Edge Function | hoy nada impide machacar las rutas |
+| ✅ | ~~Límite de peticiones por IP~~ | `supabase-44-limite.sql`. 120 por IP y minuto, con las rutas caras pesando 4. Ver «El límite de peticiones» en `CLAUDE.md` |
 | ⬜ | Borrar `supabase-funcion-prueba-solana.ts` | ya cumplió: demostró que la Edge Function puede firmar |
 | ⬜ | Arte de personajes con ilustrador | el SVG a mano no llega a arte de producción. Capas en PNG sobre el sistema actual |
 | ⬜ | Programa Anchor en devnet | fase 2 del roadmap: personajes y resultados on-chain |

@@ -25,6 +25,7 @@ experiencia y sube de nivel.
 | `404.html` | La página de ruta no encontrada, con el arte del juego | Funcionando |
 | `blog.html` | **El blog**: lista y entrada, leídas de la base. Sin sesión | Funcionando |
 | `supabase-43-blog.sql` | `blog_posts` y su edición desde el panel. **Antes de la función** | Aplicado |
+| `supabase-44-limite.sql` | Límite de peticiones por IP. **Antes de la función** | Escrito |
 | `pelea.html` | **Una pelea, con su enlace, y se verifica sola** | Funcionando |
 | `prueba-verificable.mjs` | Comprueba que la verificación detecta una pelea manipulada | Herramienta |
 | `supabase-32-verificable.sql` | `fights.a_snapshot`. **Antes de la Edge Function** | Aplicado |
@@ -2179,6 +2180,67 @@ Es un `look` de diez enteros que dibuja `brute-render.js`, igual que un bruto.
 Sin ficheros que subir, sin nada que se pueda perder, y **funciona sobre
 `file://`** — una imagen externa no cargaría y dejaría el hueco en blanco. Se
 sortea al crear la entrada y se conserva al editarla.
+
+---
+
+## El límite de peticiones, y de dónde sale la IP
+
+`supabase-44-limite.sql`. Hasta ahora **nada impedía machacar las rutas**. No
+es un problema de permisos —esos están cerrados— sino de agotar: mil `nonce`
+por segundo llenan `auth_nonces`, mil `pelear` queman el presupuesto de la
+función, y mil `pv_reservar` bloquean cupo de la preventa cada quince minutos.
+Ninguno roba nada; todos hacen daño.
+
+**En Postgres, no en memoria.** Una Edge Function no guarda estado entre
+llamadas: arranca en frío, se duplica en varias instancias y se apaga sola. Un
+contador en memoria contaría una fracción de las peticiones y daría una falsa
+sensación de protección, que es peor que no tener nada porque se deja de mirar.
+
+### La IP es lo único que importa aquí
+
+Sale de `x-forwarded-for`, y **solo del primer valor**. Esa cabecera la puede
+escribir cualquiera con `curl`, pero delante de Supabase hay un proxy que la
+**reescribe** anteponiendo la IP real: el primer valor lo pone el proxy y los
+de detrás son lo que mandó el cliente.
+
+Coger el último —o la cabecera entera— convierte el límite en decoración:
+bastaría con mandar una IP inventada en cada petición para tener cupo infinito.
+El banco lo comprueba mandando `9.9.9.9, 1.2.3.4, 5.6.7.8` y exigiendo que se
+cuente contra el primero.
+
+**Si algún día esto deja de estar detrás de un proxy que la reescriba, el
+límite pasa a ser decorativo.** No hay forma de detectarlo desde el código, así
+que queda escrito aquí.
+
+### Las rutas caras cuestan más
+
+Una pelea simula un combate entero; leer el estado no hace nada. Cobrarlas
+igual obliga a elegir entre ahogar al que solo mira o dejar barata la que duele.
+`pelear` y `forjar` pesan 4, `nonce` y `verify` 2, el resto 1, sobre un tope de
+**120 por IP y minuto**.
+
+### Nunca dice que no por las malas
+
+Dos decisiones, y las dos son la misma lección del modo mantenimiento:
+
+- **Si la consulta falla, se deja pasar** — y se avisa en el log. Un límite que
+  tumba el juego cuando la base tiene un mal momento es un interruptor de
+  apagado que se activa solo. Y sin el aviso, el día que la tabla no exista
+  estaría apagado sin que nadie se entere.
+- **El administrador pasa.** La comprobación va *después* de que el límite diga
+  que no, no antes: saber quién eres cuesta otra consulta, y pagarla en cada
+  petición para un caso que casi nunca ocurre es al revés. Así el coste extra
+  solo lo paga quien se ha pasado.
+
+### Ventana fija, no deslizante
+
+Una fila por IP y minuto en vez de una por petición. El precio es que justo en
+el cambio de ventana se puede colar el doble del tope durante un instante. Para
+lo que protege esto, sobra.
+
+Y la limpieza es **perezosa** —un `delete` de lo viejo el 1% de las veces— por
+lo mismo que las reservas de la preventa: no hay tarea programada que
+mantener y que alguien pueda olvidarse de ejecutar.
 
 ---
 

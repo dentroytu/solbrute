@@ -37,8 +37,9 @@ function base58(bytes: Uint8Array){ const d:number[]=[];
   let out=""; for(const b of bytes){ if(b===0) out+="1"; else break; }
   for(let i=d.length-1;i>=0;i--) out+=ALF[d[i]]; return out; }
 
-const pedir = async (cuerpo:any) => {
-  const r = await H(new Request("http://x", { method:"POST", body: JSON.stringify(cuerpo) }));
+const pedir = async (cuerpo:any, cabeceras?:Record<string,string>) => {
+  const r = await H(new Request("http://x", { method:"POST", body: JSON.stringify(cuerpo),
+                                              headers: cabeceras }));
   return { s: r.status, d: await r.json().catch(()=>({})) };
 };
 
@@ -685,6 +686,66 @@ const saldo=(dir:string)=>T.players.find((x:any)=>x.address===dir)?.coins ?? 0;
     probar("colar una fecha inventada", mala.s >= 500 || RPC.some(r => r.fn === "blog_guardar"),
            `respondio ${mala.s}`);
 
+  }
+
+  /* ── 20 · el limite por IP ─────────────────────────────────────────────
+     Esto no protege de robar, protege de AGOTAR. Y tiene una particularidad
+     que lo hace facil de romper sin enterarse: si la IP se pudiera falsificar,
+     el limite no valdria nada — y si bloqueara al admin, seria un cerrojo por
+     dentro como el que ya tuvo el mantenimiento. */
+  {
+    const RPC = (globalThis as any).__RPC as {fn:string;args:any}[];
+    const G = globalThis as any;
+
+    /* La IP real la pone el proxy DELANTE de todo lo que mande el cliente. Si
+       la funcion cogiera el ultimo valor, o la cabecera entera, bastaria con
+       mandar una IP inventada en cada peticion para tener cupo infinito. */
+    RPC.length = 0;
+    await pedir({accion:"estado"}, {"x-forwarded-for":"9.9.9.9, 1.2.3.4, 5.6.7.8"});
+    const l = RPC.find(r=>r.fn==="limite_pedir");
+    probar("colar una IP inventada detras de la real",
+           !l || l.args.p_ip !== "9.9.9.9",
+           l ? `conto contra "${l.args.p_ip}"` : "no llamo al limite");
+
+    /* Las rutas caras tienen que costar mas que mirar el estado. Si todas
+       pesaran igual, el tope estaria calibrado o para ahogar al que solo mira
+       o para dejar barata la que duele. */
+    RPC.length = 0;
+    await pedir({accion:"nonce",address:A.dir}, {"x-forwarded-for":"7.7.7.7"});
+    const barata = RPC.find(r=>r.fn==="limite_pedir")?.args.p_peso;
+    RPC.length = 0;
+    await pedir({accion:"pelear",token:A.token,bruteId:A.id,version:C.VERSION},
+                {"x-forwarded-for":"7.7.7.7"});
+    const cara = RPC.find(r=>r.fn==="limite_pedir")?.args.p_peso;
+    probar("las rutas caras cuestan lo mismo que las baratas",
+           !(cara > barata), `nonce pesa ${barata}, pelear pesa ${cara}`);
+
+    /* Cuando Postgres dice que no, la funcion tiene que PARAR. */
+    G.__LIMITE = { permitido:false, usado:999, tope:120, faltan:30 };
+    const frenado = await pedir({accion:"estado"}, {"x-forwarded-for":"7.7.7.7"});
+    probar("seguir respondiendo con el limite pasado",
+           frenado.s !== 429, `respondio ${frenado.s}`);
+
+    /* Y el administrador pasa igual, o se queda fuera del panel justo cuando
+       hace falta entrar a arreglar algo. */
+    const AD3 = G.__ADMIN_DIR as string;
+    const TOK3 = "tok-limite-de-prueba-largo-32-bytes-ab";
+    T.sessions.push({ token: TOK3, address: AD3,
+                      expires_at: new Date(Date.now() + 3600e3).toISOString() });
+    const admin429 = await pedir({accion:"admin_resumen", token:TOK3},
+                                 {"x-forwarded-for":"7.7.7.7"});
+    probar("el limite deja al admin fuera de su panel",
+           admin429.s === 429, `el admin recibio ${admin429.s}`);
+
+    /* Si la tabla no responde, se DEJA PASAR. Un limite que tumba el juego
+       cuando la base va lenta es un interruptor de apagado que se activa solo
+       — la misma decision que la bandera de mantenimiento. */
+    G.__LIMITE = null;
+    G.__RPC_LANZA = "no existe la relacion peticiones";
+    const caido = await pedir({accion:"estado"}, {"x-forwarded-for":"7.7.7.7"});
+    G.__RPC_LANZA = null;
+    probar("un fallo del limite tumba el juego",
+           caido.s !== 200, `con la tabla caida respondio ${caido.s}`);
   }
 
   console.log("\n══════ RESULTADO ══════");

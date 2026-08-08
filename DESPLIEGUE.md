@@ -249,3 +249,38 @@ entradas y no guardarlas: las rutas `admin_blog_*` viven en esa función.
 Comprobación rápida cuando termines: entra al panel, pestaña **Blog**, y tienen
 que salir las cuatro. Si sale «Todavía no hay ninguna entrada», es que el SQL
 no llegó a correr — mira el resultado en la base, no el mensaje de éxito.
+
+---
+
+## Paso 44 · el límite de peticiones por IP
+
+```
+1. supabase-44-limite.sql   en el SQL Editor, pestaña NUEVA
+2. redesplegar `auth`
+```
+
+**El orden importa más que de costumbre, pero al revés de lo que parece.** Si
+se redespliega la función antes de aplicar el SQL, la tabla no existe,
+`limite_pedir` falla y la función **deja pasar** — el límite se queda apagado
+sin que nadie se entere, salvo por un aviso en los logs:
+
+```
+limite_pedir no responde, se deja pasar: ...
+```
+
+Eso es deliberado: entre bloquear el juego entero y quedarse sin límite un
+rato, se elige lo segundo. Pero significa que **el despliegue puede "funcionar"
+con la protección apagada**, así que hay que mirar los logs después.
+
+Comprobación: entra al juego, haz cualquier cosa, y mira los logs de la
+función. Si no aparece ese aviso, la tabla existe y el límite está contando.
+
+Para verlo contar de verdad:
+
+```sql
+select ip, ventana, n from peticiones order by ventana desc limit 10;
+```
+
+El tope son **120 por IP y minuto**, con las rutas caras pesando 4. Un jugador
+normal no se acerca; si alguna vez hay que subirlo, está en `TOPE_MIN` dentro
+de la Edge Function.
